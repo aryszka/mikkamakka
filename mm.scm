@@ -213,6 +213,7 @@
                      (else (cats " . "
                                  (sprintq (cdr exp) true true)
                                  ")")))))
+        ((table? exp) "[table]")
         ((error? exp)
          (sprint-error exp))
         (else
@@ -577,7 +578,7 @@
           (error 'eval-env "unknown expression type" exp))))
 
 (define (eval exp)
-  (eval-env mikkamakka exp))
+  (eval-env lang exp))
 
 ; compile
 (define (compile-pair context p)
@@ -749,17 +750,16 @@
       (let ((lowest (+ (car val) 1)))
         (if (< lowest base)
           (cons lowest (cdr val))
-          (cons 0 (inc (cdr val)))))))
+          (cons 0 (inc base (cdr val)))))))
   (define (print digits val)
     (if (null? val)
       (make-string-builder)
-      (sbappend (print (cdr val)) (char-at digits (car val)))))
+      (sbappend (print digits (cdr val)) (char-at digits (car val)))))
   (let ((digits "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
         (ref '()))
     (lambda ()
-      (let ((name (print digits ref)))
-        (set! val (inc (slen digits) ref))
-        name))))
+      (set! ref (inc (slen digits) ref))
+      (builder->string (print digits ref)))))
 
 (define (make-name-map)
   (let ((name-gen (make-name-gen))
@@ -872,7 +872,7 @@
     (cond ((not (null? shared))
            (compile-statement context (car shared))
            (iterate context (cdr shared)))))
-  (cond ((defined? 'shared-precompiled)
+  (cond ((table-has-name? lang 'shared-precompiled)
          (iterate context shared-precompiled))))
 
 ; read
@@ -1178,8 +1178,6 @@
   (append-token context 'eof)
   (parse-tokens context)
   (cond ((not (null? (read-tokens-list context)))
-         (log (vref (car (read-tokens-list context)) 0))
-         (log (token-complete? (vref (car (read-tokens-list context)) 0)))
          (error 'complete-read
                 "incomplete expression"
                 (read-tokens-list context)))
@@ -1292,16 +1290,16 @@
                (table-define done name true)
                (table-delete! shared name)
                (precompile head done ccontext pcontext shared))))))
-  (define (read-and-compile scm)
+  (define (read-and-compile names scm)
     (let ((read-context (make-read-context))
-          (ccontext (make-compile-context)))
+          (ccontext (make-compile-context names)))
       (read-string read-context scm)
       (let ((exps (shift-expressions read-context)))
         (complete-read read-context)
         (compile-sequence ccontext exps)
-        (let ((pcontext (make-compile-context)))
+        (let ((pcontext (make-compile-context names)))
           (compile-statement pcontext '(define shared-precompiled '()))
-          (precompile (create-env-head)
+          (precompile (extend-env lang)
                       (make-name-table)
                       ccontext
                       pcontext
@@ -1312,10 +1310,12 @@
           (out (builder->string (compile-buffer ccontext)))))))
   (compile-head
     (lambda ()
-      (let ((ccontext (make-compile-context)))
-        (compile-shared ccontext)
-        (out (builder->string (compile-buffer ccontext)))
-        (read-file (get-arg) read-and-compile)))))
+      (let ((names (make-name-map)))
+        (let ((ccontext (make-compile-context names)))
+          (compile-shared ccontext)
+          (out (builder->string (compile-buffer ccontext)))
+          (read-file (get-arg) (lambda (scm)
+                                 (read-and-compile names scm))))))))
 
 (define (caar l) (car (car l)))
 (define (cadr l) (car (cdr l)))
@@ -1394,14 +1394,15 @@
         (list 'cddddr cddddr)))
 
 (define (create-env)
-  (define (add env shared)
-    (if (null? shared)
-      env
-      (begin
-        (env (caar shared) true (cadar shared))
-        (add env (cdr shared)))))
-  (let ((env (create-env-head)))
-    (add env (shared))))
+  (define (list->table t l)
+    (cond ((null? l) t)
+          (else
+            (table-define t (caar l) (cadar l))
+            (list->table t (cdr l)))))
+  (extend-env lang
+              (list->table
+                (make-name-table)
+                (shared))))
 
 (let ((cmd (get-command)))
   (cond ((peq? cmd "repl")

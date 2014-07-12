@@ -1,4 +1,4 @@
-var lang = (function () {
+var env = (function () {
     var isSymbol = function (s) {
         return !!s &&
             s instanceof Array &&
@@ -18,22 +18,28 @@ var lang = (function () {
         return left === right;
     };
 
-    var filter = function (l, pred) {
+    var filter = function (pred, l) {
         if (isNull(l)) {
             return list();
         }
         return pred(car(l)) ?
-            cons(car(l), filter(l, cdr(l))) :
-            filter(l, cdr(l));
+            cons(car(l), filter(pred, cdr(l))) :
+            filter(pred, cdr(l));
+    };
+
+    var isTable = function (t) {
+        return !!(t && t.isTable);
     };
 
     var makeNameTable = function () {
         var names = [];
         var table = {};
-        return function (modNames, op) {
+        var t = function (modNames, op) {
             names = modNames(names, table);
             return op(names, table);
         };
+        t.isTable = true;
+        return t;
     };
 
     var tableNoop = function (names, _) {
@@ -84,47 +90,12 @@ var lang = (function () {
 
     var tableDelete = function (table, name) {
         return table(function (names, _) {
-            return filter(names, function (i) { return i[0] === name[0]; });
+            return filter(function (i) { return i[0] !== name[0]; }, names);
         }, function (_, table) {
             var has = name[0] in table;
             delete table[name[0]];
             return has;
         });
-    };
-
-    var extendEnv = function (env) {
-        var frame = {};
-        return function (name, def, value, check) {
-            if (isSymbol(name)) {
-                name = symbolName(name);
-            }
-            if (check) {
-                return name in frame;
-            }
-            if (def === true) {
-                frame[name] = value;
-                return value;
-            }
-            if (def === false) {
-                if (name in frame) {
-                    frame[name] = value;
-                    return value;
-                }
-                return env(name, def, value, check);
-            }
-            if (name in frame) {
-                return frame[name];
-            }
-            return env(name, def, value, check);
-        };
-    };
-
-    var isDefined = function (environment, name) {
-        if (arguments.length < 2) {
-            name = environment;
-            environment = env;
-        }
-        return environment(name, false, false, true);
     };
 
     var isNull = function (l) {
@@ -477,81 +448,125 @@ var lang = (function () {
         return l;
     };
 
-    var lang = makeNameTable();
-    tableDefine(lang, "compiled-procedure?", isCompiledProcedure);
-    tableDefine(lang, "capply", capply);
-    tableDefine(lang, "symbol?", isSymbol);
-    tableDefine(lang, "symbol-name", symbolName);
-    tableDefine(lang, "string->symbol", stringToSymbol);
-    tableDefine(lang, "identity", identity);
-    tableDefine(lang, "null?", isNull);
-    tableDefine(lang, "cons", cons);
-    tableDefine(lang, "pair?", isPair);
-    tableDefine(lang, "car", car);
-    tableDefine(lang, "cdr", cdr);
-    tableDefine(lang, "list", list);
-    tableDefine(lang, "peq?", peq);
-    tableDefine(lang, "try", tryc);
-    tableDefine(lang, "for", forLoop);
-    tableDefine(lang, "read-file", readFile);
-    tableDefine(lang, "read-line", readLine);
-    tableDefine(lang, "prompt", prompt);
-    tableDefine(lang, "set-prompt", setPrompt);
-    tableDefine(lang, "number?", isNumber);
-    tableDefine(lang, "parse-number", parseNumber);
-    tableDefine(lang, "+", add);
-    tableDefine(lang, "-", sub);
-    tableDefine(lang, "*", mul);
-    tableDefine(lang, "/", div);
-    tableDefine(lang, "%", mod);
-    tableDefine(lang, ">", gt);
-    tableDefine(lang, "<", lt);
-    tableDefine(lang, ">=", gte);
-    tableDefine(lang, "<=", lte);
-    tableDefine(lang, "string?", isString);
-    tableDefine(lang, "number->string", String);
-    tableDefine(lang, "slen", slen);
-    tableDefine(lang, "sidx", sidx);
-    tableDefine(lang, "char-at", charAt);
-    tableDefine(lang, "subs", subs);
-    tableDefine(lang, "sreplace", sreplace);
-    tableDefine(lang, "make-string-builder", mkStringBuilder);
-    tableDefine(lang, "string-builder?", isStringBuilder);
-    tableDefine(lang, "sbempty?", sbempty);
-    tableDefine(lang, "sbappend", sbappend);
-    tableDefine(lang, "builder->string", builderToString);
-    tableDefine(lang, "cats", cats);
-    tableDefine(lang, "out", out);
-    tableDefine(lang, "clog", log);
-    tableDefine(lang, "now", now);
-    tableDefine(lang, "time?", isTime);
-    tableDefine(lang, "number->time", numberToTime);
-    tableDefine(lang, "time->number", timeToNumber);
-    tableDefine(lang, "time->string", timeToString);
-    tableDefine(lang, "filter", filter);
-    tableDefine(lang, "make-name-table", makeNameTable);
-    tableDefine(lang, "table-has-name?", tableHasName);
-    tableDefine(lang, "table-names", tableNames);
-    tableDefine(lang, "table-lookup", tableLookup);
-    tableDefine(lang, "table-define", tableDefine);
-    tableDefine(lang, "table-set!", tableSet);
-    tableDefine(lang, "table-delete!", tableDelete);
-    tableDefine(lang, "cerror", cerror);
-    tableDefine(lang, "error?", isError);
-    tableDefine(lang, "sprint-error", sprintError);
-    tableDefine(lang, "sprint-stack", sprintStack);
-    tableDefine(lang, "exit", exit);
-    tableDefine(lang, "proc-argv", argv);
-    tableDefine(lang, "make-regexp", makeRegexp);
-    tableDefine(lang, "true");
-    tableDefine(lang, "false", false);
-    tableDefine(lang, "no-print", noPrint);
-    tableDefine(lang, "vector?", isVector);
-    tableDefine(lang, "vector", vector);
-    tableDefine(lang, "vlen", vlen);
-    tableDefine(lang, "vref", vref);
-    tableDefine(lang, "list->vector", listToVector);
-    tableDefine(lang, "vector->list", vectorToList);
-    tableDefine(lang, "lang", lang);
+    var head = makeNameTable();
+    var share = function (name, member) {
+        return tableDefine(head, [name], member);
+    };
+    share("compiled-procedure?", isCompiledProcedure);
+    share("capply", capply);
+    share("symbol?", isSymbol);
+    share("symbol-name", symbolName);
+    share("string->symbol", stringToSymbol);
+    share("identity", identity);
+    share("null?", isNull);
+    share("cons", cons);
+    share("pair?", isPair);
+    share("car", car);
+    share("cdr", cdr);
+    share("list", list);
+    share("peq?", peq);
+    share("try", tryc);
+    share("for", forLoop);
+    share("read-file", readFile);
+    share("read-line", readLine);
+    share("prompt", prompt);
+    share("set-prompt", setPrompt);
+    share("number?", isNumber);
+    share("parse-number", parseNumber);
+    share("+", add);
+    share("-", sub);
+    share("*", mul);
+    share("/", div);
+    share("%", mod);
+    share(">", gt);
+    share("<", lt);
+    share(">=", gte);
+    share("<=", lte);
+    share("string?", isString);
+    share("number->string", String);
+    share("slen", slen);
+    share("sidx", sidx);
+    share("char-at", charAt);
+    share("subs", subs);
+    share("sreplace", sreplace);
+    share("make-string-builder", mkStringBuilder);
+    share("string-builder?", isStringBuilder);
+    share("sbempty?", sbempty);
+    share("sbappend", sbappend);
+    share("builder->string", builderToString);
+    share("cats", cats);
+    share("out", out);
+    share("clog", log);
+    share("now", now);
+    share("time?", isTime);
+    share("number->time", numberToTime);
+    share("time->number", timeToNumber);
+    share("time->string", timeToString);
+    share("filter", filter);
+    share("table?", isTable);
+    share("make-name-table", makeNameTable);
+    share("table-has-name?", tableHasName);
+    share("table-names", tableNames);
+    share("table-lookup", tableLookup);
+    share("table-define", tableDefine);
+    share("table-set!", tableSet);
+    share("table-delete!", tableDelete);
+    share("cerror", cerror);
+    share("error?", isError);
+    share("sprint-error", sprintError);
+    share("sprint-stack", sprintStack);
+    share("exit", exit);
+    share("proc-argv", argv);
+    share("make-regexp", makeRegexp);
+    share("true", true);
+    share("false", false);
+    share("no-print", noPrint);
+    share("vector?", isVector);
+    share("vector", vector);
+    share("vlen", vlen);
+    share("vref", vref);
+    share("list->vector", listToVector);
+    share("vector->list", vectorToList);
+
+    // patch
+    var extendEnv = function (env, shared) {
+        var current = {
+            parent: env,
+            shared: shared || makeNameTable()
+        };
+        return function () {
+            if (arguments.length === 1) {
+                if (tableHasName(current.shared, [arguments[0]])) {
+                    return tableLookup(current.shared, [arguments[0]]);
+                }
+                if (!current.parent) {
+                    return cerror("extend-env", "unbound variable", arguments[0]);
+                }
+                return current.parent(arguments[0]);
+            }
+            if (arguments[1]) {
+                return tableDefine(current.shared, [arguments[0]], arguments[2]);
+            }
+            if (tableHasName(current.shared, [arguments[0]])) {
+                return tableSet(current.shared, [arguments[0]], arguments[2]);
+            }
+            if (!current.parent) {
+                return cerror("extend-env", "unbound variable", arguments[0]);
+            }
+            return current.parent(arguments[0], false, arguments[2]);
+        };
+    };
+    var isDefined = function (env, name) {
+        try {
+            env(name);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    };
+    var lang = extendEnv(null, head);
+    share("extend-env", extendEnv);
+    share("defined?", isDefined);
+    share("lang", lang);
     return lang;
 })();
