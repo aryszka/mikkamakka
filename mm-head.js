@@ -448,9 +448,9 @@ var env = (function () {
         return l;
     };
 
-    var head = makeNameTable();
+    var shared = makeNameTable();
     var share = function (name, member) {
-        return tableDefine(head, [name], member);
+        return tableDefine(shared, [name], member);
     };
     share("compiled-procedure?", isCompiledProcedure);
     share("capply", capply);
@@ -564,9 +564,11 @@ var env = (function () {
             return false;
         }
     };
-    var lang = extendEnv(null, head);
+    var head = extendEnv(null, shared);
+    var mikkamakka = extendEnv(head);
     share("extend-env", extendEnv);
     share("defined?", isDefined);
-    share("lang", lang);
-    return lang;
+    share("head", head);
+    share("mikkamakka", mikkamakka);
+    return mikkamakka;
 })();

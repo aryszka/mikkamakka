@@ -578,7 +578,7 @@
           (error 'eval-env "unknown expression type" exp))))
 
 (define (eval exp)
-  (eval-env lang exp))
+  (eval-env mikkamakka exp))
 
 ; compile
 (define (compile-pair context p)
@@ -872,7 +872,7 @@
     (cond ((not (null? shared))
            (compile-statement context (car shared))
            (iterate context (cdr shared)))))
-  (cond ((table-has-name? lang 'shared-precompiled)
+  (cond ((defined? mikkamakka 'shared-precompiled)
          (iterate context shared-precompiled))))
 
 ; read
@@ -1299,7 +1299,7 @@
         (compile-sequence ccontext exps)
         (let ((pcontext (make-compile-context names)))
           (compile-statement pcontext '(define shared-precompiled '()))
-          (precompile (extend-env lang)
+          (precompile (extend-env head)
                       (make-name-table)
                       ccontext
                       pcontext
@@ -1399,7 +1399,7 @@
           (else
             (table-define t (caar l) (cadar l))
             (list->table t (cdr l)))))
-  (extend-env lang
+  (extend-env mikkamakka
               (list->table
                 (make-name-table)
                 (shared))))
