@@ -283,6 +283,10 @@ var env = (function () {
         return s[i];
     };
 
+    var charCodeAt = function (s, i) {
+        return s.charCodeAt(s, i);
+    };
+
     var subs = function (s, offset, count) {
         if (count < 0) {
             return s.substr(offset);
@@ -487,6 +491,7 @@ var env = (function () {
     share("slen", slen);
     share("sidx", sidx);
     share("char-at", charAt);
+    share("char-code-at", charCodeAt);
     share("subs", subs);
     share("sreplace", sreplace);
     share("make-string-builder", mkStringBuilder);
@@ -535,6 +540,9 @@ var env = (function () {
             shared: shared || makeNameTable()
         };
         return function () {
+            if (arguments.length === 4 && arguments[3]) {
+                return tableNames(current.shared);
+            }
             if (arguments.length === 1) {
                 if (tableHasName(current.shared, [arguments[0]])) {
                     return tableLookup(current.shared, [arguments[0]]);

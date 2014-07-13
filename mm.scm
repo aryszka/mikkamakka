@@ -41,6 +41,9 @@
 ; read/print struct
 ; review head to not allow emitting illegal types to scheme namespace
 ; convert string builder to function
+; intelligent scoping of mapped names
+; test intertwining statements and expressions
+; make sure no invalid types sneak in the scheme environment
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -610,26 +613,27 @@
         (else (error 'compile-literal "unknown type" exp))))
 
 (define (compile-variable context exp)
-  (compile-write context "env(")
-  (compile-write context (sprint (symbol-name exp)))
-  (compile-write context ")")
+  (compile-write context (map-name context exp))
   (add-compile-dependency context exp))
 
 (define (compile-assignment context exp)
-  (compile-write context "env(")
-  (compile-write context (sprint (symbol-name (assignment-variable exp))))
-  (compile-write context ",false,")
-  (compile-exp context (assignment-value exp))
-  (compile-write context ")"))
+  (compile-write context (map-name context (assignment-variable exp)))
+  (compile-write context "=")
+  (compile-exp context (assignment-value exp)))
 
-(define (compile-definition context exp)
+(define (compile-definition context exp last?)
   (add-compile-definition context (definition-variable exp) exp)
   (push-compile-scope context (definition-variable exp))
-  (compile-write context "env(")
-  (compile-write context (sprint (symbol-name (definition-variable exp))))
-  (compile-write context ",true,")
+  (compile-write context "/*")
+  (compile-write context (symbol-name (definition-variable exp)))
+  (compile-write context "*/ var ")
+  (compile-write context (map-name context (definition-variable exp)))
+  (compile-write context ";")
+  (cond (last?
+          (compile-write context "return ")))
+  (compile-write context (map-name context (definition-variable exp)))
+  (compile-write context "=")
   (compile-exp context (definition-value exp))
-  (compile-write context ")")
   (pop-compile-scope context))
 
 (define (compile-if context exp)
@@ -645,43 +649,26 @@
   (cond ((null? seq)
          (error 'compile-sequence "unspecified sequence" seq))
         ((null? (cdr seq))
-         (compile-write context "return ")
-         (compile-statement context (car seq)))
+         (compile-statement context (car seq) true))
         (else
-          (compile-statement context (car seq))
+          (compile-statement context (car seq) false)
           (compile-sequence context (cdr seq)))))
 
+(define (compile-parameters context parameters)
+  (define (compile-parameters parameters first?)
+    (cond ((null? parameters) 'ok)
+          (else
+            (cond ((not first?) (compile-write context ",")))
+            (compile-exp context (car parameters))
+            (compile-parameters (cdr parameters) false))))
+  (compile-parameters parameters true))
+
 (define (compile-procedure context parameters body)
-  (define (compile-parameters params params-out count)
-    (if (null? params)
-      (begin
-        (compile-write context "(arguments.length===")
-        (compile-write context (sprint count))
-        (compile-write context ")?false:env(\"cerror\")(\"arguments\",\"invalid arity\",")
-        (compile-write context (sprint count))
-        (compile-write context ");")
-        (compile-write context (builder->string params-out)))
-      (begin
-        (add-compile-definition context (car params) 'argument)
-        (compile-parameters (cdr params)
-                            (sbappend
-                              (sbappend
-                                (sbappend
-                                  (sbappend
-                                    (sbappend
-                                      (sbappend params-out "env(")
-                                      (sprint (symbol-name (car params))))
-                                    ",true,")
-                                  "arguments[")
-                                (sprint count))
-                              "]);")
-                            (+ count 1)))))
-  (compile-write context "(function(penv){")
-  (compile-write context "return function(){")
-  (compile-write context "var env=penv(\"extend-env\")(penv);")
-  (compile-parameters parameters (make-string-builder) 0)
+  (compile-write context "(function(")
+  (compile-parameters context parameters)
+  (compile-write context "){")
   (compile-sequence context body)
-  (compile-write context "};})(env)"))
+  (compile-write context "})"))
 
 (define (compile-begin context actions)
   (compile-write context "(function(){")
@@ -689,15 +676,9 @@
   (compile-write context "})()"))
 
 (define (compile-application context proc args)
-  (define (compile-args args first)
-    (cond ((not (null? args))
-           (cond ((not first) (compile-write context ",")))
-           (compile-exp context (car args))
-           (compile-args (cdr args) false))))
-  (compile-write context "(")
   (compile-exp context proc)
-  (compile-write context ")(")
-  (compile-args args true)
+  (compile-write context "(")
+  (compile-parameters context args)
   (compile-write context ")"))
 
 (define (compile-exp context exp)
@@ -707,8 +688,8 @@
         ((quote? exp) (compile-literal context (quote-text exp)))
         ((assignment? exp) (check-assignment exp)
                            (compile-assignment context exp))
-        ((definition? exp) (check-definition exp)
-                           (compile-definition context exp))
+        ((definition? exp)
+         (error 'compile-exp "definition not allowed as expression" exp))
         ((if? exp) (check-if exp)
                    (compile-if context exp))
         ((lambda? exp) (check-lambda exp)
@@ -732,8 +713,15 @@
         (else
           (error 'compile-exp "invalid expression" exp))))
 
-(define (compile-statement context exp)
-  (compile-exp context exp)
+(define (compile-statement context exp last?)
+  (cond ((definition? exp)
+         (check-definition exp)
+         (compile-definition context exp last?))
+        (last?
+          (compile-write context "return ")
+          (compile-exp context exp))
+        (else
+          (compile-exp context exp)))
   (compile-write context ";"))
 
 (define (make-compile-scope name)
@@ -753,7 +741,7 @@
           (cons 0 (inc base (cdr val)))))))
   (define (print digits val)
     (if (null? val)
-      (make-string-builder)
+      (sbappend (make-string-builder) "_")
       (sbappend (print digits (cdr val)) (char-at digits (car val)))))
   (let ((digits "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
         (ref '()))
@@ -782,8 +770,17 @@
 (define (context-names context)
   (table-lookup context 'names))
 
-(define (map-name context name)
+(define (map-name-gen context name)
   ((context-names context) name))
+
+(define (map-name context name)
+  (cats "_"
+        (sreplace (symbol-name name)
+                  "\\W"
+                  (lambda (s _ _)
+                    (cats "_"
+                          (sprint (char-code-at s 0))
+                          "_")))))
 
 (define (scope-name scope)
   (table-lookup scope 'name))
@@ -861,7 +858,7 @@
               (list 'quote exp)
               'shared-precompiled)))
 
-(define (compile-head clb)
+(define (copy-head clb)
   (read-file "mm-head.js"
              (lambda (data)
                (out data)
@@ -870,10 +867,15 @@
 (define (compile-shared context)
   (define (iterate context shared)
     (cond ((not (null? shared))
-           (compile-statement context (car shared))
+           (compile-statement context (car shared) false)
+           (cond ((definition? (car shared))
+                  (compile-write context "env(\"")
+                  (compile-write context (symbol-name (definition-variable (car shared))))
+                  (compile-write context "\",true,")
+                  (compile-write context (map-name context (definition-variable (car shared))))
+                  (compile-write context ");")))
            (iterate context (cdr shared)))))
-  (cond ((defined? mikkamakka 'shared-precompiled)
-         (iterate context shared-precompiled))))
+  (iterate context shared-precompiled))
 
 ; read
 (define tokenizer-expression
@@ -906,7 +908,7 @@
 (define (make-read-context)
   (let ((context (make-name-table))
         (tokens (make-name-table)))
-    (table-define tokens 'vectors '())
+    (table-define tokens 'fragments '())
     (table-define tokens 'ref 0)
     (table-define context 'tokens tokens)
     (table-define context 'stack '())
@@ -917,7 +919,7 @@
   (table-lookup context 'tokens))
 
 (define (read-tokens-list context)
-  (table-lookup (read-tokens context) 'vectors))
+  (table-lookup (read-tokens context) 'fragments))
 
 (define (read-token-ref context)
   (table-lookup (read-tokens context) 'ref))
@@ -1074,18 +1076,17 @@
         (string->symbol (unescape-symbol token))))))
 
 (define (parse-token context token)
-  (let ((char0 (char-at token 0)))
-    (cond ((peq? token "(") (push-list context))
-          ((peq? token "#(") (push-vector context))
-          ((peq? token ")") (close-current-list context))
-          ((peq? token "'") (push-quote context))
-          ((peq? (char-at token 0) "\"") (cons-string context token))
-          ((peq? (char-at token 0) "#")
-           (error 'parse-token "unrecognized type escape" token))
-          ((not (peq? (char-at token 0) ";")) (cons-token context token)))))
+  (cond ((peq? token "(") (push-list context))
+        ((peq? token "#(") (push-vector context))
+        ((peq? token ")") (close-current-list context))
+        ((peq? token "'") (push-quote context))
+        ((peq? (char-at token 0) "\"") (cons-string context token))
+        ((peq? (char-at token 0) "#")
+         (error 'parse-token "unrecognized type escape" token))
+        ((not (peq? (char-at token 0) ";")) (cons-token context token))))
 
 (define (shift-tokens context)
-  (table-set! (read-tokens context) 'vectors '())
+  (table-set! (read-tokens context) 'fragments '())
   (table-set! (read-tokens context) 'ref 0))
 
 (define (parse-tokens context)
@@ -1143,7 +1144,7 @@
 
 (define (append-tokens context tokens)
   (table-set! (read-tokens context)
-              'vectors
+              'fragments
               (append (read-tokens-list context)
                       (list tokens))))
 
@@ -1266,6 +1267,14 @@
   (read-file (get-arg) read-and-eval))
 
 (define (compile)
+  (define (compile-head-references hcontext head-names)
+    (cond ((not (null? head-names))
+           (compile-write hcontext "var ")
+           (compile-write hcontext (map-name hcontext (car head-names)))
+           (compile-write hcontext "=env(\"")
+           (compile-write hcontext (car head-names))
+           (compile-write hcontext "\");")
+           (compile-head-references hcontext (cdr head-names)))))
   (define (precompile head done ccontext pcontext shared)
     (let ((shared-names (table-names shared)))
       (cond ((not (null? shared-names))
@@ -1278,7 +1287,8 @@
                         pcontext
                         (precompile-exp (table-lookup
                                           (compile-expressions ccontext)
-                                          name)))
+                                          name))
+                        false)
                       (copy-table-filtered
                         (table-lookup
                           (compile-definitions ccontext)
@@ -1292,13 +1302,18 @@
                (precompile head done ccontext pcontext shared))))))
   (define (read-and-compile names scm)
     (let ((read-context (make-read-context))
+          (hcontext (make-compile-context names))
           (ccontext (make-compile-context names)))
+      (compile-head-references hcontext
+                               (head false false false true))
       (read-string read-context scm)
       (let ((exps (shift-expressions read-context)))
         (complete-read read-context)
         (compile-sequence ccontext exps)
         (let ((pcontext (make-compile-context names)))
-          (compile-statement pcontext '(define shared-precompiled '()))
+          (compile-statement pcontext
+                             '(define shared-precompiled '())
+                             false)
           (precompile (extend-env head)
                       (make-name-table)
                       ccontext
@@ -1306,9 +1321,10 @@
                       (to-table (shared)
                                 (lambda (i) (car i))
                                 identity))
+          (out (builder->string (compile-buffer hcontext)))
           (out (builder->string (compile-buffer pcontext)))
           (out (builder->string (compile-buffer ccontext)))))))
-  (compile-head
+  (copy-head
     (lambda ()
       (let ((names (make-name-map)))
         (let ((ccontext (make-compile-context names)))
