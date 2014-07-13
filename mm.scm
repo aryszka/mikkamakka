@@ -44,6 +44,7 @@
 ; intelligent scoping of mapped names
 ; test intertwining statements and expressions
 ; make sure no invalid types sneak in the scheme environment
+; defined? not always working, only when explicitly set to shared
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -1407,7 +1408,8 @@
         (list 'cdaddr cdaddr)
         (list 'cddadr cddadr)
         (list 'cdddar cdddar)
-        (list 'cddddr cddddr)))
+        (list 'cddddr cddddr)
+        (list 'shared-precompiled shared-precompiled)))
 
 (define (create-env)
   (define (list->table t l)
