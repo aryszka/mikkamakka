@@ -1,10 +1,10 @@
 ; optimize:
-; - reader again: pure reading, full tokens, complex construction
+; - switch js engine
 ; - benchmarks and profiling
 ; - measure next biggest loss
-; - create a checked mode and an unchecked mode, and apply the checks only there
-; - complete syntax check during compilation
 ; debug utilities: stack
+; complete syntax check during compilation
+; readd checks, where necessary
 ; sprint escaping: compound and compiled procedures
 ; check expression check. e.g. don't allow lambda parameters other then symbols
 ; tail recursion optimization:
@@ -45,6 +45,7 @@
 ; test intertwining statements and expressions
 ; make sure no invalid types sneak in the scheme environment
 ; defined? not always working, only when explicitly set to shared
+; repl exits on unexptected closing paren
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -676,6 +677,67 @@
   (compile-sequence context actions)
   (compile-write context "})()"))
 
+(define (car? exp)
+  (and (tagged-list? exp 'car)
+       (eq? (len exp) 2)))
+
+(define (compile-car context exp)
+  (compile-exp context (cadr exp))
+  (compile-write context "[0]"))
+
+(define (cdr? exp)
+  (and (tagged-list? exp 'cdr)
+       (eq? (len exp) 2)))
+
+(define (compile-cdr context exp)
+  (compile-exp context (cadr exp))
+  (compile-write context "[1]"))
+
+(define c[ad]+r-rx (make-regexp "^c[ad]+r$" ""))
+
+(define (c[ad]+r? exp)
+  (and (pair? exp)
+       (eq? (len exp) 2)
+       (string? (symbol-name (car exp)))
+       (> (vlen (c[ad]+r-rx (symbol-name (car exp)))) 0)))
+
+(define (compile-c[ad]+r context exp)
+  (define (iter name ref)
+    (cond ((< ref 0) 'ok)
+          (else
+            (compile-write
+              context
+              (if (eq? (char-at name ref) "a")
+                "[0]"
+                "[1]"))
+            (iter name (- ref 1)))))
+  (compile-exp context (cadr exp))
+  (let ((name (symbol-name (car exp))))
+    (iter (subs name 1 (- (slen name) 2))
+          (- (slen name) 3))))
+
+(define (cons? exp)
+  (and (tagged-list? exp 'cons)
+       (eq? (len exp) 3)))
+
+(define (compile-cons context exp)
+  (compile-write context "[")
+  (compile-exp context (cadr exp))
+  (compile-write context ",")
+  (compile-exp context (caddr exp))
+  (compile-write context "]"))
+
+(define (list-constructor? exp)
+  (and (tagged-list? exp 'list)))
+
+(define (compile-list-constructor context exp)
+  (cond ((null? (cdr exp)) (compile-write context "[]"))
+        (else (compile-exp
+                context
+                (list 'cons
+                      (cadr exp)
+                      (cons 'list (cddr exp)))))))
+
 (define (compile-application context proc args)
   (compile-exp context proc)
   (compile-write context "(")
@@ -707,6 +769,9 @@
         ((or? exp) (compile-exp context (or->if exp)))
         ((let? exp) (check-let exp)
                     (compile-exp context (let->procedure exp)))
+        ((c[ad]+r? exp) (compile-c[ad]+r context exp))
+        ((cons? exp) (compile-cons context exp))
+        ((list-constructor? exp) (compile-list-constructor context exp))
         ((application? exp)
          (compile-application context
                               (operator exp)
