@@ -1,23 +1,20 @@
-; optimize:
-; - switch js engine
-; - benchmarks and profiling
-; - measure next biggest loss
-; debug utilities: stack
-; complete syntax check during compilation
-; readd checks, where necessary
-; sprint escaping: compound and compiled procedures
-; check expression check. e.g. don't allow lambda parameters other then symbols
+; read/print structs
 ; tail recursion optimization:
 ; - tail context definition in r6rs
-; don't override members in the global environment (currently in compile)
-; remove code duplication between eval and compile, and others
 ; missing syntax:
 ; - let*, letrec
 ; arbitrary number of variables
 ; - check what needs to be a variadic
-; introduce macros
 ; create quasiquotation
-; generate ca/dr shortcuts
+; introduce macros
+; verify that no foreign values can get in the mikkamakka env
+; interop
+; - reimplement io functions with interop
+; sprint escaping: compound and compiled procedures
+; complete syntax check during compilation
+; - check expression check. e.g. don't allow lambda parameters other then symbols
+; don't override members in the global environment (currently in compile)
+; remove code duplication between eval and compile, and others
 ; delete functionality
 ; rename sbuilder, find similar lisp name
 ; introduce ports
@@ -25,27 +22,16 @@
 ; load file into repl
 ; vim repl: http://www.vim.org/scripts/script.php?script_id=4336
 ; rewrite compilation with quasiquotation
-; interop
-; - reimplement io functions with interop
-; verify that no foreign values can get in the mikkamakka env
-; create a hashmap
-; utilize standard input
-; replace env with name table
 ; replace symbol-name with symbol->string
-; check if eval shared needs to make a new environment every time
 ; don't compile precompiled if no expression defined
-; make it more concise, maybe accept alternatives for lambda, like fn
 ; fix sprint: escape mikkamakka characters (non-printing and escaped characters)
 ; fix sprinting: '|\||
-; unbind non-shared dependencies
-; read/print struct
-; review head to not allow emitting illegal types to scheme namespace
-; convert string builder to function
 ; intelligent scoping of mapped names
-; test intertwining statements and expressions
-; make sure no invalid types sneak in the scheme environment
 ; defined? not always working, only when explicitly set to shared
 ; repl exits on unexptected closing paren
+; print true, false
+; evaluator doesn't fail on invalid arity?
+; try to save some reverses during read
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -184,6 +170,30 @@
     (set! builder (sbappend builder ")"))
     (builder->string builder)))
 
+(define (sprintq-struct s)
+  (define (sprint-struct-members builder s names first?)
+    (cond ((null? names) builder)
+          (else
+            (sprint-struct-members
+              (sbappend
+                (if first? builder (sbappend builder " "))
+                (sprintq
+                  (list (car names)
+                        (table-lookup s (car names)))
+                  true
+                  false))
+              s
+              (cdr names)
+              false))))
+  (builder->string
+    (sbappend
+      (sprint-struct-members
+        (sbappend (make-string-builder) "#s(")
+        s
+        (table-names s)
+        true)
+      ")")))
+
 (define (sprintq exp quoted? in-list?)
   (cond ((peq? exp false) "false")
         ((peq? exp true) "true")
@@ -218,7 +228,7 @@
                      (else (cats " . "
                                  (sprintq (cdr exp) true true)
                                  ")")))))
-        ((table? exp) "[table]")
+        ((table? exp) (sprintq-struct exp))
         ((error? exp)
          (sprint-error exp))
         (else
@@ -556,6 +566,7 @@
   (cond ((self-evaluating? exp) exp)
         ((symbol? exp) (env exp))
         ((vector? exp) exp)
+        ((struct? exp) exp)
         ((quote? exp) (check-quote exp)
                       (quote-text exp))
         ((assignment? exp) (check-assignment exp)
@@ -606,12 +617,27 @@
                false)))))
   (compile-write context "]}"))
 
+(define (compile-struct context s)
+  (define (compile-member name)
+    (compile-write context (sprint (symbol-name name)))
+    (compile-write context ":"))
+  (define (recur s names first?)
+    (cond ((null? names) 'ok)
+          (else
+            (cond ((not first?) (compile-write ",")))
+            (compile-member (car names))
+            (recur s (cdr names) false))))
+  (compile-write context "{table: {")
+  (recur s (table-names s) true)
+  (compile-write context "}}"))
+
 (define (compile-literal context exp)
   (cond ((self-evaluating? exp) (compile-write context (sprint exp)))
         ((symbol? exp) (compile-write context (cats "[" (sprint (symbol-name exp)) "]")))
         ((null? exp) (compile-write context "[]"))
         ((pair? exp) (compile-pair context exp))
         ((vector? exp) (compile-vector context exp))
+        ((struct? exp) (compile-struct context exp))
         (else (error 'compile-literal "unknown type" exp))))
 
 (define (compile-variable context exp)
@@ -748,6 +774,7 @@
   (cond ((self-evaluating? exp) (compile-literal context exp))
         ((symbol? exp) (compile-variable context exp))
         ((vector? exp) (compile-literal context exp))
+        ((struct? exp) (compile-literal context exp))
         ((quote? exp) (compile-literal context (quote-text exp)))
         ((assignment? exp) (check-assignment exp)
                            (compile-assignment context exp))
@@ -948,6 +975,7 @@
   '(";[^\\n]*\\n?|"                    ; comment
     "\\(|\\)|"                         ; list open, list/vector close
     "#\\(|"                            ; vector open
+    "#s\\(|"                           ; struct open
     "'|"                               ; quote
     "\"(\\\\\\\\|\\\\\"|[^\"])*\"?|"   ; string
     "(\\\\.|"                          ; symbol: single escape
@@ -962,6 +990,7 @@
     "\\(|"                                  ; list open
     "\\)|"                                  ; list/vector close
     "#\\(|"                                 ; vector open
+    "#s\\(|"                                ; struct open
     "'|"                                    ; quote
     "\"(\\\\\"|\\\\[^\"]|[^\\\\\"])*\"|"    ; string
     "(\\\\.|"                               ; no single escape
@@ -1087,6 +1116,9 @@
 (define (push-vector context)
   (push-list-type context 'vector))
 
+(define (push-struct context)
+  (push-list-type context 'struct))
+
 (define (replace-read-list context list)
   (table-set! (current-stack-frame context) 'list list))
 
@@ -1105,9 +1137,13 @@
 (define (close-current-list context)
   (if (read-stack-empty? context)
     (error 'close-current-list "unexpected closing paren" context)
-    (let ((closed (if (eq? (current-read-list-type context) 'vector)
-                    (apply vector (reverse (current-read-list context)))
-                    (reverse (current-read-list context)))))
+    (let ((closed
+            (cond ((eq? (current-read-list-type context) 'vector)
+                   (apply vector (reverse (current-read-list context))))
+                  ((eq? (current-read-list-type context) 'struct)
+                   (apply struct (current-read-list context)))
+                  (else
+                    (reverse (current-read-list context))))))
       (table-set! context 'stack (cdr (read-stack context)))
       (cons-read-tag context closed))))
 
@@ -1144,6 +1180,7 @@
 (define (parse-token context token)
   (cond ((peq? token "(") (push-list context))
         ((peq? token "#(") (push-vector context))
+        ((peq? token "#s(") (push-struct context))
         ((peq? token ")") (close-current-list context))
         ((peq? token "'") (push-quote context))
         ((peq? (char-at token 0) "\"") (cons-string context token))
@@ -1437,10 +1474,6 @@
         (list 'newline newline)
         (list 'error error)
         (list 'not not)
-        (list 'make-name-table make-name-table)
-        (list 'table-define table-define)
-        (list 'table-lookup table-lookup)
-        (list 'table-set! table-set!)
         (list 'append append)
         (list 'sprint sprint)
         (list 'reverse reverse)

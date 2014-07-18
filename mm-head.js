@@ -28,74 +28,52 @@ var env = (function () {
     };
 
     var isTable = function (t) {
-        return !!(t && t.isTable);
+        return !!(t && t.table);
     };
 
     var makeNameTable = function () {
-        var names = [];
-        var table = {};
-        var t = function (modNames, op) {
-            names = modNames(names, table);
-            return op(names, table);
-        };
-        t.isTable = true;
-        return t;
-    };
-
-    var tableNoop = function (names, _) {
-        return names;
+        return {table: {}};
     };
 
     var tableNames = function (table) {
-        return table(tableNoop, tableNoop);
+        var names = [];
+        for (var sname in table.table) {
+            names = [[sname], names];
+        }
+        return names;
     };
 
     var tableHasName = function (table, name) {
-        return table(tableNoop, function (_, table) {
-            return symbolName(name) in table;
-        });
+        return symbolName(name) in table.table;
     };
 
     var tableLookup = function (table, name) {
-        return table(tableNoop, function (_, table) {
-            name = symbolName(name);
-            var val = table[name];
-            if (val === undefined) {
-                return cerror("tableLookup", "name is not defined", name);
-            }
-            return val;
-        });
+        var val = table.table[symbolName(name)];
+        if (typeof val === "undefined") {
+            return cerror("tableLookup", "name is not defined", name);
+        }
+        return val;
     };
 
     var tableDefine = function (table, name, val) {
-        var sname = symbolName(name);
-        return table(function (names, table) {
-            return sname in table ? names : [name, names];
-        }, function (_, table) {
-            table[sname] = val;
-            return val;
-        });
+        table.table[symbolName(name)] = val;
+        return val;
     };
 
     var tableSet = function (table, name, val) {
-        return table(tableNoop, function (_, table) {
-            name = symbolName(name);
-            if (!(name in table)) {
-                return cerror("tableSet", "name is not defined", name);
-            }
-            table[name] = val;
-            return val;
-        });
+        if (!tableHasName(table, name)) {
+            return cerror("tableSet", "name is not defined", name);
+        }
+        table.table[symbolName(name)] = val;
+        return val;
     };
 
     var tableDelete = function (table, name) {
-        return table(function (names, _) {
-            return filter(function (i) { return i[0] !== name[0]; }, names);
-        }, function (_, table) {
-            var has = name[0] in table;
-            delete table[name[0]];
-            return has;
-        });
+        var has = tableHasName(table, name);
+        if (has) {
+            delete table.table[name];
+        }
+        return has;
     };
 
     var isNull = function (l) {
@@ -452,6 +430,20 @@ var env = (function () {
         return l;
     };
 
+    var struct = function () {
+        var s = makeNameTable();
+        for (var i = 0; i < arguments.length; i++) {
+            var l = arguments[i];
+            if (l.length < 2 ||
+                l[1].length < 2 ||
+                l[1][1].length !== 0) {
+                return cerror("struct", "invalid struct member", l);
+            }
+            s[l[0]] = l[1];
+        }
+        return s;
+    };
+
     var shared = makeNameTable();
     var share = function (name, member) {
         return tableDefine(shared, [name], member);
@@ -532,6 +524,8 @@ var env = (function () {
     share("vref", vref);
     share("list->vector", listToVector);
     share("vector->list", vectorToList);
+    share("struct", struct);
+    share("struct?", isTable);
 
     // patch
     var extendEnv = function (env, shared) {
