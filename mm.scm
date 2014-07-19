@@ -1,4 +1,3 @@
-; read/print structs
 ; tail recursion optimization:
 ; - tail context definition in r6rs
 ; missing syntax:
@@ -631,14 +630,24 @@
   (recur s (table-names s) true)
   (compile-write context "}}"))
 
+(define (in-tail context value f)
+  (let ((parent-tail? (tail? context)))
+    (set-tail! context value)
+    (f)
+    (set-tail! context parent-tail?)))
+
 (define (compile-literal context exp)
-  (cond ((self-evaluating? exp) (compile-write context (sprint exp)))
-        ((symbol? exp) (compile-write context (cats "[" (sprint (symbol-name exp)) "]")))
-        ((null? exp) (compile-write context "[]"))
-        ((pair? exp) (compile-pair context exp))
-        ((vector? exp) (compile-vector context exp))
-        ((struct? exp) (compile-struct context exp))
-        (else (error 'compile-literal "unknown type" exp))))
+  (in-tail
+    context
+    false
+    (lambda ()
+      (cond ((self-evaluating? exp) (compile-write context (sprint exp)))
+            ((symbol? exp) (compile-write context (cats "[" (sprint (symbol-name exp)) "]")))
+            ((null? exp) (compile-write context "[]"))
+            ((pair? exp) (compile-pair context exp))
+            ((vector? exp) (compile-vector context exp))
+            ((struct? exp) (compile-struct context exp))
+            (else (error 'compile-literal "unknown type" exp))))))
 
 (define (compile-variable context exp)
   (compile-write context (map-name context exp))
@@ -666,7 +675,10 @@
 
 (define (compile-if context exp)
   (compile-write context "(false!==(")
-  (compile-exp context (if-predicate exp))
+  (in-tail context
+           false
+           (lambda ()
+             (compile-exp context (if-predicate exp))))
   (compile-write context ")?")
   (compile-exp context (if-consequent exp))
   (compile-write context ":")
@@ -679,7 +691,11 @@
         ((null? (cdr seq))
          (compile-statement context (car seq) true))
         (else
-          (compile-statement context (car seq) false)
+          (in-tail
+            context
+            false
+            (lambda ()
+              (compile-statement context (car seq) false)))
           (compile-sequence context (cdr seq)))))
 
 (define (compile-parameters context parameters)
@@ -691,12 +707,57 @@
             (compile-parameters (cdr parameters) false))))
   (compile-parameters parameters true))
 
+; (define (compile-procedure context parameters body)
+;   (compile-write context "(function(){var body=function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){")
+;   (compile-sequence context body)
+;   (compile-write context "};return{main:function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){return ")
+;   (compile-write context (sysname context 'tail-call))
+;   (compile-write context "(")
+;   (compile-write context (sysname context 'mktail))
+;   (compile-write context "(body,[")
+;   (compile-parameters context parameters)
+;   (compile-write context "]));},body:body};})()"))
+
 (define (compile-procedure context parameters body)
-  (compile-write context "(function(")
+  (compile-write context "(function(){var body=function(")
   (compile-parameters context parameters)
   (compile-write context "){")
-  (compile-sequence context body)
-  (compile-write context "})"))
+  (in-tail context true (lambda () (compile-sequence context body)))
+  (compile-write context "};var p=function(")
+  (compile-parameters context parameters)
+  (compile-write context "){ return ")
+  (compile-write context (sysname context 'tail-call))
+  (compile-write context "(")
+  (compile-write context (sysname context 'mktail))
+  (compile-write context "(body,[")
+  (compile-parameters context parameters)
+  (compile-write context "]));};p.main=p;p.body=body;return p;})()"))
+
+; (define (compile-procedure context parameters body)
+;   (compile-write context "(function(){var body=function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){")
+;   (compile-sequence context body)
+;   (compile-write context "};var p=function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){return body(")
+;   (compile-parameters context parameters)
+;   (compile-write context ");};p.body=body;p.main=p;return p;})()"))
+
+; (define (compile-procedure context parameters body)
+;   (compile-write context "(function(){var body=function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){")
+;   (compile-sequence context body)
+;   (compile-write context "};return{main:function(")
+;   (compile-parameters context parameters)
+;   (compile-write context "){return body(")
+;   (compile-parameters context parameters)
+;   (compile-write context ");},body:body};})()"))
 
 (define (compile-begin context actions)
   (compile-write context "(function(){")
@@ -737,7 +798,7 @@
                 "[0]"
                 "[1]"))
             (iter name (- ref 1)))))
-  (compile-exp context (cadr exp))
+  (in-tail context false (lambda () (compile-exp context (cadr exp))))
   (let ((name (symbol-name (car exp))))
     (iter (subs name 1 (- (slen name) 2))
           (- (slen name) 3))))
@@ -747,28 +808,48 @@
        (eq? (len exp) 3)))
 
 (define (compile-cons context exp)
-  (compile-write context "[")
-  (compile-exp context (cadr exp))
-  (compile-write context ",")
-  (compile-exp context (caddr exp))
-  (compile-write context "]"))
+  (in-tail
+    context
+    false
+    (lambda ()
+      (compile-write context "[")
+      (compile-exp context (cadr exp))
+      (compile-write context ",")
+      (compile-exp context (caddr exp))
+      (compile-write context "]"))))
 
 (define (list-constructor? exp)
   (and (tagged-list? exp 'list)))
 
 (define (compile-list-constructor context exp)
-  (cond ((null? (cdr exp)) (compile-write context "[]"))
-        (else (compile-exp
-                context
-                (list 'cons
-                      (cadr exp)
-                      (cons 'list (cddr exp)))))))
+  (in-tail
+    context
+    false
+    (lambda ()
+      (cond ((null? (cdr exp)) (compile-write context "[]"))
+            (else (compile-exp
+                    context
+                    (list 'cons
+                          (cadr exp)
+                          (cons 'list (cddr exp)))))))))
 
 (define (compile-application context proc args)
-  (compile-exp context proc)
-  (compile-write context "(")
-  (compile-parameters context args)
-  (compile-write context ")"))
+  (cond ((tail? context)
+          (compile-write context (sysname context 'mktail))
+          (compile-write context "(")
+          (compile-exp context proc)
+          (compile-write context ".body,[")
+          (in-tail
+            context
+            false
+            (lambda ()
+              (compile-parameters context args)))
+          (compile-write context "])"))
+        (else
+          (compile-exp context proc)
+          (compile-write context ".main(")
+          (compile-parameters context args)
+          (compile-write context ")"))))
 
 (define (compile-exp context exp)
   (cond ((self-evaluating? exp) (compile-literal context exp))
@@ -858,6 +939,7 @@
     (table-define context 'expressions (make-name-table))
     (table-define context 'stack (list (make-compile-scope 'top)))
     (table-define context 'output (make-string-builder))
+    (table-define context 'tail? true)
     context))
 
 (define (context-names context)
@@ -939,6 +1021,12 @@
 (define (compile-buffer context)
   (table-lookup context 'output))
 
+(define (tail? context)
+  (table-lookup context 'tail?))
+
+(define (set-tail! context value)
+  (table-set! context 'tail? value))
+
 (define (compile-write context s)
   (table-set! context
               'output
@@ -957,8 +1045,23 @@
                (out data)
                (clb))))
 
+(define (sysname context name)
+  (cats "$" (map-name context name)))
+
+(define (compile-lang context)
+  (define (iterate lang-names)
+    (cond ((null? lang-names) 'ok)
+          (else
+            (compile-write context "var ")
+            (compile-write context (sysname context (car lang-names)))
+            (compile-write context "=env(\"")
+            (compile-write context (car lang-names))
+            (compile-write context "\");")
+            (iterate (cdr lang-names)))))
+  (iterate '(mktail tail-call)))
+
 (define (compile-shared context)
-  (define (iterate context shared)
+  (define (iterate shared)
     (cond ((not (null? shared))
            (compile-statement context (car shared) false)
            (cond ((definition? (car shared))
@@ -967,8 +1070,8 @@
                   (compile-write context "\",true,")
                   (compile-write context (map-name context (definition-variable (car shared))))
                   (compile-write context ");")))
-           (iterate context (cdr shared)))))
-  (iterate context shared-precompiled))
+           (iterate (cdr shared)))))
+  (iterate shared-precompiled))
 
 ; read
 (define tokenizer-expression
@@ -1403,10 +1506,9 @@
                (table-define done name true)
                (table-delete! shared name)
                (precompile head done ccontext pcontext shared))))))
-  (define (read-and-compile names scm)
+  (define (read-and-compile ccontext names scm)
     (let ((read-context (make-read-context))
-          (hcontext (make-compile-context names))
-          (ccontext (make-compile-context names)))
+          (hcontext (make-compile-context names)))
       (compile-head-references hcontext
                                (head false false false true))
       (read-string read-context scm)
@@ -1425,16 +1527,25 @@
                                 (lambda (i) (car i))
                                 identity))
           (out (builder->string (compile-buffer hcontext)))
-          (out (builder->string (compile-buffer pcontext)))
-          (out (builder->string (compile-buffer ccontext)))))))
+          (out (builder->string (compile-buffer pcontext)))))))
   (copy-head
     (lambda ()
       (let ((names (make-name-map)))
         (let ((ccontext (make-compile-context names)))
+          (compile-lang ccontext)
           (compile-shared ccontext)
           (out (builder->string (compile-buffer ccontext)))
-          (read-file (get-arg) (lambda (scm)
-                                 (read-and-compile names scm))))))))
+          (read-file (get-arg)
+                     (lambda (scm)
+                       (let ((ccontext (make-compile-context) names))
+                         (compile-write ccontext "/* entry point */")
+                         (compile-write ccontext (sysname ccontext 'tail-call))
+                         (compile-write ccontext "(")
+                         (compile-write ccontext (sysname ccontext 'mktail))
+                         (compile-write ccontext "(function(){")
+                         (read-and-compile ccontext names scm)
+                         (compile-write ccontext "}));/* exit point */")
+                         (out (builder->string (compile-buffer ccontext)))))))))))
 
 (define (caar l) (car (car l)))
 (define (cadr l) (car (cdr l)))

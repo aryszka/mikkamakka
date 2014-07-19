@@ -109,7 +109,11 @@ var env = (function () {
     };
 
     var isCompiledProcedure = function (p) {
-        return !!p && typeof p === "function";
+        return !!p && (typeof p.main === "function" || typeof p === "function");
+    };
+
+    var getMain = function (f) {
+        return f.main || f;
     };
 
     var capply = function (p, args) {
@@ -121,20 +125,20 @@ var env = (function () {
             jsArgs[jsArgs.length] = car(args);
             args = cdr(args);
         }
-        return p.apply(undefined, jsArgs);
+        return getMain(p).apply(undefined, jsArgs);
     };
 
     var tryc = function (t, c) {
         try {
-            return env("apply")(t, list());
+            return getMain(env("apply"))(t, list());
         } catch (error) {
-            return env("apply")(c, list(error));
+            return getMain(env("apply"))(c, list(error));
         }
     };
 
     var forLoop = function (body) {
         for (;;) {
-            var result = env("apply")(body, list());
+            var result = getMain(env("apply"))(body, list());
             if (false !== result) {
                 return result;
             }
@@ -146,7 +150,7 @@ var env = (function () {
             if (err) {
                 return cerror("readFile", "error while reading file", err);
             }
-            return env("apply")(clb, list(data.toString()));
+            return getMain(env("apply"))(clb, list(data.toString()));
         });
         return noPrint;
     };
@@ -157,7 +161,7 @@ var env = (function () {
             return f(rl);
         };
         rl.on("line", function (l) {
-            env("apply")(clb, list(frl, l));
+            getMain(env("apply"))(clb, list(frl, l));
         });
         return frl;
     };
@@ -388,9 +392,12 @@ var env = (function () {
 
     var makeRegexp = function (expression, flags) {
         var regexp = new RegExp(expression, flags);
-        return function (text) {
+        var wrap = function (text) {
             return vector.apply(undefined, text.match(regexp) || []);
         };
+        wrap.main = wrap;
+        wrap.body = wrap;
+        return wrap;
     };
 
     var isVector = function (exp) {
@@ -444,8 +451,30 @@ var env = (function () {
         return s;
     };
 
+    var mktail = function (f, args) {
+        var tail = function () {
+            return f.apply(undefined, args);
+        };
+        tail.isTail = true;
+        return tail;
+    };
+
+    var tailCall = function (f) {
+        var fi = f;
+        for (;;) {
+            fi = fi.apply();
+            if (!fi.isTail) {
+                return fi;
+            }
+        }
+    };
+
     var shared = makeNameTable();
     var share = function (name, member) {
+        if (typeof member === "function") {
+            member.main = member;
+            member.body = member;
+        }
         return tableDefine(shared, [name], member);
     };
     share("compiled-procedure?", isCompiledProcedure);
@@ -526,6 +555,8 @@ var env = (function () {
     share("vector->list", vectorToList);
     share("struct", struct);
     share("struct?", isTable);
+    share("mktail", mktail);
+    share("tail-call", tailCall);
 
     // patch
     var extendEnv = function (env, shared) {
@@ -533,7 +564,7 @@ var env = (function () {
             parent: env,
             shared: shared || makeNameTable()
         };
-        return function () {
+        var wrap = function () {
             if (arguments.length === 4 && arguments[3]) {
                 return tableNames(current.shared);
             }
@@ -557,6 +588,9 @@ var env = (function () {
             }
             return current.parent(arguments[0], false, arguments[2]);
         };
+        wrap.main = wrap;
+        wrap.body = wrap;
+        return wrap;
     };
     var isDefined = function (env, name) {
         try {
