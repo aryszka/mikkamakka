@@ -1,8 +1,7 @@
-; fix structs, eval
-; pair syntax
 ; arbitrary number of variables
-; - check what needs to be a variadic
 ; - lambda list syntax
+; - check what needs to be a variadic
+; tests and fixes
 ; missing syntax (or shall these be macros?):
 ; - let*, letrec
 ; create quasiquotation
@@ -14,14 +13,11 @@
 ; complete syntax check during compilation
 ; - check expression check. e.g. don't allow lambda parameters other then symbols
 ; don't override members in the global environment (currently in compile)
-; remove code duplication between eval and compile, and others
 ; delete functionality
-; rename sbuilder, find similar lisp name
 ; introduce ports
 ; modules, tests
 ; load file into repl
 ; vim repl: http://www.vim.org/scripts/script.php?script_id=4336
-; rewrite compilation with quasiquotation
 ; replace symbol-name with symbol->string
 ; don't compile precompiled if no expression defined
 ; fix sprint: escape mikkamakka characters (non-printing and escaped characters)
@@ -33,6 +29,7 @@
 ; evaluator doesn't fail on invalid arity?
 ; try to save some reverses during read
 ; extend with jitter
+; fix no-print
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -220,7 +217,9 @@
                      (else ""))
                (sprintq (car exp) true false)
                (cond ((null? (cdr exp)) ")")
-                     ((pair? (cdr exp)) (sprintq (cdr exp) true true))
+                     ((and (pair? (cdr exp))
+                           (not (quote? (cdr exp))))
+                      (sprintq (cdr exp) true true))
                      (else (cats " . "
                                  (sprintq (cdr exp) true true)
                                  ")")))))
@@ -1177,20 +1176,36 @@
               (cons tag (read-expressions context))))
 
 (define (cons-read-tag context tag)
+  (cond ((cons-closed? context)
+         (error 'cons-read-tag "unexpected tag" tag)))
   ((if (read-stack-empty? context)
      cons-read-expression
      cons-stack-tag)
    context
    tag))
 
+(define (make-pair-ended-list tokens)
+  (define (iterate tokens pe-list)
+    (cond ((null? tokens) pe-list)
+          ((eq? pe-list 'empty)
+           (iterate (cdddr tokens)
+                    (cons (caddr tokens) (car tokens))))
+          (else
+            (iterate (cdr tokens)
+                     (cons (car tokens) pe-list)))))
+  (iterate tokens 'empty))
+
 (define (close-current-list context)
-  (if (read-stack-empty? context)
+  (if (or (read-stack-empty? context)
+          (cons-marked? context))
     (error 'close-current-list "unexpected closing paren" context)
     (let ((closed
             (cond ((eq? (current-read-list-type context) 'vector)
                    (apply vector (reverse (current-read-list context))))
                   ((eq? (current-read-list-type context) 'struct)
                    (apply struct (current-read-list context)))
+                  ((cons-closed? context)
+                   (make-pair-ended-list (current-read-list context)))
                   (else
                     (reverse (current-read-list context))))))
       (table-set! context 'stack (cdr (read-stack context)))
@@ -1218,13 +1233,39 @@
                                  (- (slen token)
                                     2)))))
 
+(define (cons-token? token) (eq? token "."))
+
+(define (cons-marker? value) (eq? value cons-marker?))
+
+(define (current-list-null? context)
+  (null? (current-read-list context)))
+
+(define (current-read-list-not-empty? context)
+  (and (not (read-stack-empty? context))
+       (not (current-list-null? context))))
+
+(define (cons-marked? context)
+  (and (current-read-list-not-empty? context)
+       (cons-marker? (car (current-read-list context)))))
+
+(define (cons-closed? context)
+  (and (current-read-list-not-empty? context)
+       (not (null? (cdr (current-read-list context))))
+       (cons-marker? (cadr (current-read-list context)))))
+
 (define (cons-token context token)
   (let ((number (parse-number token)))
     (cons-read-tag
       context
-      (if (number? number)
-        number
-        (string->symbol (unescape-symbol token))))))
+      (cond ((number? number) number)
+            ((cons-token? token)
+             (if (or (read-stack-empty? context)
+                     (current-list-null? context)
+                     (not (eq? (current-read-list-type context) 'list))
+                     (cons-marked? context))
+               (error 'cons-token "unexpected cons token" token)
+               cons-marker?))
+            (else (string->symbol (unescape-symbol token)))))))
 
 (define (parse-token context token)
   (cond ((peq? token "(") (push-list context))
