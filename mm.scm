@@ -2,10 +2,10 @@
 ; - lambda list syntax
 ; - check what needs to be a variadic
 ; tests and fixes
+; introduce macros
 ; missing syntax (or shall these be macros?):
 ; - let*, letrec
 ; create quasiquotation
-; introduce macros
 ; verify that no foreign values can get in the mikkamakka env
 ; interop
 ; - reimplement io functions with interop
