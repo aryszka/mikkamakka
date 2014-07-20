@@ -439,7 +439,7 @@ var env = (function () {
                 l[1][1].length !== 0) {
                 return cerror("struct", "invalid struct member", l);
             }
-            s[l[0]] = l[1];
+            tableDefine(s, l[0], l[1][0]);
         }
         return s;
     };

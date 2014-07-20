@@ -1,6 +1,8 @@
-; iterations
+; fix structs, eval
+; pair syntax
 ; arbitrary number of variables
 ; - check what needs to be a variadic
+; - lambda list syntax
 ; missing syntax (or shall these be macros?):
 ; - let*, letrec
 ; create quasiquotation
@@ -700,21 +702,6 @@
             (compile-parameters (cdr parameters) false))))
   (compile-parameters parameters true))
 
-; (define (compile-procedure context parameters body)
-;   (compile-write context "(function(){var body=function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){")
-;   (compile-sequence context body)
-;   (compile-write context "};return{main:function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){return ")
-;   (compile-write context (sysname context 'tail-call))
-;   (compile-write context "(")
-;   (compile-write context (sysname context 'mktail))
-;   (compile-write context "(body,[")
-;   (compile-parameters context parameters)
-;   (compile-write context "]));},body:body};})()"))
-
 (define (compile-procedure context parameters body)
   (compile-write context "(function(){var body=function(")
   (compile-parameters context parameters)
@@ -729,28 +716,6 @@
   (compile-write context "(body,[")
   (compile-parameters context parameters)
   (compile-write context "]));};p.main=p;p.body=body;return p;})()"))
-
-; (define (compile-procedure context parameters body)
-;   (compile-write context "(function(){var body=function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){")
-;   (compile-sequence context body)
-;   (compile-write context "};var p=function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){return body(")
-;   (compile-parameters context parameters)
-;   (compile-write context ");};p.body=body;p.main=p;return p;})()"))
-
-; (define (compile-procedure context parameters body)
-;   (compile-write context "(function(){var body=function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){")
-;   (compile-sequence context body)
-;   (compile-write context "};return{main:function(")
-;   (compile-parameters context parameters)
-;   (compile-write context "){return body(")
-;   (compile-parameters context parameters)
-;   (compile-write context ");},body:body};})()"))
 
 (define (compile-begin context actions)
   (compile-write context "(function(){")
