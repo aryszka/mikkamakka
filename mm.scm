@@ -1,9 +1,8 @@
-; tail recursion optimization:
-; - tail context definition in r6rs
-; missing syntax:
-; - let*, letrec
+; iterations
 ; arbitrary number of variables
 ; - check what needs to be a variadic
+; missing syntax (or shall these be macros?):
+; - let*, letrec
 ; create quasiquotation
 ; introduce macros
 ; verify that no foreign values can get in the mikkamakka env
@@ -31,6 +30,7 @@
 ; print true, false
 ; evaluator doesn't fail on invalid arity?
 ; try to save some reverses during read
+; extend with jitter
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -147,27 +147,22 @@
   (sunescapes s "" false))
 
 (define (sprintq-vector vector)
-  (let ((builder (make-string-builder)))
-    (set! builder (sbappend builder "#("))
-    (let ((ref 0)
-          (in-list? false))
-      (for (lambda ()
-             (if (eq? ref (vlen vector))
-               true
-               (begin
-                 (cond ((> ref 0)
-                        (set! builder
-                          (sbappend builder " "))))
-                 (set! builder
-                   (sbappend builder
-                             (sprintq (vref vector ref)
-                                      true
-                                      false)))
-                 (set! in-list? true)
-                 (set! ref (+ ref 1))
-                 false)))))
-    (set! builder (sbappend builder ")"))
-    (builder->string builder)))
+  (define (sprintq-vector builder vector ref)
+    (cond ((eq? ref (vlen vector)) builder)
+          (else 
+          (sprintq-vector
+            (sbappend
+              (if (> ref 0) (sbappend builder " ") builder)
+              (sprintq (vref vector ref) true false))
+            vector
+            (+ ref 1)))))
+  (builder->string
+    (sbappend
+      (sprintq-vector
+        (sbappend (make-string-builder) "#(")
+        vector
+        0)
+      ")")))
 
 (define (sprintq-struct s)
   (define (sprint-struct-members builder s names first?)
@@ -604,16 +599,14 @@
   (compile-write context "]"))
 
 (define (compile-vector context v)
+  (define (compile-vector v ref)
+    (cond ((eq? ref (vlen v)) 'ok)
+          (else
+            (cond ((> ref 0) (compile-write context ",")))
+            (compile-exp context (vref v ref))
+            (compile-vector v (+ ref 1)))))
   (compile-write context "{vector:[")
-  (let ((ref 0))
-    (for (lambda ()
-           (if (eq? ref (vlen v))
-             true
-             (begin
-               (cond ((> ref 0) (compile-write context ",")))
-               (compile-exp context (vref v ref))
-               (set! ref (+ ref 1))
-               false)))))
+  (compile-vector v 0)
   (compile-write context "]}"))
 
 (define (compile-struct context s)
@@ -1154,56 +1147,44 @@
 
 (define (unescape string)
   (define (unescape builder s)
-    (for (lambda ()
-           (let ((eref (sidx s "\\\\")))
-             (cond ((< eref 0)
-                    (set! builder (sbappend builder s))
-                    true)
-                   ((eq? (slen s) (+ eref 1))
-                    (error 'unescape "invalid escape sequence" string))
-                   (else
-                     (set! builder
-                       (sbappend builder (subs s 0 eref)))
-                     (set! builder
-                       (sbappend builder (unescape-char (char-at s (+ eref 1)))))
-                     (set! s (subs s (+ eref 2) -1))
-                     false)))))
-    (builder->string builder))
-  (unescape (make-string-builder) string))
+    (let ((eref (sidx s "\\\\")))
+      (cond ((< eref 0) (sbappend builder s))
+            ((eq? (slen s) (+ eref 1))
+             (error 'unescape "invald escpae sequence" string))
+            (else
+              (unescape
+                (sbappend (sbappend builder (subs s 0 eref))
+                          (unescape-char (char-at s (+ eref 1))))
+                (subs s (+ eref 2) -1))))))
+  (builder->string
+    (unescape (make-string-builder) string)))
 
 (define (unescape-symbol name)
-  (define (unescape builder s)
-    (let ((escaped false))
-      (for (lambda ()
-             (let ((eref (sidx s "\\\\|\\|")))
-               (cond ((< eref 0)
-                      (set! builder (sbappend builder s))
-                      true)
-                     (else
-                       (set! builder
-                         (sbappend builder (subs s 0 eref)))
-                       (let ((echar (char-at s eref)))
-                         (cond ((peq? echar "|")
-                                (set! s (subs s (+ eref 1) -1))
-                                (set! escaped (not escaped))
-                                false)
-                               ((eq? (slen s) (+ eref 1))
-                                (set! builder (sbappend builder "\\"))
-                                true)
-                               ((eq? (char-at s (+ eref 1)) "|")
-                                (set! builder (sbappend builder "|"))
-                                (set! s (subs s (+ eref 2) -1))
-                                false)
-                               (escaped
-                                 (set! builder (sbappend builder (subs s eref 2)))
-                                 (set! s (subs s (+ eref 2) -1))
-                                 false)
-                               (else
-                                 (set! builder (sbappend builder (char-at s (+ eref 1))))
-                                 (set! s (subs s (+ eref 2) -1))
-                                 false)))))))))
-    (builder->string builder))
-  (unescape (make-string-builder) name))
+  (define (unescape builder escaped? s)
+    (let ((eref (sidx s "\\\\|\\|")))
+      (cond ((< eref 0) (sbappend builder s))
+            (else
+              (let ((builder (sbappend builder (subs s 0 eref)))
+                    (echar (char-at s eref)))
+                (cond ((peq? echar "|")
+                       (unescape builder
+                                 (not escaped?)
+                                 (subs s (+ eref 1) -1)))
+                      ((peq? (slen s) (+ eref 1))
+                       (sbappend builder "\\"))
+                      ((peq? (char-at s (+ eref 1)) "|")
+                       (unescape (sbappend builder "|")
+                                 escaped
+                                 (subs s (+ eref 2) -1)))
+                      (escaped?
+                        (unescape (sbappend builder (subs s eref 2))
+                                  true
+                                  (subs s (+ eref 2) -1)))
+                      (else
+                        (unescape (sbappend builder (char-at s (+ eref 1)))
+                                  false
+                                  (subs s (+ eref 2) -1)))))))))
+  (builder->string (unescape (make-string-builder) false name)))
 
 (define (push-list-type context type)
   (let ((frame (make-name-table)))
@@ -1302,51 +1283,39 @@
           ((eq? (vlen (cadr tokens)) 0)
            (next-tokens (cdr tokens)))
           (else (cdr tokens))))
-  (let ((tokens (read-tokens-list context))
-        (ref (read-token-ref context)))
-    (define (parse-incomplete token)
-      (let ((next (next-tokens tokens))
-            (exit? false))
-        (for (lambda ()
-               (cond ((null? next)
-                      (set! exit? true)
-                      true)
-                     (else
-                       (set! token
-                         (sbappend token
-                                   (if (eq? (vref (car next) 0) 'eof)
-                                     "\n"
-                                     (vref (car next) 0))))
-                       (let ((token-string (builder->string token)))
-                         (cond ((token-complete? token-string)
-                                (parse-token context token-string)
-                                (set! tokens next)
-                                (set! ref 1)
-                                true)
-                               (else
-                                 (set! next (next-tokens next))
-                                 false)))))))
-        exit?))
-    (for (lambda ()
-           (cond ((null? tokens)
-                  (shift-tokens context)
-                  true)
-                 ((eq? (vlen (car tokens)) ref)
-                  (set! tokens (next-tokens tokens))
-                  (set! ref 0)
-                  false)
-                 (else
-                   (let ((token (vref (car tokens) ref)))
-                     (cond ((eq? token 'eof)
-                            (shift-tokens context)
-                            true)
-                           ((token-complete? token)
-                            (parse-token context token)
-                            (set! ref (+ ref 1))
-                            false)
-                           (else
-                             (parse-incomplete (sbappend (make-string-builder)
-                                                         token)))))))))))
+  (define (parse-incomplete tokens token)
+    (cond ((null? tokens) '())
+          (else
+            (let ((token
+                    (sbappend
+                      token
+                      (if (eq? (vref (car next) 0) 'eof)
+                        "\n"
+                        (vref (car next) 0)))))
+              (let ((token-string (builder->string token)))
+                (cond ((token-complete? token-string)
+                       (parse-token context token-string)
+                       (next-tokens tokens))
+                      (else
+                        (parse-incomplete (next-tokens tokens)
+                                          token))))))))
+  (define (parse-tokens tokens ref)
+    (cond ((null? tokens) (shift-tokens context))
+          ((eq? (vlen (car tokens)) ref)
+           (parse-tokens (next-tokens tokens) 0))
+          (else
+            (let ((token (vref (car tokens) ref)))
+              (cond ((eq? token 'eof) (shift-tokens context))
+                    ((token-complete? token)
+                     (parse-token context token)
+                     (parse-tokens tokens (+ ref 1)))
+                    (else
+                      (parse-tokens
+                        (parse-incomplete
+                          (next-tokens tokens)
+                          (sbappend (make-string-builder) token))
+                        1)))))))
+  (parse-tokens (read-tokens-list context) (read-token-ref context)))
 
 (define (append-tokens context tokens)
   (table-set! (read-tokens context)
@@ -1537,7 +1506,7 @@
           (out (builder->string (compile-buffer ccontext)))
           (read-file (get-arg)
                      (lambda (scm)
-                       (let ((ccontext (make-compile-context) names))
+                       (let ((ccontext (make-compile-context names)))
                          (compile-write ccontext "/* entry point */")
                          (compile-write ccontext (sysname ccontext 'tail-call))
                          (compile-write ccontext "(")
@@ -2021,23 +1990,6 @@
                                (lambda (error) (car '(1 2)))))
                        1)
                   "primitive call, catch")))
-
-  (test "for"
-        (lambda (eval)
-          (assert (eq? (for (lambda () true)) true) "exit immediately")
-          (assert (eq? (let ((n 0))
-                         (for (lambda ()
-                                (set! n (+ n 1))
-                                (and (> n 2) n))))
-                       3)
-                  "count to 3")
-          (assert (eq? (eval '(for (lambda () true))) true) "eval, exit immediately")
-          (assert (eq? (eval '(let ((n 0))
-                                (for (lambda ()
-                                       (set! n (+ n 1))
-                                       (and (> n 2) n)))))
-                       3)
-                  "eval, count to 3")))
 
   (test "eval"
         (lambda (eval)

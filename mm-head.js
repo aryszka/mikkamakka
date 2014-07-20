@@ -136,15 +136,6 @@ var env = (function () {
         }
     };
 
-    var forLoop = function (body) {
-        for (;;) {
-            var result = getMain(env("apply"))(body, list());
-            if (false !== result) {
-                return result;
-            }
-        }
-    };
-
     var readFile = function (f, clb) {
         require("fs").readFile(f, function (err, data) {
             if (err) {
@@ -276,8 +267,10 @@ var env = (function () {
         return s.substr(offset, count);
     };
 
-    var sreplace = function (s, expression, replace) {
-        return s.replace(new RegExp(expression, "g"), replace);
+    var sreplace = function(s, expression, replace) {
+        return s.replace(new RegExp(expression, "g"), function (s) {
+            return env("apply")(replace, list(s, false, false));
+        });
     };
 
     var mkStringBuilder = function () {
@@ -491,7 +484,6 @@ var env = (function () {
     share("list", list);
     share("peq?", peq);
     share("try", tryc);
-    share("for", forLoop);
     share("read-file", readFile);
     share("read-line", readLine);
     share("prompt", prompt);
