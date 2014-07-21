@@ -369,7 +369,8 @@
   (cond ((< (len exp) 3)
          (error 'check-lambda "invalid arity" exp))
         ((and (not (null? (cadr exp)))
-              (not (pair? (cadr exp))))
+              (not (or (symbol? (cadr exp))
+                       (pair? (cadr exp)))))
          (error 'check-lambda "invalid argument list" exp))))
 
 (define (lambda-parameters exp) (cadr exp))
@@ -525,24 +526,26 @@
     (cons (eval-env env (first-operand exps))
           (list-of-values env (rest-operands exps)))))
 
-(define (extend-procedure-environment env names values)
-  (define (define-args env names values)
-    (cond ((null? names)
+(define (extend-procedure-environment env parameters values)
+  (define (define-args env parameters values)
+    (cond ((null? parameters)
            (cond ((not (null? values))
                   (error 'procedure-environment
                          "too many values"
-                         (list names values)))))
+                         (list parameters values)))))
+          ((symbol? parameters)
+           (env parameters true values))
           ((null? values)
            (error 'procedure-environment
-                  "too many names"
-                  (list names values)))
+                  "too many parameters"
+                  (list parameters values)))
           (else
-            (env (car names) true (car values))
+            (env (car parameters) true (car values))
             (define-args env
-                         (cdr names)
+                         (cdr parameters)
                          (cdr values)))))
   (let ((env (extend-env env)))
-    (define-args env names values)
+    (define-args env parameters values)
     env))
 
 ; eval/apply
@@ -693,28 +696,62 @@
           (compile-sequence context (cdr seq)))))
 
 (define (compile-parameters context parameters)
-  (define (compile-parameters parameters first?)
-    (cond ((null? parameters) 'ok)
+  (define (compile-parameters parameters count first?)
+    (cond ((null? parameters) (list count false))
+          ((symbol? parameters) (list count parameters))
           (else
             (cond ((not first?) (compile-write context ",")))
             (compile-exp context (car parameters))
-            (compile-parameters (cdr parameters) false))))
-  (compile-parameters parameters true))
+            (compile-parameters (cdr parameters) (+ count 1) false))))
+  (compile-parameters parameters 0 true))
+
+(define (compile-parameter-check context params)
+  (cond ((cond ((list-param-name params)
+                (compile-write context "if(arguments.length<")
+                (compile-write context (sprint (number-of-params params)))
+                true)
+               ((> (number-of-params params) 0)
+                (compile-write context "if(arguments.length!==")
+                (compile-write context (sprint (number-of-params params)))
+                true)
+               (else false))
+         (compile-write
+           context
+           (cats "){return "
+                 (sysname context 'cerror)
+                 "(\"procedure\","
+                 "\"invalid number of arguments\","
+                 (sprint (number-of-params params))
+                 ");}")))))
+
+(define (compile-list-params context params)
+  (cond ((list-param-name params)
+         (compile-write context "var ")
+         (compile-write context (map-name context (list-param-name params)))
+         (compile-write context "=")
+         (compile-write context (sysname context 'list))
+         (compile-write context ".apply(undefined, Array.prototype.slice.call(arguments, ")
+         (compile-write context (sprint (number-of-params params)))
+         (compile-write context "));"))))
+
+(define (number-of-params params) (car params))
+
+(define (list-param-name params) (cadr params))
 
 (define (compile-procedure context parameters body)
   (compile-write context "(function(){var body=function(")
-  (compile-parameters context parameters)
-  (compile-write context "){")
-  (in-tail context true (lambda () (compile-sequence context body)))
-  (compile-write context "};var p=function(")
-  (compile-parameters context parameters)
-  (compile-write context "){ return ")
-  (compile-write context (sysname context 'tail-call))
-  (compile-write context "(")
-  (compile-write context (sysname context 'mktail))
-  (compile-write context "(body,[")
-  (compile-parameters context parameters)
-  (compile-write context "]));};p.main=p;p.body=body;return p;})()"))
+  (let ((params (compile-parameters context parameters)))
+    (compile-write context "){")
+    (compile-parameter-check context params)
+    (compile-list-params context params)
+    (in-tail context true (lambda () (compile-sequence context body)))
+    (compile-write context "};var p=function(){")
+    (compile-write context "return ")
+    (compile-write context (sysname context 'tail-call))
+    (compile-write context "(")
+    (compile-write context (sysname context 'mktail))
+    (compile-write context "(body,Array.prototype.slice.call(arguments)")
+    (compile-write context "));};p.main=p;p.body=body;return p;})()")))
 
 (define (compile-begin context actions)
   (compile-write context "(function(){")
@@ -1015,7 +1052,7 @@
             (compile-write context (car lang-names))
             (compile-write context "\");")
             (iterate (cdr lang-names)))))
-  (iterate '(mktail tail-call)))
+  (iterate '(mktail tail-call cerror list)))
 
 (define (compile-shared context)
   (define (iterate shared)
