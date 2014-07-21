@@ -1,7 +1,3 @@
-; arbitrary number of variables
-; - lambda list syntax
-; - check what needs to be a variadic
-; tests and fixes
 ; introduce macros
 ; missing syntax (or shall these be macros?):
 ; - let*, letrec
@@ -544,7 +540,7 @@
             (define-args env
                          (cdr parameters)
                          (cdr values)))))
-  (let ((env (extend-env env)))
+  (let ((env (extend-env env false)))
     (define-args env parameters values)
     env))
 
@@ -757,22 +753,6 @@
   (compile-write context "(function(){")
   (compile-sequence context actions)
   (compile-write context "})()"))
-
-(define (car? exp)
-  (and (tagged-list? exp 'car)
-       (eq? (len exp) 2)))
-
-(define (compile-car context exp)
-  (compile-exp context (cadr exp))
-  (compile-write context "[0]"))
-
-(define (cdr? exp)
-  (and (tagged-list? exp 'cdr)
-       (eq? (len exp) 2)))
-
-(define (compile-cdr context exp)
-  (compile-exp context (cadr exp))
-  (compile-write context "[1]"))
 
 (define c[ad]+r-rx (make-regexp "^c[ad]+r$" ""))
 
@@ -1531,7 +1511,7 @@
           (compile-statement pcontext
                              '(define shared-precompiled '())
                              false)
-          (precompile (extend-env head)
+          (precompile (extend-env head false)
                       (make-name-table)
                       ccontext
                       pcontext
@@ -1556,7 +1536,7 @@
                          (compile-write ccontext (sysname ccontext 'mktail))
                          (compile-write ccontext "(function(){")
                          (read-and-compile ccontext names scm)
-                         (compile-write ccontext "}));/* exit point */")
+                         (compile-write ccontext "}, []));/* exit point */")
                          (out (builder->string (compile-buffer ccontext)))))))))))
 
 (define (caar l) (car (car l)))
@@ -1927,8 +1907,8 @@
         (lambda (eval)
           (assert (eq? (eval '(define a 1)) 1) "define variable")
           (assert (eq? (eval 'a) 1) "verify variable")
-          (eval '(define (a) 2))))
-  ; (assert (eq? (eval '(a)) 2) "call procedure")))
+          (eval '(define (a) 2))
+          (assert (eq? (eval '(a)) 2) "call procedure")))
 
   (test "if"
         (lambda (eval)

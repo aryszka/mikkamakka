@@ -1,5 +1,20 @@
 var env = (function () {
+    var noPrint = function () { return noPrint; };
+
+    var cerror = function (where, what, arg) {
+        throw new Error(String(where) + ":" + String(what) + ":" + String(arg));
+        return noPrint;
+    };
+
+    var argCheck = function (argObj, length, variadic) {
+        if (argObj.length < length || !variadic && argObj.length !== length) {
+            return cerror("procedure", "invalid number of arguments", argObj.length);
+        }
+        return noPrint;
+    };
+
     var isSymbol = function (s) {
+        argCheck(arguments, 1, false);
         return !!s &&
             s instanceof Array &&
             s.length === 1 &&
@@ -7,18 +22,22 @@ var env = (function () {
     };
 
     var symbolName = function (symbol) {
+        argCheck(arguments, 1, false);
         return symbol[0];
     };
 
     var stringToSymbol = function (name) {
+        argCheck(arguments, 1, false);
         return [name];
     };
 
     var peq = function (left, right) {
+        argCheck(arguments, 2, false);
         return left === right;
     };
 
     var filter = function (pred, l) {
+        argCheck(arguments, 2, false);
         if (isNull(l)) {
             return list();
         }
@@ -28,14 +47,17 @@ var env = (function () {
     };
 
     var isTable = function (t) {
+        argCheck(arguments, 1, false);
         return !!(t && t.table);
     };
 
     var makeNameTable = function () {
+        argCheck(arguments, 0, false);
         return {table: {}};
     };
 
     var tableNames = function (table) {
+        argCheck(arguments, 1, false);
         var names = [];
         for (var sname in table.table) {
             names = [[sname], names];
@@ -44,10 +66,12 @@ var env = (function () {
     };
 
     var tableHasName = function (table, name) {
+        argCheck(arguments, 2, false);
         return symbolName(name) in table.table;
     };
 
     var tableLookup = function (table, name) {
+        argCheck(arguments, 2, false);
         var val = table.table[symbolName(name)];
         if (typeof val === "undefined") {
             return cerror("tableLookup", "name is not defined", name);
@@ -56,11 +80,13 @@ var env = (function () {
     };
 
     var tableDefine = function (table, name, val) {
+        argCheck(arguments, 3, false);
         table.table[symbolName(name)] = val;
         return val;
     };
 
     var tableSet = function (table, name, val) {
+        argCheck(arguments, 3, false);
         if (!tableHasName(table, name)) {
             return cerror("tableSet", "name is not defined", name);
         }
@@ -69,6 +95,7 @@ var env = (function () {
     };
 
     var tableDelete = function (table, name) {
+        argCheck(arguments, 2, false);
         var has = tableHasName(table, name);
         if (has) {
             delete table.table[name];
@@ -77,26 +104,31 @@ var env = (function () {
     };
 
     var isNull = function (l) {
+        argCheck(arguments, 1, false);
         return !!l &&
             l instanceof Array &&
             l.length === 0;
     };
 
     var cons = function (left, right) {
+        argCheck(arguments, 2, false);
         return [left, right];
     };
 
     var isPair = function (p) {
+        argCheck(arguments, 1, false);
         return !!p &&
             p instanceof Array &&
             p.length === 2;
     };
 
     var car = function (p) {
+        argCheck(arguments, 1, false);
         return p[0];
     };
 
     var cdr = function (p) {
+        argCheck(arguments, 1, false);
         return p[1];
     };
 
@@ -109,14 +141,17 @@ var env = (function () {
     };
 
     var isCompiledProcedure = function (p) {
+        argCheck(arguments, 1, false);
         return !!p && (typeof p.main === "function" || typeof p === "function");
     };
 
     var getMain = function (f) {
+        argCheck(arguments, 1, false);
         return f.main || f;
     };
 
     var capply = function (p, args) {
+        argCheck(arguments, 2, false);
         var jsArgs = [];
         for (;;) {
             if (isNull(args)) {
@@ -129,6 +164,7 @@ var env = (function () {
     };
 
     var tryc = function (t, c) {
+        argCheck(arguments, 2, false);
         try {
             return getMain(env("apply"))(t, list());
         } catch (error) {
@@ -137,6 +173,7 @@ var env = (function () {
     };
 
     var readFile = function (f, clb) {
+        argCheck(arguments, 2, false);
         require("fs").readFile(f, function (err, data) {
             if (err) {
                 return cerror("readFile", "error while reading file", err);
@@ -147,6 +184,7 @@ var env = (function () {
     };
 
     var readLine = function (clb, prompt) {
+        argCheck(arguments, 2, false);
         var rl = require("readline").createInterface(process.stdin, process.stdout);
         var frl = function (f) {
             return f(rl);
@@ -158,6 +196,7 @@ var env = (function () {
     };
 
     var prompt = function (rl) {
+        argCheck(arguments, 1, false);
         return rl(function (rrl) {
             rrl.prompt();
             return noPrint;
@@ -165,6 +204,7 @@ var env = (function () {
     };
 
     var setPrompt = function (rl, p) {
+        argCheck(arguments, 2, false);
         return rl(function (rrl) {
             rrl.setPrompt(p);
             return noPrint;
@@ -172,10 +212,12 @@ var env = (function () {
     };
 
     var isNumber = function (n) {
+        argCheck(arguments, 1, false);
         return typeof n === "number" && !Number.isNaN(n);
     };
 
     var parseNumber = function (s) {
+        argCheck(arguments, 1, false);
         var num = parseFloat(s);
         if (isNumber(num)) {
             return num;
@@ -183,7 +225,10 @@ var env = (function () {
         return s;
     };
 
-    var identity = function (x) { return x; };
+    var identity = function (x) {
+        argCheck(arguments, 1, false);
+        return x;
+    };
 
     var mkNumOp = function (initial, single, reduce) {
         return function () {
@@ -217,34 +262,42 @@ var env = (function () {
     });
 
     var mod = function (dnd, dvs) {
+        argCheck(arguments, 2, false);
         return dnd % dvs;
     };
 
     var gt = function (left, right) {
+        argCheck(arguments, 2, false);
         return left > right;
     };
 
     var lt = function (left, right) {
+        argCheck(arguments, 2, false);
         return left < right;
     };
 
     var gte = function (left, right) {
+        argCheck(arguments, 2, false);
         return left >= right;
     };
 
     var lte = function (left, right) {
+        argCheck(arguments, 2, false);
         return left <= right;
     };
 
     var isString = function (s) {
+        argCheck(arguments, 1, false);
         return typeof s === "string";
     };
 
     var slen = function (s) {
+        argCheck(arguments, 1, false);
         return s.length;
     };
 
     var sidx = function (s, expression) {
+        argCheck(arguments, 2, false);
         var m = s.match(new RegExp(expression), "");
         if (!m) {
             return -1;
@@ -253,14 +306,17 @@ var env = (function () {
     };
 
     var charAt = function (s, i) {
+        argCheck(arguments, 2, false);
         return s[i];
     };
 
     var charCodeAt = function (s, i) {
+        argCheck(arguments, 2, false);
         return s.charCodeAt(s, i);
     };
 
     var subs = function (s, offset, count) {
+        argCheck(arguments, 3, false);
         if (count < 0) {
             return s.substr(offset);
         }
@@ -268,20 +324,24 @@ var env = (function () {
     };
 
     var sreplace = function(s, expression, replace) {
+        argCheck(arguments, 3, false);
         return s.replace(new RegExp(expression, "g"), function (s) {
             return env("apply")(replace, list(s, false, false));
         });
     };
 
     var mkStringBuilder = function () {
+        argCheck(arguments, 0, false);
         return {sb: []};
     };
 
     var isStringBuilder = function (b) {
+        argCheck(arguments, 1, false);
         return !!b && b.sb;
     };
 
     var sbempty = function (b) {
+        argCheck(arguments, 1, false);
         for (var i = 0; i < b.sb.length; i++) {
             if (b.sb[i].length) {
                 return false;
@@ -291,6 +351,7 @@ var env = (function () {
     };
 
     var sbappend = function (b, s) {
+        argCheck(arguments, 2, false);
         if (isStringBuilder(s)) {
             return {
                 sb: b.sb.concat(s.sb)
@@ -302,6 +363,7 @@ var env = (function () {
     };
 
     var builderToString = function (b) {
+        argCheck(arguments, 1, false);
         return b.sb.join("");
     };
 
@@ -314,22 +376,23 @@ var env = (function () {
         return builderToString(b);
     };
 
-    var noPrint = function () { return noPrint; };
-
     var out = process && process.stdout && function (str) {
+        argCheck(arguments, 1, false);
         if (str !== noPrint) {
             process.stdout.write(String(str));
         }
         return noPrint;
-    };
+    } || console && console.log || noPrint;
 
     var log = process && process.stderr && function (s) {
+        argCheck(arguments, 1, false);
         if (s !== noPrint) {
             process.stderr.write(String(s));
         }
         process.stderr.write("\n");
         return noPrint;
     } || function (s) {
+        argCheck(arguments, 1, false);
         if (s !== noPrint) {
             console.log(s);
         } else {
@@ -338,52 +401,58 @@ var env = (function () {
         return noPrint;
     };
 
-    var cerror = function (where, what, arg) {
-        throw new Error(String(where) + ":" + String(what) + ":" + String(arg));
-        return noPrint;
-    };
-
     var isError = function (error) {
+        argCheck(arguments, 1, false);
         return error instanceof Error;
     };
 
     var sprintError = function (error) {
+        argCheck(arguments, 1, false);
         return error && error.message || "error";
     };
 
     var sprintStack = function (error) {
+        argCheck(arguments, 1, false);
         return error && error.stack || "";
     };
 
     var now = function () {
+        argCheck(arguments, 0, false);
         return {t: new Date()};
     };
 
     var isTime = function (t) {
+        argCheck(arguments, 1, false);
         return !!t && t.t instanceof Date;
     };
 
     var numberToTime = function (n) {
+        argCheck(arguments, 1, false);
         return new Date(n);
     };
 
     var timeToNumber = function (t) {
+        argCheck(arguments, 1, false);
         return t.t.valueOf();
     };
 
     var timeToString = function (t) {
+        argCheck(arguments, 1, false);
         return t.t.toString();
     };
 
     var exit = function (val) {
+        argCheck(arguments, 1, false);
         process.exit(val);
     };
 
     var argv = function () {
+        argCheck(arguments, 0, false);
         return list.apply(undefined, process.argv);
     };
 
     var makeRegexp = function (expression, flags) {
+        argCheck(arguments, 2, false);
         var regexp = new RegExp(expression, flags);
         var wrap = function (text) {
             return vector.apply(undefined, text.match(regexp) || []);
@@ -394,6 +463,7 @@ var env = (function () {
     };
 
     var isVector = function (exp) {
+        argCheck(arguments, 1, false);
         return !!exp &&
             exp.vector instanceof Array;
     };
@@ -403,14 +473,17 @@ var env = (function () {
     };
 
     var vlen = function (v) {
+        argCheck(arguments, 1, false);
         return v.vector.length;
     };
 
     var vref = function (v, i) {
+        argCheck(arguments, 2, false);
         return v.vector[i];
     };
 
     var listToVector = function (list, reverse) {
+        argCheck(arguments, 2, false);
         var v = vector();
         for (;;) {
             if (isNull(list)) {
@@ -422,6 +495,7 @@ var env = (function () {
     };
 
     var vectorToList = function (v, reverse) {
+        argCheck(arguments, 2, false);
         var l = list();
         var len = vlen(v);
         for (var i = 0; i < len; i++) {
@@ -445,6 +519,7 @@ var env = (function () {
     };
 
     var mktail = function (f, args) {
+        argCheck(arguments, 2, false);
         var tail = function () {
             return f.apply(undefined, args);
         };
@@ -453,6 +528,7 @@ var env = (function () {
     };
 
     var tailCall = function (f) {
+        argCheck(arguments, 1, false);
         var fi = f;
         for (;;) {
             fi = fi.apply();
@@ -552,11 +628,13 @@ var env = (function () {
 
     // patch
     var extendEnv = function (env, shared) {
+        argCheck(arguments, 2, false);
         var current = {
             parent: env,
             shared: shared || makeNameTable()
         };
         var wrap = function () {
+            argCheck(arguments, 1, true);
             if (arguments.length === 4 && arguments[3]) {
                 return tableNames(current.shared);
             }
@@ -584,7 +662,9 @@ var env = (function () {
         wrap.body = wrap;
         return wrap;
     };
+
     var isDefined = function (env, name) {
+        argCheck(arguments, 2, false);
         try {
             env(name);
             return true;
@@ -592,8 +672,9 @@ var env = (function () {
             return false;
         }
     };
+
     var head = extendEnv(null, shared);
-    var mikkamakka = extendEnv(head);
+    var mikkamakka = extendEnv(head, null);
     share("extend-env", extendEnv);
     share("defined?", isDefined);
     share("head", head);
