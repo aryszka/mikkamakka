@@ -272,6 +272,65 @@
            i))
        (reverse l)))
 
+(define (memq m l)
+  (cond ((null? l) false)
+        ((not (pair? l))
+         (error 'memq "not a list" l))
+        ((eq? m (car l)) l)
+        (else (memq m (cdr l)))))
+
+(define (take l n)
+  (cond ((eq? n 0) '())
+        (else (cons (car l) (take (cdr l) (- n 1))))))
+
+(define (drop l n)
+  (cond ((eq? n 0) l)
+        (else (drop (cdr l) (- n 1)))))
+
+(define (match pattern literals exp)
+  (define (match-series)
+    (cond ((and (null? pattern) (null? exp)) '())
+          ((or (null? pattern) (null? exp)) false)
+          ((and (not (null? (cdr pattern)))
+                (eq? (cadr pattern) '...))
+           (let ((match-rest (match (cddr pattern)
+                                    literals
+                                    (drop exp
+                                          (- (len exp)
+                                             (len (cddr pattern)))))))
+             (cond (match-rest
+                     (cons (cons (car pattern)
+                                 (take exp
+                                       (- (len exp) (len (cddr pattern)))))
+                           match-rest))
+                   (else false))))
+          (else (let ((match-first (match (car pattern)
+                                          literals
+                                          (car exp)))
+                      (match-rest (match (cdr pattern)
+                                         literals
+                                         (cdr exp))))
+                  (and match-first
+                       match-rest
+                       (append match-first match-rest))))))
+  (cond ((or (eq? pattern '_)
+             (and (symbol? pattern) 
+                  (not (eq? pattern '...))
+                  (not (memq pattern literals))
+                  (not (memq exp literals))))
+         (list (list pattern exp)))
+        ((and (eq? exp pattern)
+              (memq pattern literals))
+         '())
+        ((and (or (pair? pattern) (null? pattern))
+                  (or (pair? exp) (null? exp)))
+         (match-series))
+        ((and (vector? pattern) (vector? exp))
+         (match (vector->list pattern)
+                literals
+                (vector->list exp)))
+        (else false)))
+
 (define (copy-table-filtered from to f)
   (define (iterate names copied-names)
     (if (null? names)
@@ -1593,6 +1652,10 @@
         (list 'reverse reverse)
         (list 'display display)
         (list 'sescape sescape)
+        (list 'memq memq)
+        (list 'match match)
+        (list 'take take)
+        (list 'drop drop)
         (list 'caar caar)
         (list 'cadr cadr)
         (list 'cdar cdar)
