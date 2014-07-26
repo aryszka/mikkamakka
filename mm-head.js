@@ -494,12 +494,12 @@ var env = (function () {
         }
     };
 
-    var vectorToList = function (v, reverse) {
-        argCheck(arguments, 2, false);
+    var vectorToList = function (v) {
+        argCheck(arguments, 1, false);
         var l = list();
         var len = vlen(v);
-        for (var i = 0; i < len; i++) {
-            l = cons(vref(reverse ? len - i - 1 : i), l);
+        for (var i = len - 1; i >= 0; i--) {
+            l = cons(vref(v, i), l);
         }
         return l;
     };

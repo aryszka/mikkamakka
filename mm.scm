@@ -1,3 +1,4 @@
+; pattern matching
 ; introduce macros
 ; missing syntax (or shall these be macros?):
 ; - let*, letrec
@@ -5,6 +6,9 @@
 ; verify that no foreign values can get in the mikkamakka env
 ; interop
 ; - reimplement io functions with interop
+; check argument types in primitive functions and where required
+; - reintroduce full car/cdr function calls?
+; - or infer from the error what happened
 ; sprint escaping: compound and compiled procedures
 ; complete syntax check during compilation
 ; - check expression check. e.g. don't allow lambda parameters other then symbols
@@ -26,6 +30,13 @@
 ; try to save some reverses during read
 ; extend with jitter
 ; fix no-print
+; fix the zero expression body question
+; fix the #1 expression in the euler script
+; check if '() always eq?
+; fix (out obj)
+; pattern matching for structs
+; eval error on unbound variable
+; sprinting procedures in interpreter mode
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
