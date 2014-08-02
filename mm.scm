@@ -37,6 +37,8 @@
 ; pattern matching for structs
 ; eval error on unbound variable
 ; sprinting procedures in interpreter mode
+; analysis after read
+; procedures are self evaluating
 
 (define (error where what arg)
   (cerror (sprint-quoted where)
@@ -313,12 +315,10 @@
                   (and match-first
                        match-rest
                        (append match-first match-rest))))))
-  (cond ((or (eq? pattern '_)
-             (and (symbol? pattern) 
-                  (not (eq? pattern '...))
-                  (not (memq pattern literals))
-                  (not (memq exp literals))))
-         (list (list pattern exp)))
+  (cond ((eq? pattern '_) '())
+        (and (symbol? pattern) 
+             (not (memq pattern literals)))
+         (list (list pattern exp))
         ((and (eq? exp pattern)
               (memq pattern literals))
          '())
