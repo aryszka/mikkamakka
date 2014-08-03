@@ -252,10 +252,14 @@
     0
     (+ 1 (len (cdr l)))))
 
-(define (append left right)
-  (if (null? left)
-    right
-    (cons (car left) (append (cdr left) right))))
+(define (append . l)
+  (if (null? l)
+    '()
+    (if (null? (car l))
+      (apply append (cdr l))
+      (cons (caar l)
+            (apply append
+                   (cons (cdar l) (cdr l)))))))
 
 (define (reverse l)
   (if (null? l)
