@@ -1220,6 +1220,17 @@
       (eq? exp false)
       (eq? exp no-print)))
 
+(define (js-import-code? exp)
+  (tagged-list? exp 'js-import-code))
+
+(define (compile-js-import-code exp target linkage)
+  (make-instruction-sequence
+    '(env)
+    '()
+    (list (list 'js-import-code
+                (list 'const (cadr exp))
+                (list 'const (caddr exp))))))
+
 (define (compile exp target linkage)
   (cond ((self-evaluating? exp)
          (compile-self-evaluating exp target linkage))
@@ -1236,6 +1247,8 @@
          (compile-sequence (begin-actions exp)
                            target
                            linkage))
+        ((js-import-code? exp)
+         (compile-js-import-code exp target linkage))
         ((application? exp)
          (compile-application exp target linkage))
         (else
@@ -1507,6 +1520,52 @@
         });
     });
 
+    var checkImportType = function (val) {
+        switch (true) {
+        case typeof val === \"number\":
+        case typeof val === \"string\":
+            break;
+        case val instanceof Array:
+            for (var i = 0; i < val.length; i++) {
+                checkImportType(val[i]);
+            }
+            break;
+        default:
+            return error(\"invalid argument type for import\");
+        }
+    };
+
+    var importFunction = function (module, key) {
+        return function () {
+            var args = Array.prototype.slice.call(arguments);
+            for (var i = 0; i < args.length; i++) {
+                checkImportType(args[i]);
+            }
+            var res = module[key].apply(module, args);
+            if (typeof res === \"undefined\") {
+                res = stringToSymbol(\"unknown value\");
+            } else {
+                checkImportType(res);
+            }
+            return res;
+        };
+    };
+
+    var importModule = function (name, module) {
+        for (var key in module) {
+            switch (typeof module[key]) {
+            case \"number\":
+            case \"string\":
+                defineVar(stringToSymbol(key), module[key], env);
+            case \"function\":
+                defineVar(stringToSymbol(key), importFunction(module, key), env);
+                break;
+            default:
+                return error(\"invalid import type\");
+            }
+        }
+    };
+
     // registers
     var env = extendEnv(list(), list(), false);
     var val = stringToSymbol(\"initial\");
@@ -1530,11 +1589,6 @@
     });
 
     // primitive procedures
-    defineVar(stringToSymbol(\"print\"), func(1, false, false, function (val) {
-        console.log(val);
-        return stringToSymbol(\"ok\");
-    }), env);
-
     defineVar(stringToSymbol(\"*\"),
         mkNumOp(1, identity, function (x, y) { return x * y; }),
         env);
@@ -1776,6 +1830,23 @@
                 (assemble-expression (cdar program)))
       ";\n")))
 
+(define (assembly-js-import-code? program)
+  (tagged-list? (car program) 'js-import-code))
+
+(define (assemble-js-import-code program)
+  (list
+    (cdr program)
+    (sbappend
+      (sbappend
+        (sbappend
+          (sbappend
+            (sbappend (make-string-builder)
+                      "importModule(stringToSymbol(\"")
+            (symbol-name (cadr (cadar program))))
+          "\"), (function (exports) {\n")
+        (cadr (caddar program)))
+      "\nreturn exports;\n})({}));\n")))
+
 (define (assemble-body program builder)
   (if (null? program)
     builder
@@ -1794,6 +1865,8 @@
                    (assemble-restore program))
                   ((assembly-perform? program)
                    (assemble-perform program))
+                  ((assembly-js-import-code? program)
+                   (assemble-js-import-code program))
                   (else
                     (error 'assemble-body
                            "invalid instruction"
@@ -1816,25 +1889,30 @@
                  ;       1
                  ;       (* (factorial (- n 1)) n)))
                  ;   (print (factorial 3)))
-                 '(1
-                   (print 1)
-                   (print 2)
+                 '((js-import-code / "
+        exports.log = function () {
+            console.log.apply(console, Array.prototype.slice.call(arguments));
+        };
+                                   ")
+                   1
+                   (log 1)
+                   (log 2)
                    (define a 3)
-                   (print a)
+                   (log a)
                    (if 4 5 6)
-                   (print (if 7 8 9))
+                   (log (if 7 8 9))
                    '(some)
                    (set! a 10)
-                   (print a)
+                   (log a)
                    (lambda (x) x)
                    (lambda x x)
                    ((lambda (x) x) 11)
-                   (print ((lambda x x) 12 13 14))
+                   (log ((lambda x x) 12 13 14))
                    (define (factorial n)
                      (if (= n 0)
                        1
                        (* n (factorial (- n 1)))))
-                   (print (factorial 120)))
+                   (log (factorial 120)))
                    ; (js-export name definition)
                    ; (js-import-file name path)
                    ; (js-import-code name code))
