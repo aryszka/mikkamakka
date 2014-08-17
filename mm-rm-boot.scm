@@ -1276,7 +1276,7 @@
 
     // ops
     var error = function (msg) {
-        throw msg;
+        throw new Error(msg);
     };
 
     var func = function (argLength, allowMore, customCheck, f) {
@@ -1361,12 +1361,16 @@
         return [string];
     });
 
-    var isString = func(1, false, false, function (string) {
-        return typeof string === \"string\";
+    var isBoolean = func(1, false, false, function (boolean) {
+        return typeof boolean === \"boolean\";
     });
 
     var isNumber = func(1, false, false, function (number) {
         return typeof number === \"number\" && !Number.isNaN(number);
+    });
+
+    var isString = func(1, false, false, function (string) {
+        return typeof string === \"string\";
     });
 
     var neq = func(2, true, function () {
@@ -1404,12 +1408,12 @@
     });
 
     var isCompiledProcedure = func(1, false, false, function (proc) {
-        return isPair(proc) &&
+        return isPair(proc) && isSymbol(car(proc)) &&
             symbolEq(car(proc), stringToSymbol(\"compiled\"));
     });
 
     var isPrimitiveProcedure = func(1, false, false, function (proc) {
-        return proc instanceof Function;
+        return proc.__primitive;
     });
 
     var makeCompiledProcedure = func(2, false, false, function (entry, env) {
@@ -1424,12 +1428,6 @@
         return car(cdr(proc));
     });
 
-    var applyPrimitive = func(2, false, function (proc, _) {
-        return isPrimitiveProcedure(proc);
-    }, function (proc, args) {
-        return proc.apply(undefined, listToPlist(args));
-    });
-
     var isEnv = func(1, false, false, function (env) {
         return env && typeof env.current === \"object\";
     });
@@ -1441,7 +1439,7 @@
 
         for (; isPair(names);) {
             if (!isPair(values)) {
-                throw \"not enough values\";
+                return error(\"not enough values\");
             }
 
             defineVar(car(names), car(values), ext);
@@ -1456,7 +1454,7 @@
         }
 
         if (!isNull(values)) {
-            throw \"not enough names\";
+            return error(\"not enough names\");
         }
 
         return ext;
@@ -1478,7 +1476,7 @@
             }
             env = env.parent;
         }
-        throw \"unbound variable\";
+        return error(\"unbound variable\");
     });
 
     var lookupVar = func(2, false, function (_, env) {
@@ -1499,7 +1497,7 @@
     });
 
     var mkNumOp = func(3, false, false, function (initial, single, reduce) {
-        return func(0, true, function () {
+        return importFunction(func(0, true, function () {
             for (var i = 0; i < arguments.length; i++) {
                 if (!isNumber(arguments[i])) {
                     return false;
@@ -1517,54 +1515,129 @@
             return args.slice(1).reduce(function (previous, current) {
                 return reduce(previous, current);
             }, args[0]);
-        });
+        }));
     });
 
-    var checkImportType = function (val) {
+    var exportCompiledProcedure = function (p) {
+        var f = function () {
+            save(env);
+            save(val);
+            save(proc);
+            save(args);
+            save(next);
+            save(cont);
+            args = importArray(Array.prototype.slice.call(arguments));
+            proc = p;
+            next = compiledProcedureEntry(p);
+            cont = false;
+            control();
+            cont = restore();
+            next = restore();
+            args = restore();
+            proc = restore();
+            val = restore();
+            env = restore();
+            return exportVal(val);
+        };
+        f.__exported = p;
+        return f;
+    };
+
+    var exportPrimitiveProcedure = function (p) {
+        return p.__primitive;
+    };
+
+    var exportPair = function (val) {
+        var plist = [];
+        for (; isPair(val); ) {
+            plist.push(exportVal(car(val)));
+            val = cdr(val);
+        }
+        if (!isNull(val)) {
+            plist.push(exportVal(val));
+        }
+        return plist;
+    };
+
+    var exportVal = function (val) {
         switch (true) {
-        case typeof val === \"number\":
-        case typeof val === \"string\":
-            break;
-        case val instanceof Array:
-            for (var i = 0; i < val.length; i++) {
-                checkImportType(val[i]);
-            }
-            break;
+        case isBoolean(val):
+        case isNumber(val):
+        case isString(val):
+            return val;
+        case isCompiledProcedure(val):
+            return exportCompiledProcedure(val);
+        case isPrimitiveProcedure(val):
+            return exportPrimitiveProcedure(val);
+        case isNull(val):
+            return [];
+        case isPair(val):
+            return exportPair(val);
         default:
-            return error(\"invalid argument type for import\");
+            return error(\"invalid type to export\");
         }
     };
 
-    var importFunction = function (module, key) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments);
-            for (var i = 0; i < args.length; i++) {
-                checkImportType(args[i]);
-            }
-            var res = module[key].apply(module, args);
+    var isExportedProcedure = function (p) {
+        return isFunction(p) && p.__exported;
+    };
+
+    var isFunction = function (f) {
+        return typeof f === \"function\";
+    };
+
+    var importExportedProcedure = function (p) {
+        return p.__exported;
+    };
+
+    var importFunction = function (f, module) {
+        var primitiveProcedure = function (args) {
+            var res = f.apply(module, exportPair(args));
             if (typeof res === \"undefined\") {
-                res = stringToSymbol(\"unknown value\");
-            } else {
-                checkImportType(res);
+                res = false;
             }
-            return res;
+            return importVal(res);
         };
+        primitiveProcedure.__primitive = f;
+        return primitiveProcedure;
+    };
+
+    var importArray = function (val) {
+        var l = list();
+        for (var i = 0; i < val.length; i++) {
+            l = cons(importVal(val[i]), l);
+        }
+        return l;
+    };
+
+    var importVal = function (val) {
+        switch (true) {
+        case isBoolean(val):
+        case isNumber(val):
+        case isString(val):
+            return val;
+        case isExportedProcedure(val):
+            return importExportedProcedure(val);
+        case isFunction(val):
+            return importFunction(val);
+        case val instanceof Array:
+            return importArray(val);
+        default:
+            return error(\"invalid import type\");
+        }
     };
 
     var importModule = function (name, module) {
         for (var key in module) {
-            switch (typeof module[key]) {
-            case \"number\":
-            case \"string\":
-                defineVar(stringToSymbol(key), module[key], env);
-            case \"function\":
-                defineVar(stringToSymbol(key), importFunction(module, key), env);
-                break;
-            default:
-                return error(\"invalid import type\");
-            }
+            defineVar(stringToSymbol(key), importVal(module[key]), env);
         }
     };
+
+    var applyPrimitive = func(2, false, function (proc, _) {
+        return isPrimitiveProcedure(proc);
+    }, function (proc, args) {
+        return proc(args);
+    });
 
     // registers
     var env = extendEnv(list(), list(), false);
@@ -1588,9 +1661,17 @@
         return register;
     });
 
+    // root environment:
+    defineVar(stringToSymbol(\"false\"), false, env);
+    defineVar(stringToSymbol(\"true\"), true, env);
+
     // primitive procedures
     defineVar(stringToSymbol(\"*\"),
         mkNumOp(1, identity, function (x, y) { return x * y; }),
+        env);
+
+    defineVar(stringToSymbol(\"+\"),
+        mkNumOp(0, identity, function (x, y) { return x + y; }),
         env);
 
     defineVar(stringToSymbol(\"-\"),
@@ -1601,7 +1682,7 @@
         }),
         env);
 
-    defineVar(stringToSymbol(\"=\"), neq, env);
+    defineVar(stringToSymbol(\"=\"), importFunction(neq), env);
 
     // program
     next = function () {
@@ -1611,7 +1692,10 @@
     };
 
     // control
-    for (; next; next = next());
+    var control = function () {
+        for (; next; next = next());
+    };
+    control();
 })();")
 
 (define (tab builder)
@@ -1840,12 +1924,14 @@
       (sbappend
         (sbappend
           (sbappend
-            (sbappend (make-string-builder)
-                      "importModule(stringToSymbol(\"")
-            (symbol-name (cadr (cadar program))))
-          "\"), (function (exports) {\n")
-        (cadr (caddar program)))
-      "\nreturn exports;\n})({}));\n")))
+            (sbappend
+              (sbappend (make-string-builder)
+                        "importModule(stringToSymbol(\"")
+              (symbol-name (cadr (cadar program))))
+            "\"), (function (exports) {\n")
+          (cadr (caddar program)))
+        (sbappend (make-string-builder) "return exports;\n"))
+      (sbappend (make-string-builder) "})({}));\n"))))
 
 (define (assemble-body program builder)
   (if (null? program)
@@ -1912,7 +1998,21 @@
                      (if (= n 0)
                        1
                        (* n (factorial (- n 1)))))
-                   (log (factorial 120)))
+                   (log (factorial 120))
+                   (js-import-code / "
+                                   exports[\"log-callback\"] = function (msg, callback) {
+                                       console.log(msg);
+                                       callback();
+                                   }; ")
+                   (log-callback
+                     1
+                     (lambda ()
+                       (log-callback
+                         2
+                         (lambda ()
+                           (log-callback 3 (lambda () false))))))
+                   (log (+ 2 3)))
+
                    ; (js-export name definition)
                    ; (js-import-file name path)
                    ; (js-import-code name code))
