@@ -1969,63 +1969,66 @@
         (assemble-body program (make-string-builder)))
       js-tail)))
 
-(let ((program (compile-sequence
-                 ; '((define (factorial n)
-                 ;     (if (eq? n 1)
-                 ;       1
-                 ;       (* (factorial (- n 1)) n)))
-                 ;   (print (factorial 3)))
-                 '((js-import-code / "
-        exports.log = function () {
-            console.log.apply(console, Array.prototype.slice.call(arguments));
-        };
-                                   ")
-                   1
-                   (log 1)
-                   (log 2)
-                   (define a 3)
-                   (log a)
-                   (if 4 5 6)
-                   (log (if 7 8 9))
-                   '(some)
-                   (set! a 10)
-                   (log a)
-                   (lambda (x) x)
-                   (lambda x x)
-                   ((lambda (x) x) 11)
-                   (log ((lambda x x) 12 13 14))
-                   (define (factorial n)
-                     (if (= n 0)
-                       1
-                       (* n (factorial (- n 1)))))
-                   (log (factorial 120))
-                   (js-import-code / "
-                                   exports[\"log-callback\"] = function (msg, callback) {
-                                       console.log(msg);
-                                       callback();
-                                   }; ")
-                   (log-callback
-                     1
-                     (lambda ()
-                       (log-callback
-                         2
-                         (lambda ()
-                           (log-callback 3 (lambda () false))))))
-                   (log (+ 2 3)))
+(print (compile 1 'val 'next))
 
-                   ; (js-export name definition)
-                   ; (js-import-file name path)
-                   ; (js-import-code name code))
-                 'val
-                 'next)))
-  ; (start (make-machine
-  ;    (list-union '(env)
-  ;                (list-union (registers-needed program)
-  ;                            (registers-modified program)))
-  ;    compile-ops
-  ;    (append '((assign env (op get-global-environment)))
-  ;            (caddr program)))))
-  (let ((js (assemble (caddr program))))
-    (out js)))
+; (let ((program (compile-sequence
+;                  ; '((define (factorial n)
+;                  ;     (if (eq? n 1)
+;                  ;       1
+;                  ;       (* (factorial (- n 1)) n)))
+;                  ;   (print (factorial 3)))
+;                  '((js-import-code / "
+;         exports.log = function () {
+;             console.log.apply(console, Array.prototype.slice.call(arguments));
+;         };
+;                                    ")
+;                    1
+;                    (log 1)
+;                    (log 2)
+;                    (define a 3)
+;                    (log a)
+;                    (if 4 5 6)
+;                    (log (if 7 8 9))
+;                    '(some)
+;                    (set! a 10)
+;                    (log a)
+;                    (lambda (x) x)
+;                    (lambda x x)
+;                    ((lambda (x) x) 11)
+;                    (log ((lambda x x) 12 13 14))
+;                    (define (factorial n)
+;                      (if (= n 0)
+;                        1
+;                        (* n (factorial (- n 1)))))
+;                    (log (factorial 120))
+;                    (js-import-code / "
+;                                    exports[\"log-callback\"] = function (msg, callback) {
+;                                        console.log(msg);
+;                                        callback();
+;                                    }; ")
+;                    (log-callback
+;                      1
+;                      (lambda ()
+;                        (log-callback
+;                          2
+;                          (lambda ()
+;                            (log-callback 3 (lambda () false))))))
+;                    (log (+ 2 3)))
+; 
+;                    ; (js-export name definition)
+;                    ; (js-import-file name path)
+;                    ; (js-import-code name code))
+;                  'val
+;                  'next)))
+;   ; (start (make-machine
+;   ;    (list-union '(env)
+;   ;                (list-union (registers-needed program)
+;   ;                            (registers-modified program)))
+;   ;    compile-ops
+;   ;    (append '((assign env (op get-global-environment)))
+;   ;            (caddr program)))))
+;   (print program))
+;   ; (let ((js (assemble (caddr program))))
+;   ;   (out js)))
 
 ; do lexical addressing of variables
