@@ -1,11 +1,15 @@
-(define (label? exp) (symbol? exp))
+(define symbol->string symbol-name)
+
+(define (entry? exp) (symbol? exp))
+
+(define (entry-name exp) (symbol->string exp))
 
 (define (make-instruction-sequence needs modifies statements)
   (list needs modifies statements))
 
-(define (registers-needed s) (if (label? s) '() (car s)))
+(define (registers-needed s) (if (entry? s) '() (car s)))
 
-(define (registers-modified s) (if (label? s) '() (cadr s)))
+(define (registers-modified s) (if (entry? s) '() (cadr s)))
 
 (define (needs-register? seq reg)
   (memq reg (registers-needed seq)))
@@ -14,7 +18,7 @@
   (memq reg (registers-modified seq)))
 
 (define (statements s)
-  (if (label? s) (list s) (caddr s)))
+  (if (entry? s) (list s) (caddr s)))
 
 (define (empty-instruction-sequence)
   (make-instruction-sequence '() '() '()))
@@ -396,7 +400,8 @@
 
 (define (compile exp target linkage)
   (cond ((self-evaluating? exp) (compile-self-evaluating exp target linkage))
-        ((quoted? exp) (compile-quoted exp target linkage))
+        ((quoted? exp)
+         (compile-quoted exp target linkage))
         ((variable? exp)
          (compile-variable exp target linkage))
         ((assignment? exp)
@@ -411,20 +416,300 @@
                            linkage))
         ((application? exp)
          (compile-application exp target linkage))
-        (else (error 'compile-asm "invalid expression type" exp))))
+        (else (error 'compile "invalid expression type" exp))))
 
 (define (optimize-asm asm) asm)
 
-(define (assemble asm) asm)
+(define (register? exp) (tagged-list? exp 'reg))
+
+(define (register-name exp) (cadr exp))
+
+(define (label? exp) (tagged-list? exp 'label))
+
+(define (label-name exp) (cadr exp))
+
+(define (make-assembly-builder)
+  (let ((builder (make-string-builder)))
+    (lambda (mutate get)
+      (set! builder (mutate builder))
+      (get builder))))
+
+(define (assembly-append builder string)
+  (builder (lambda (b) (sbappend b string))
+           identity))
+
+(define (assembly->string builder)
+  (builder (lambda (b) b)
+           (lambda (b) (builder->string b))))
+
+(define (assemble-pair builder exp)
+  (assembly-append builder "[")
+  (assemble-const builder (car exp))
+  (assembly-append builder ",")
+  (assemble-const builder (cdr exp))
+  (assembly-append builder "]"))
+
+(define (const? exp) (tagged-list? exp 'const))
+
+(define (assemble-const builder exp)
+  (cond ((self-evaluating? exp)
+         (assembly-append builder (sprint exp)))
+        ((symbol? exp)
+         (assembly-append builder "[")
+         (assembly-append builder (sprint (symbol->string exp)))
+         (assembly-append builder "]"))
+        ((null? exp)
+         (assembly-append builder "[]"))
+        ((pair? exp)
+         (assemble-pair builder exp))
+        (else (error 'assemble-const "invalid const" exp))))
+
+(define (assemble-op-call builder op-name . args)
+  (define (assemble-op-args first? args)
+    (cond ((not (null? args))
+           (cond ((not first?)
+                  (assembly-append builder ",")))
+           (cond ((register? (car args))
+                  (assembly-append builder (register-name (car args))))
+                 ((label? (car args))
+                  (assembly-append builder (label-name (car args))))
+                 ((const? (car args))
+                  (assemble-const builder (cadar args)))
+                 (else (error 'assemble-op-call
+                              "invalid assembly argument"
+                              (car args))))
+           (assemble-op-args false (cdr args)))))
+  (assembly-append builder op-name)
+  (assembly-append builder "(")
+  (assemble-op-args true args)
+  (assembly-append builder ")"))
+
+(define (assemble-lookup-variable builder exp)
+  (assemble-op-call builder
+                    "lookupVar"
+                    (caddr exp)
+                    (cadr exp)))
+
+(define (assemble-set-variable builder exp)
+  (assemble-op-call builder
+                    "setVar"
+                    (cadddr exp)
+                    (cadr exp)
+                    (caddr exp)))
+
+(define (assemble-define-variable builder exp)
+  (assemble-op-call builder
+                    "defineVar"
+                    (cadddr exp)
+                    (cadr exp)
+                    (caddr exp)))
+
+(define (assemble-false-check builder exp)
+  (assemble-op-call builder
+                    "isFalse"
+                    (cadr exp)))
+
+(define (assemble-compiled-procedure-env builder exp)
+  (assemble-op-call builder
+                    "compiledProcedureEnv"
+                    (cadr exp)))
+
+(define (assemble-extend-environment builder exp)
+  (assemble-op-call builder
+                    (cadddr exp)
+                    (cadr exp)
+                    (caddr exp)))
+
+(define (assemble-make-procedure builder exp)
+  (assemble-op-call builder
+                    "makeProcedure"
+                    (caddr exp)
+                    (cadr exp)))
+
+(define (assemble-cons-op builder exp)
+  (assemble-op-call builder
+                    "opCons"
+                    (cadr exp)
+                    (caddr exp)))
+
+(define (assemble-list-op builder exp)
+  (apply assemble-op-call
+         (cons builder (cons "opList" (cdr exp)))))
+
+(define (assemble-compiled-entry builder exp)
+  (assemble-op-call builder
+                    "compiledEntry"
+                    (cadr exp)))
+
+(define (assemble-primitive-procedure-check builder exp)
+  (assemble-op-call builder
+                    "isPrimitiveProcedure"
+                    (cadr exp)))
+
+(define (assemble-apply-primitive builder exp)
+  (assemble-op-call builder
+                    "applyPrimitive"
+                    (cadr exp)
+                    (caddr exp)))
+
+(define (assembly-op? exp) (tagged-list? exp 'op))
+
+(define (op-name exp) (cadar exp))
+
+(define (assemble-op builder exp)
+  (cond ((eq? (op-name exp) 'lookup-variable-value)
+         (assemble-lookup-variable builder exp))
+        ((eq? (op-name exp) 'set-variable-value!)
+         (assemble-set-variable builder exp))
+        ((eq? (op-name exp) 'define-variable!)
+         (assemble-define-variable builder exp))
+        ((eq? (op-name exp) 'false?)
+         (assemble-false-check builder exp))
+        ((eq? (op-name exp) 'compiled-procedure-env)
+         (assemble-compiled-procedure-env builder exp))
+        ((eq? (op-name exp) 'extend-environment)
+         (assemble-extend-environment builder exp))
+        ((eq? (op-name exp) 'make-compiled-procedure)
+         (assemble-make-procedure builder exp))
+        ((eq? (op-name exp) 'cons)
+         (assemble-cons-op builder exp))
+        ((eq? (op-name exp) 'list)
+         (assemble-list-op builder exp))
+        ((eq? (op-name exp) 'compiled-procedure-entry)
+         (assemble-compiled-entry builder exp))
+        ((eq? (op-name exp) 'primitive-procedure?)
+         (assemble-primitive-procedure-check builder exp))
+        ((eq? (op-name exp) 'apply-primitive-procedure)
+         (assemble-apply-primitive builder exp))
+        (else (error 'assemble-op "invalid assembly operation"))))
+
+(define (followed-by-entry? asm)
+  (and (not (null? (cdr asm)))
+       (entry? (cadr asm))))
+
+(define (assemble-close-entry builder asm)
+  (assembly-append builder "return ")
+  (assembly-append
+    builder
+    (if (null? asm)
+      "false"
+      (entry-name (car asm))))
+  (assembly-append builder ";}"))
+
+(define (assembly-entry? asm) (entry? (car asm)))
+
+(define (assemble-entry builder asm)
+  (assembly-append builder "var ")
+  (assembly-append builder (entry-name (car asm)))
+  (assembly-append builder "=function(){")
+  (assemble builder (cdr asm)))
+
+(define (assembly-goto? asm)
+  (tagged-list? (car asm) 'goto))
+
+(define (assemble-goto builder asm)
+  (assembly-append builder "return ")
+  (assembly-append
+    builder
+    (cond ((register? (cadar asm))
+           (register-name (cadar asm)))
+          ((label? (cadar asm))
+           (label-name (cadar asm)))
+          (else
+            (error 'assemble-goto "invalid assembly goto" asm))))
+  (assembly-append builder ";}")
+  (assemble builder (cdr asm)))
+
+(define (assembly-save? asm)
+  (tagged-list? (car asm) 'save))
+
+(define (assemble-save builder asm)
+  (assembly-append builder "save(")
+  (assembly-append builder (cadar asm))
+  (assembly-append ");")
+  (cond ((followed-by-entry? asm)
+         (assemble-close-entry builder (cdr asm))))
+  (assemble builder (cdr asm)))
+
+(define (assembly-restore? asm)
+  (tagged-list? (car asm) 'restore))
+
+(define (assemble-restore builder asm)
+  (assembly-append builder "restore(")
+  (assembly-append builder (cadar asm))
+  (assembly-append builder ");")
+  (cond ((followed-by-entry? asm)
+         (assemble-close-entry builder (cdr asm))))
+  (assemble builder (cdr asm)))
+
+(define (assembly-assign? asm) (tagged-list? (car asm) 'assign))
+
+(define (assemble-assign builder asm)
+  (assembly-append builder (cadar asm))
+  (assembly-append builder "=")
+  (cond ((register? (caddar asm))
+         (assembly-append builder (register-name (caddar asm))))
+        ((label? (caddar asm))
+         (assembly-append builder (label-name (caddar asm))))
+        ((const? (caddar asm))
+         (assemble-const builder (cadr (caddar asm))))
+        ((assembly-op? (caddar asm))
+         (assemble-op builder (cddar asm)))
+        (else (error 'assemble-assign "invalid assembly assign" asm)))
+  (assembly-append builder ";")
+  (cond ((followed-by-entry? asm)
+         (assemble-close-entry builder (cdr asm))))
+  (assemble builder (cdr asm)))
+
+(define (assembly-perform? asm) (tagged-list? (car asm) 'perform))
+
+(define (assemble-perform builder asm)
+  (assemble-op builder (car asm))
+  (assembly-append builder ";")
+  (assemble builder (cdr asm)))
+
+(define (assembly-test-branch? asm)
+  (and (eq? (caar asm) 'test)
+       (eq? (caadr asm) 'branch)))
+
+(define (assemble-test-branch builder asm)
+  (assembly-append builder "if(")
+  (cond ((register? (cadar asm))
+         (assembly-append builder (register-name (cadar asm))))
+        ((assembly-op? (cadar asm))
+         (assemble-op builder (cdar asm)))
+        (else (error 'assemble-test-branch "invalid test" asm)))
+  (assembly-append builder "){return ")
+  (assembly-append builder (label-name (cadadr asm)))
+  (assemble-close-entry builder (cddr asm))
+  (assemble builder (cddr asm)))
+
+(define (assemble builder asm)
+  (cond ((null? asm)
+         (assemble-close-entry builder asm)
+         builder)
+        ((assembly-entry? asm)
+         (assemble-entry builder asm))
+        ((assembly-goto? asm)
+         (assemble-goto builder asm))
+        ((assembly-save? asm)
+         (assemble-save builder asm))
+        ((assembly-restore? asm)
+         (assemble-restore builder asm))
+        ((assembly-assign? asm)
+         (assemble-assign builder asm))
+        ((assembly-perform? asm)
+         (assemble-perform builder asm))
+        ((assembly-test-branch? asm)
+         (assemble-test-branch builder asm))
+        (else (error 'assemble "invalid assembly" asm))))
 
 (define (compile-js exp)
-  (assemble (optimize-asm (compile exp 'val 'next))))
+  (assembly->string
+    (assemble (make-assembly-builder)
+              (optimize-asm
+                (statements (compile exp 'val 'next))))))
 
-(define exp '(define (a x)
-               (define (b y) (* 2 y))
-               (b (lambda () 1))
-               (if 1 2 3)
-               (set! x 3)
-               (begin (a 1) (b "some") (a 'some))))
+(define exp ''(1 . 2))
 (define js (compile-js exp))
-(print js)
+(out js)
