@@ -213,9 +213,9 @@
 (define (if-alternative exp) (cadddr exp))
 
 (define (compile-if exp target linkage)
-  (let ((after-if (make-label 'after-if))
-        (true-branch (make-label 'true-branch))
-        (false-branch (make-label 'false-branch)))
+  (let ((after-if (make-label 'afterIf))
+        (true-branch (make-label 'trueBranch))
+        (false-branch (make-label 'falseBranch)))
     (let ((consequent-linkage
             (if (eq? linkage 'next) after-if linkage)))
       (let ((predicate (compile (if-predicate exp) 'val 'next))
@@ -254,7 +254,7 @@
     (compile-sequence (lambda-body exp) 'val 'return)))
 
 (define (compile-lambda exp target linkage)
-  (let ((after-lambda (make-label 'after-lambda))
+  (let ((after-lambda (make-label 'afterLambda))
         (entry (make-label 'entry)))
     (let ((lambda-linkage
             (if (eq? linkage 'next) after-lambda linkage)))
@@ -331,7 +331,7 @@
                  '(goto (reg val)))))
         ((and (not (eq? target 'val))
               (not (eq? linkage 'return)))
-         (let ((proc-return (make-label 'proc-return)))
+         (let ((proc-return (make-label 'procReturn)))
            (make-instruction-sequence
              '(proc) all-regs
              (list (list 'assign
@@ -358,9 +358,9 @@
                  target))))
 
 (define (compile-procedure-call target linkage)
-  (let ((after-call (make-label 'after-call))
-        (primitive-branch (make-label 'primitive-branch))
-        (compiled-branch (make-label 'compiled-branch)))
+  (let ((after-call (make-label 'afterCall))
+        (primitive-branch (make-label 'primitiveBranch))
+        (compiled-branch (make-label 'compiledBranch)))
     (let ((compiled-linkage
             (if (eq? linkage 'next) after-call linkage)))
       (append-instruction-sequences
@@ -422,7 +422,8 @@
 
 (define (register? exp) (tagged-list? exp 'reg))
 
-(define (register-name exp) (cadr exp))
+(define (register-name exp)
+  (cats "regs." (symbol->string (cadr exp))))
 
 (define (label? exp) (tagged-list? exp 'label))
 
@@ -486,69 +487,70 @@
 
 (define (assemble-lookup-variable builder exp)
   (assemble-op-call builder
-                    "lookupVar"
+                    "ops.lookupVar"
                     (caddr exp)
                     (cadr exp)))
 
 (define (assemble-set-variable builder exp)
   (assemble-op-call builder
-                    "setVar"
+                    "ops.setVar"
                     (cadddr exp)
                     (cadr exp)
                     (caddr exp)))
 
 (define (assemble-define-variable builder exp)
   (assemble-op-call builder
-                    "defineVar"
+                    "ops.defineVar"
                     (cadddr exp)
                     (cadr exp)
                     (caddr exp)))
 
 (define (assemble-false-check builder exp)
   (assemble-op-call builder
-                    "isFalse"
+                    "ops.isFalse"
                     (cadr exp)))
 
 (define (assemble-compiled-procedure-env builder exp)
   (assemble-op-call builder
-                    "compiledProcedureEnv"
+                    "ops.compiledProcedureEnv"
                     (cadr exp)))
 
 (define (assemble-extend-environment builder exp)
   (assemble-op-call builder
+                    "ops.extendEnv"
                     (cadddr exp)
                     (cadr exp)
                     (caddr exp)))
 
 (define (assemble-make-procedure builder exp)
   (assemble-op-call builder
-                    "makeProcedure"
-                    (caddr exp)
-                    (cadr exp)))
+                    "ops.makeProcedure"
+                    (cadr exp)
+                    (caddr exp)))
 
 (define (assemble-cons-op builder exp)
   (assemble-op-call builder
-                    "opCons"
+                    "ops.cons"
                     (cadr exp)
                     (caddr exp)))
 
 (define (assemble-list-op builder exp)
   (apply assemble-op-call
-         (cons builder (cons "opList" (cdr exp)))))
+         (cons builder (cons "ops.list" (cdr exp)))))
 
 (define (assemble-compiled-entry builder exp)
   (assemble-op-call builder
-                    "compiledEntry"
+                    "ops.compiledEntry"
                     (cadr exp)))
 
 (define (assemble-primitive-procedure-check builder exp)
   (assemble-op-call builder
-                    "isPrimitiveProcedure"
+                    "ops.isPrimitiveProcedure"
                     (cadr exp)))
 
 (define (assemble-apply-primitive builder exp)
   (assemble-op-call builder
-                    "applyPrimitive"
+                    "ops.applyPrimitive"
                     (cadr exp)
                     (caddr exp)))
 
@@ -581,7 +583,7 @@
          (assemble-primitive-procedure-check builder exp))
         ((eq? (op-name exp) 'apply-primitive-procedure)
          (assemble-apply-primitive builder exp))
-        (else (error 'assemble-op "invalid assembly operation"))))
+        (else (error 'assemble-op "invalid assembly operation" exp))))
 
 (define (followed-by-entry? asm)
   (and (not (null? (cdr asm)))
@@ -594,7 +596,7 @@
     (if (null? asm)
       "false"
       (entry-name (car asm))))
-  (assembly-append builder ";}"))
+  (assembly-append builder ";};"))
 
 (define (assembly-entry? asm) (entry? (car asm)))
 
@@ -602,6 +604,8 @@
   (assembly-append builder "var ")
   (assembly-append builder (entry-name (car asm)))
   (assembly-append builder "=function(){")
+  (cond ((followed-by-entry? asm)
+         (assemble-close-entry builder (cdr asm))))
   (assemble builder (cdr asm)))
 
 (define (assembly-goto? asm)
@@ -617,7 +621,7 @@
            (label-name (cadar asm)))
           (else
             (error 'assemble-goto "invalid assembly goto" asm))))
-  (assembly-append builder ";}")
+  (assembly-append builder ";};")
   (assemble builder (cdr asm)))
 
 (define (assembly-save? asm)
@@ -625,8 +629,8 @@
 
 (define (assemble-save builder asm)
   (assembly-append builder "save(")
-  (assembly-append builder (cadar asm))
-  (assembly-append ");")
+  (assembly-append builder (register-name (car asm)))
+  (assembly-append builder ");")
   (cond ((followed-by-entry? asm)
          (assemble-close-entry builder (cdr asm))))
   (assemble builder (cdr asm)))
@@ -635,9 +639,8 @@
   (tagged-list? (car asm) 'restore))
 
 (define (assemble-restore builder asm)
-  (assembly-append builder "restore(")
-  (assembly-append builder (cadar asm))
-  (assembly-append builder ");")
+  (assembly-append builder (register-name (car asm)))
+  (assembly-append builder "= restore();")
   (cond ((followed-by-entry? asm)
          (assemble-close-entry builder (cdr asm))))
   (assemble builder (cdr asm)))
@@ -645,7 +648,7 @@
 (define (assembly-assign? asm) (tagged-list? (car asm) 'assign))
 
 (define (assemble-assign builder asm)
-  (assembly-append builder (cadar asm))
+  (assembly-append builder (register-name (car asm)))
   (assembly-append builder "=")
   (cond ((register? (caddar asm))
          (assembly-append builder (register-name (caddar asm))))
@@ -664,7 +667,7 @@
 (define (assembly-perform? asm) (tagged-list? (car asm) 'perform))
 
 (define (assemble-perform builder asm)
-  (assemble-op builder (car asm))
+  (assemble-op builder (cdar asm))
   (assembly-append builder ";")
   (assemble builder (cdr asm)))
 
@@ -681,6 +684,7 @@
         (else (error 'assemble-test-branch "invalid test" asm)))
   (assembly-append builder "){return ")
   (assembly-append builder (label-name (cadadr asm)))
+  (assembly-append builder ";};")
   (assemble-close-entry builder (cddr asm))
   (assemble builder (cddr asm)))
 
@@ -708,8 +712,31 @@
   (assembly->string
     (assemble (make-assembly-builder)
               (optimize-asm
-                (statements (compile exp 'val 'next))))))
+                (cons 'start (statements (compile exp 'val 'next)))))))
 
-(define exp ''(1 . 2))
+(define exp
+  '((lambda ()
+
+      (define (factorial n)
+        (if (= n 0)
+          1
+          (* n (factorial (- n 1)))))
+
+      (define n 150)
+
+      (out (factorial n))
+
+      (define (loop counter)
+        (if (= counter 0)
+          (out 'done)
+          (begin
+            (factorial n)
+            (loop (- counter 1)))))
+      (loop 1000)
+
+   'ok)))
+
+; (print (cons 'start (statements (compile exp 'val 'next))))
+
 (define js (compile-js exp))
 (out js)
