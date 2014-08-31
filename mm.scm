@@ -252,14 +252,20 @@
     0
     (+ 1 (len (cdr l)))))
 
-(define (append . l)
-  (if (null? l)
-    '()
-    (if (null? (car l))
-      (apply append (cdr l))
-      (cons (caar l)
-            (apply append
-                   (cons (cdar l) (cdr l)))))))
+; temporarily dumb down append, due to bug in apply/tail recursion
+; (define (append . l)
+;   (if (null? l)
+;     '()
+;     (if (null? (car l))
+;       (apply append (cdr l))
+;       (cons (caar l)
+;             (apply append
+;                    (cons (cdar l) (cdr l)))))))
+
+(define (append left right)
+  (if (null? left)
+    right
+    (cons (car left) (append (cdr left) right))))
 
 (define (reverse l)
   (if (null? l)

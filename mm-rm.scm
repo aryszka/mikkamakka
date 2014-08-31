@@ -73,8 +73,8 @@
                            (list-difference (registers-modified seq1)
                                             (list (car regs)))
                            (append (list (list 'save (car regs)))
-                                   (statements seq1)
-                                   (list (list 'restore (car regs)))))
+                                   (append (statements seq1)
+                                           (list (list 'restore (car regs))))))
                          seq2)
       (append-preserving (cdr regs) seq1 seq2))))
 
@@ -714,29 +714,166 @@
               (optimize-asm
                 (cons 'start (statements (compile exp 'val 'next)))))))
 
+; (define exp
+;   '((lambda ()
+; 
+;       (define (factorial n)
+;         (if (= n 0)
+;           1
+;           (* n (factorial (- n 1)))))
+; 
+;       (define n 150)
+; 
+;       (out (factorial n))
+; 
+;       (define (loop counter)
+;         (if (= counter 0)
+;           (out 'done)
+;           (begin
+;             (factorial n)
+;             (loop (- counter 1)))))
+;       (loop 100)
+; 
+;    'ok)))
+
+; (print (cons 'start (statements (compile exp 'val 'next))))
+
 (define exp
   '((lambda ()
 
-      (define (factorial n)
-        (if (= n 0)
-          1
-          (* n (factorial (- n 1)))))
+      (define test-struct (struct))
+      (out (struct? test-struct))
+      (out (struct-defined? test-struct 'a-name))
+      (struct-define test-struct 'a-name 1)
+      (out (struct-defined? test-struct 'a-name))
+      (out (struct-lookup test-struct 'a-name))
+      (struct-set! test-struct 'a-name 2)
+      (out (struct-lookup test-struct 'a-name))
+      ; (define test-struct (struct (a-name 3) (another-name 4)))
+      ; (out (struct-loookup test-struct 'a-name))
+      ; (out (struct-loookup test-struct 'another-name))
 
-      (define n 150)
+      (define (list . x) x)
 
-      (out (factorial n))
+      (out (list 1 2 3))
 
-      (define (loop counter)
-        (if (= counter 0)
-          (out 'done)
-          (begin
-            (factorial n)
-            (loop (- counter 1)))))
-      (loop 1000)
+      (out (apply list '(1 2 3)))
 
-   'ok)))
+      ; (define (and . args)
+      ;   (if (not (car args))
+      ;     false
+      ;     (apply and (cdr args))))
 
-; (print (cons 'start (statements (compile exp 'val 'next))))
+      ; (define (make-port object)
+      ;   ((lambda (port)
+      ;      (struct-define 'port-object object)
+      ;      port)
+      ;    (struct)))
+
+      ; (define (port? port)
+      ;   (and (struct? port)
+      ;        (struct-defined? port 'port-object)))
+
+      ; (out (port? 'not-a-port))
+
+      ; (out (port? (make-port 'port-object)))
+
+      ; (define (input-port? port)
+      ;   (and (port? port)
+      ;        ((struct-lookup port 'port-object)
+      ;         'input-port?)))
+
+      ; (out (input-port?
+      ;        (make-port (lambda (message)
+      ;                     (eq? message 'input-port?)))))
+
+      ; (define (output-port? port)
+      ;   (and (port? port)
+      ;        ((struct-lookup port 'port-object)
+      ;         'output-port?)))
+
+      ; (out (output-port?
+      ;        (make-port (lambda (message)
+      ;                     (eq? message 'output-port?)))))
+
+      ; (define (close-port port)
+      ;   ((struct-lookup port 'port-object) 'close))
+
+      ; (close-port (make-port (lambda (x) x)))
+
+      ; (define (end-of-file) end-of-file)
+
+      ; (define (eof-object? eof) (eq? eof end-of-file))
+
+      ; (out (eof-object? end-of-file))
+
+      ; (define (read-string port . args)
+      ;   (apply (struct-lookup port 'port-object)
+      ;          (cons 'read-string args)))
+
+      ; (define (write-string port string)
+      ;   ((struct-lookup port 'port-object) 'write-string string))
+
+      ; (define (read-char port)
+      ;   ((struct-lookup port 'port-object) 'read-char))
+
+      ; (define (write-char port char)
+      ;   ((struct-lookup port 'port-object) 'write-char char))
+
+      ; (define (read port)
+      ;   (read-string port)
+      ;   '())
+
+      ; (define (write port)
+      ;   ((struct-lookup port 'port-object 'write-string "")))
+
+      ; (define (open-string-port string)
+      ;   (let ((strings (list string))
+      ;         (ref 0))
+      ;     (define (read-string . args)
+      ;       (define (read-string parts length)
+      ;         (cond ((and (null? strings) (null? parts)) end-of-file)
+      ;               ((< length 0)
+      ;                (let ((string
+      ;                        (apply
+      ;                          string-append
+      ;                          (cons (string-copy (car strings) ref)
+      ;                                (cdr strings)))))
+      ;                  (set! strings '())
+      ;                  (set! ref 0)
+      ;                  string))
+      ;               ((null? strings) (apply string-append (reverse parts)))
+      ;               ((>= (+ ref length) (string-length (car strings)))
+      ;                (let ((parts (cons (string-copy (car strings) ref)
+      ;                                   parts)))
+      ;                  (set! strings (cdr strings))
+      ;                  (set! ref 0)
+      ;                  (read-string parts
+      ;                               (- length (string-length (car parts))))))
+      ;               (else
+      ;                 (apply
+      ;                   string-append
+      ;                   (reverse
+      ;                     (cons (string-copy (car strings) ref (+ ref length))
+      ;                           parts))))))
+      ;       (read-string '() (if (null? args) -1 (car args))))
+      ;     (define (write-string string)
+      ;       (set! strings (append strings (list string))))
+      ;     (define (close)
+      ;       (set! strings '())
+      ;       (set! ref 0))
+      ;     (make-port (lambda (message . args)
+      ;                  (cond ((eq? message 'port) true)
+      ;                        ((eq? messgae 'input-port?) true)
+      ;                        ((eq? message 'output-port?) true)
+      ;                        ((eq? message 'close) (close))
+      ;                        ((eq? message 'read-string) (apply read-string args))
+      ;                        ((eq? message 'write-string) (write-string (car args)))
+      ;                        ((eq? message 'read-char) (read-string 1))
+      ;                        ((eq? message 'write-char) (write-string (string-copy (car args) 0 1)))
+      ;                        (else (error "invalid message" message)))))))
+
+      'ok)))
 
 (define js (compile-js exp))
 (out js)
