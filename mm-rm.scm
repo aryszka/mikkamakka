@@ -273,6 +273,82 @@
           (compile-lambda-body exp entry))
         after-lambda))))
 
+(define (cond? exp) (tagged-list? exp 'cond))
+
+(define (cond-else-clause? clause) (eq? (cond-predicate clause) 'else))
+
+(define (expand-clauses clauses)
+  (if (null? clauses)
+    'true
+    (let ((first (car clauses))
+          (the-rest (cdr clauses)))
+      (cond ((not (pair? first))
+             (error 'expand-clauses "invalid syntax" first))
+            ((cond-else-clause? first)
+             (if (null? the-rest)
+               (sequence->exp (cdr first))
+               (error 'expand-clauses "else clause isn't last" clauses)))
+            (else (make-if (car first)
+                           (sequence->exp (cdr first))
+                           (expand-clauses the-rest)))))))
+
+(define (cond->if exp) (expand-clauses (cdr exp)))
+
+(define (and? exp) (tagged-list? exp 'and))
+
+(define (expand-and exps)
+  (if (null? exps)
+    'true
+    (let ((first (car exps))
+          (the-rest (cdr exps)))
+      (if (null? the-rest)
+        first
+        (list (list 'lambda
+                    '(predicate)
+                    (list 'if
+                          'predicate
+                          (expand-and the-rest)
+                          'predicate))
+              first)))))
+
+(define (and->if exp) (expand-and (cdr exp)))
+
+(define (or? exp) (tagged-list? exp 'or))
+
+(define (expand-or exps)
+  (if (null? exps)
+    'false
+    (let ((first (car exps))
+          (the-rest (cdr exps)))
+      (if (null? the-rest)
+        first
+        (list (list 'lambda
+                    '(predicate)
+                    (list 'if
+                          'predicate
+                          'predicate
+                          (expand-or the-rest)))
+              first)))))
+
+(define (or->if exp) (expand-or (cdr exp)))
+
+(define (let? exp) (tagged-list? exp 'let))
+
+(define (check-let exp)
+  (cond ((< (len exp) 3)
+         (error 'check-let "invalid arity" exp))
+        ((not (pair? (cadr exp)))
+         (error 'check-let "invalid syntax" exp))))
+
+(define (let-variables defs) (map car defs))
+
+(define (let-values defs) (map cadr defs))
+
+(define (let->procedure exp)
+  (cons (make-lambda (let-variables (cadr exp))
+                     (cddr exp))
+        (let-values (cadr exp))))
+
 (define (begin? exp) (tagged-list? exp 'begin))
 
 (define (begin-actions exp) (cdr exp))
@@ -318,72 +394,113 @@
             code-to-get-last-arg
             (code-to-get-rest-args (cdr operands))))))))
 
-(define (compile-proc-appl target linkage)
-  (cond ((and (eq? target 'val) (not (eq? linkage 'return)))
-         (make-instruction-sequence
-           '(proc) all-regs
-           (list (list 'assign
-                       'cont
-                       (list 'label linkage))
-                 '(assign val
-                          (op compiled-procedure-entry)
-                          (reg proc))
-                 '(goto (reg val)))))
-        ((and (not (eq? target 'val))
-              (not (eq? linkage 'return)))
-         (let ((proc-return (make-label 'procReturn)))
-           (make-instruction-sequence
-             '(proc) all-regs
-             (list (list 'assign
-                         'cont
-                         (list 'label proc-return))
-                   '(assign val
-                            (op compiled-procedure-entry)
-                            (reg proc))
-                   '(goto (reg val))
-                   proc-return
-                   (list target '(reg val))
-                   (list 'goto (list 'label linkage))))))
-        ((and (eq? target 'val) (eq? linkage 'return))
-         (make-instruction-sequence
-           '(proc cont)
-           all-regs
-           '((assign val
-                     (op compiled-procedure-entry)
-                     (reg proc))
-             (goto (reg val)))))
-        (else
-          (error 'compile-proc-appl
-                 "return linkage, target not val"
-                 target))))
+; (define (compile-proc-appl target linkage)
+;   (cond ((and (eq? target 'val) (not (eq? linkage 'return)))
+;          (make-instruction-sequence
+;            '(proc) all-regs
+;            (list (list 'assign
+;                        'cont
+;                        (list 'label linkage))
+;                  '(assign val
+;                           (op compiled-procedure-entry)
+;                           (reg proc))
+;                  '(goto (reg val)))))
+;         ((and (not (eq? target 'val))
+;               (not (eq? linkage 'return)))
+;          (let ((proc-return (make-label 'procReturn)))
+;            (make-instruction-sequence
+;              '(proc) all-regs
+;              (list (list 'assign
+;                          'cont
+;                          (list 'label proc-return))
+;                    '(assign val
+;                             (op compiled-procedure-entry)
+;                             (reg proc))
+;                    '(goto (reg val))
+;                    proc-return
+;                    (list 'assign target '(reg val))
+;                    (list 'goto (list 'label linkage))))))
+;         ((and (eq? target 'val) (eq? linkage 'return))
+;          (make-instruction-sequence
+;            '(proc cont)
+;            all-regs
+;            '((assign val
+;                      (op compiled-procedure-entry)
+;                      (reg proc))
+;              (goto (reg val)))))
+;         (else
+;           (error 'compile-proc-appl
+;                  "return linkage, target not val"
+;                  target))))
+; 
+; (define (compile-procedure-call target linkage)
+;   (let ((after-call (make-label 'afterCall))
+;         (primitive-branch (make-label 'primitiveBranch))
+;         (compiled-branch (make-label 'compiledBranch)))
+;     (let ((compiled-linkage
+;             (if (eq? linkage 'next) after-call linkage)))
+;       (append-instruction-sequences
+;         (make-instruction-sequence
+;           '(proc) '()
+;           (list '(test (op primitive-procedure?) (reg proc))
+;                 (list 'branch (list 'label primitive-branch))))
+;         (parallel-instruction-sequences
+;           (append-instruction-sequences
+;             compiled-branch
+;             (compile-proc-appl target compiled-linkage))
+;           (append-instruction-sequences
+;             primitive-branch
+;             (end-with-linkage
+;               linkage
+;               (make-instruction-sequence
+;                 '(proc args) (list target)
+;                 (list (list 'assign
+;                             target
+;                             '(op apply-primitive-procedure)
+;                             '(reg proc)
+;                             '(reg args)))))))
+;         after-call))))
+
+; proc args and cont if return
+; all-regs
+; (perform (op procedure-call) (const regs) compiled-linkage)
+; if not return and not val:
+; (perform (op procedure-call) (const regs) proc-return)
+; proc-return
+; target = val
+; compiled-linkage
 
 (define (compile-procedure-call target linkage)
   (let ((after-call (make-label 'afterCall))
-        (primitive-branch (make-label 'primitiveBranch))
-        (compiled-branch (make-label 'compiledBranch)))
-    (let ((compiled-linkage
-            (if (eq? linkage 'next) after-call linkage)))
-      (append-instruction-sequences
-        (make-instruction-sequence
-          '(proc) '()
-          (list '(test (op primitive-procedure?) (reg proc))
-                (list 'branch (list 'label primitive-branch))))
-        (parallel-instruction-sequences
-          (append-instruction-sequences
-            compiled-branch
-            (compile-proc-appl target compiled-linkage))
-          (append-instruction-sequences
-            primitive-branch
-            (end-with-linkage
-              linkage
-              (make-instruction-sequence
-                '(proc args) (list target)
-                (list (list 'assign
+        (uses (if (eq? linkage 'return)
+                '(proc args cont)
+                '(proc args)))
+        (not-return-not-val? (and (not (eq? linkage 'return))
+                                  (not (eq? target 'val)))))
+    (let ((calling-linkage
+            (cond (not-return-not-val? (make-label 'procReturn))
+                  ((eq? linkage 'next) after-call)
+                  (else 'false))))
+      (let ((statements
+              (if not-return-not-val?
+                (list (list 'perform-continue
+                            '(op procedure-call)
+                            'regs
+                            (list 'label calling-linkage))
+                      calling-linkage
+                      (list 'assign
                             target
-                            '(op apply-primitive-procedure)
-                            '(reg proc)
-                            '(reg args)))))))
-        after-call))))
+                            '(reg val)))
+                (list (list 'perform-continue
+                            '(op procedure-call)
+                            'regs
+                            (list 'label calling-linkage))))))
+        (make-instruction-sequence
+          uses
+          all-regs
+          (if (eq? calling-linkage 'false)
+            statements
+            (append statements (list after-call))))))))
 
 (define (compile-application exp target linkage)
   (let ((procedure (compile (operator exp) 'proc 'next))
@@ -410,6 +527,11 @@
          (compile-definition exp target linkage))
         ((if? exp) (compile-if exp target linkage))
         ((lambda? exp) (compile-lambda exp target linkage))
+        ((cond? exp) (compile (cond->if exp) target linkage))
+        ((and? exp) (compile (and->if exp) target linkage))
+        ((or? exp) (compile (or->if exp) target linkage))
+        ((let? exp) (check-let exp)
+                    (compile (let->procedure exp) target linkage))
         ((begin? exp)
          (compile-sequence (begin-actions exp)
                            target
@@ -476,6 +598,10 @@
                   (assembly-append builder (label-name (car args))))
                  ((const? (car args))
                   (assemble-const builder (cadar args)))
+                 ((eq? (car args) 'regs)
+                  (assembly-append builder "regs"))
+                 ((eq? (car args) 'false)
+                  (assembly-append builder "false"))
                  (else (error 'assemble-op-call
                               "invalid assembly argument"
                               (car args))))
@@ -543,14 +669,9 @@
                     "ops.compiledEntry"
                     (cadr exp)))
 
-(define (assemble-primitive-procedure-check builder exp)
+(define (assemble-apply builder exp)
   (assemble-op-call builder
-                    "ops.isPrimitiveProcedure"
-                    (cadr exp)))
-
-(define (assemble-apply-primitive builder exp)
-  (assemble-op-call builder
-                    "ops.applyPrimitive"
+                    "ops.call"
                     (cadr exp)
                     (caddr exp)))
 
@@ -579,10 +700,8 @@
          (assemble-list-op builder exp))
         ((eq? (op-name exp) 'compiled-procedure-entry)
          (assemble-compiled-entry builder exp))
-        ((eq? (op-name exp) 'primitive-procedure?)
-         (assemble-primitive-procedure-check builder exp))
-        ((eq? (op-name exp) 'apply-primitive-procedure)
-         (assemble-apply-primitive builder exp))
+        ((eq? (op-name exp) 'procedure-call)
+         (assemble-apply builder exp))
         (else (error 'assemble-op "invalid assembly operation" exp))))
 
 (define (followed-by-entry? asm)
@@ -671,6 +790,15 @@
   (assembly-append builder ";")
   (assemble builder (cdr asm)))
 
+(define (assembly-perform-continue? asm)
+  (tagged-list? (car asm) 'perform-continue))
+
+(define (assemble-perform-continue builder asm)
+  (assembly-append builder "return ")
+  (assemble-op builder (cdar asm))
+  (assembly-append builder ";};")
+  (assemble builder (cdr asm)))
+
 (define (assembly-test-branch? asm)
   (and (eq? (caar asm) 'test)
        (eq? (caadr asm) 'branch)))
@@ -704,6 +832,8 @@
          (assemble-assign builder asm))
         ((assembly-perform? asm)
          (assemble-perform builder asm))
+        ((assembly-perform-continue? asm)
+         (assemble-perform-continue builder asm))
         ((assembly-test-branch? asm)
          (assemble-test-branch builder asm))
         (else (error 'assemble "invalid assembly" asm))))
@@ -725,6 +855,18 @@
 ;       (define n 150)
 ; 
 ;       (out (factorial n))
+;       (out (((lambda () factorial)) n))
+; 
+;       (apply * '())
+;       (apply factorial '(1))
+; 
+;       (out (apply * '()))
+;       (out (apply factorial '(1)))
+; 
+;       (define (list . x) x)
+; 
+;       (out (apply apply (list * '(1 2 3))))
+;       (out (apply apply (list apply (list * '(1 2 3)))))
 ; 
 ;       (define (loop counter)
 ;         (if (= counter 0)
@@ -734,13 +876,32 @@
 ;             (loop (- counter 1)))))
 ;       (loop 100)
 ; 
-;    'ok)))
+;       'ok)))
 
 ; (print (cons 'start (statements (compile exp 'val 'next))))
 
 (define exp
   '((lambda ()
 
+      (define (map f l)
+        (if (null? l)
+          '()
+          (cons (f (car l)) (map f (cdr l)))))
+
+      (define (list . x) x)
+
+      (define (not x) (eq? x false))
+
+      (out "list:")
+      (out (list 1 2 3))
+
+      (out "apply:")
+      (out (apply list '(1 2 3)))
+      
+      (out "map:")
+      (out (map (lambda (x) (* 2 x)) '(1 2 3)))
+
+      (out "structs:")
       (define test-struct (struct))
       (out (struct? test-struct))
       (out (struct-defined? test-struct 'a-name))
@@ -750,19 +911,19 @@
       (struct-set! test-struct 'a-name 2)
       (out (struct-lookup test-struct 'a-name))
       ; (define test-struct (struct (a-name 3) (another-name 4)))
-      ; (out (struct-loookup test-struct 'a-name))
-      ; (out (struct-loookup test-struct 'another-name))
+      ; (out (struct-lookup test-struct 'a-name))
+      ; (out (struct-lookup test-struct 'another-name))
 
-      (define (list . x) x)
+      (out (cond (1 2)
+                 (else 3)))
 
-      (out (list 1 2 3))
+      (out (and 1 2 3))
+      (out (and 1 false 2))
 
-      (out (apply list '(1 2 3)))
+      (out (or 1 2 3))
+      (out (or false 1 2))
 
-      ; (define (and . args)
-      ;   (if (not (car args))
-      ;     false
-      ;     (apply and (cdr args))))
+      (out (let ((a 1) (b 2)) (- a b)))
 
       ; (define (make-port object)
       ;   ((lambda (port)
