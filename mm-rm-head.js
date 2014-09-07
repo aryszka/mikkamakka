@@ -44,6 +44,25 @@
         return typeof number === "number";
     };
 
+    // string
+    var isString = function (string) {
+        return typeof string === "string";
+    };
+
+    var stringLength = function (string) {
+        return string.length;
+    };
+
+    var stringCopyCheck = function (string, from, to) {
+        return (string === undefined || isString(string)) &&
+            (from === undefined || isNumber(from)) &&
+            (to === undefined || isNumber(to));
+    };
+
+    var stringCopy = function (string, from, to) {
+        return string.substring(from, to);
+    };
+
     // symbol
     var isSymbol = function (symbol) {
         return symbol instanceof Array &&
@@ -117,6 +136,11 @@
     };
 
     // call
+    var callCheck = function (regs) {
+        return isPrimitiveProcedure(regs.proc) ||
+            isCompiledProcedure(regs.proc);
+    };
+
     var call = function (regs, cont) {
         if (isPrimitiveProcedure(regs.proc)) {
             regs.val = applyPrimitive(regs.proc, regs.args);
@@ -298,18 +322,18 @@
         }
     };
 
-    var multiply = function (args) {
-        var product = 1;
+    var add = function (args) {
+        var sum = 0;
         for (;;) {
             if (isNull(args)) {
-                return product;
+                return sum;
             }
 
             if (!isPair(args) || !isNumber(car(args))) {
                 return error("argument error");
             }
 
-            product *= car(args);
+            sum += car(args);
             args = cdr(args);
         }
     };
@@ -335,7 +359,7 @@
                 return error("argument error");
             }
 
-            if (!first) {
+            if (isFalse(first)) {
                 diff = car(args);
                 first = true;
             } else {
@@ -343,6 +367,69 @@
                 diff -= car(args);
             }
 
+            args = cdr(args);
+        }
+    };
+
+    var multiply = function (args) {
+        var product = 1;
+        for (;;) {
+            if (isNull(args)) {
+                return product;
+            }
+
+            if (!isPair(args) || !isNumber(car(args))) {
+                return error("argument error");
+            }
+
+            product *= car(args);
+            args = cdr(args);
+        }
+    };
+
+    var makeCompareNumbers = function (compareTwo) {
+        return function (args) {
+            var last = false;
+            for (;;) {
+                if (isNull(args)) {
+                    return true;
+                }
+
+                if (!isPair(args) || !isNumber(car(args))) {
+                    return error("argument error");
+                }
+
+                if (isFalse(last) || compareTwo(last, car(args))) {
+                    last = car(args);
+                    args = cdr(args);
+                    continue;
+                }
+
+                return false;
+            }
+        };
+    };
+
+    var less = makeCompareNumbers(function (left, right) {
+        return left < right;
+    });
+
+    var greaterOrEquals = makeCompareNumbers(function (left, right) {
+        return left >= right;
+    });
+
+    var stringAppend = function (args) {
+        var strings = [];
+        for (;;) {
+            if (isNull(args)) {
+                return strings.join("");
+            }
+
+            if (!isPair(args) || !isString(car(args))) {
+                return error("argument error");
+            }
+
+            strings.push(car(args));
             args = cdr(args);
         }
     };
@@ -365,7 +452,7 @@
         compiledProcedureEnv: func(1, false, isCompiledProcedure, compiledProcedureEnv),
         cons: func(2, false, false, cons),
         list: func(0, true, false, list),
-        call: func(2, false, false, call)
+        call: func(2, false, callCheck, call)
     };
 
     // registers
@@ -411,11 +498,20 @@
     defineVar(regs.env, stringToSymbol("="),
         importPrimitive(numberEqual));
 
-    defineVar(regs.env, stringToSymbol("*"),
-        importPrimitive(multiply));
+    defineVar(regs.env, stringToSymbol("+"),
+        importPrimitive(add));
 
     defineVar(regs.env, stringToSymbol("-"),
         importPrimitive(subtract));
+
+    defineVar(regs.env, stringToSymbol("*"),
+        importPrimitive(multiply));
+
+    defineVar(regs.env, stringToSymbol("<"),
+        importPrimitive(less));
+
+    defineVar(regs.env, stringToSymbol(">="),
+        importPrimitive(greaterOrEquals));
 
     defineVar(regs.env, stringToSymbol("out"),
         importFunction(console.log, console, stringToSymbol("ok")));
@@ -447,8 +543,11 @@
     defineVar(regs.env, stringToSymbol("symbol->string"),
         importFunction(func(1, false, isSymbol, symbolToString)));
 
-    defineVar(regs.env, stringToSymbol("peq?"),
+    defineVar(regs.env, stringToSymbol("primitive-eq?"),
         importFunction(func(2, false, false, primitiveEq)));
+
+    defineVar(regs.env, stringToSymbol("pair?"),
+        importFunction(func(1, false, false, isPair)));
 
     defineVar(regs.env, stringToSymbol("cons"),
         importFunction(func(2, false, false, cons)));
@@ -458,6 +557,18 @@
 
     defineVar(regs.env, stringToSymbol("cdr"),
         importFunction(func(1, false, isPair, cdr)));
+
+    defineVar(regs.env, stringToSymbol("string?"),
+        importFunction(func(1, false, false, isString)));
+
+    defineVar(regs.env, stringToSymbol("string-length"),
+        importFunction(func(1, false, isString, stringLength)));
+
+    defineVar(regs.env, stringToSymbol("string-copy"),
+        importFunction(func(0, true, stringCopyCheck, stringCopy)));
+
+    defineVar(regs.env, stringToSymbol("string-append"),
+        importPrimitive(stringAppend));
 
     // program
 
