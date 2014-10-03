@@ -1202,20 +1202,48 @@
       (assert (eq? (read-string string-port 15) "eed") "read rest")
       (assert (eof-object? (read-string string-port 15)) "eof after reading across parts")
 
-      'ok)))
-
-(define exp
-  '((lambda ()
-      (apply out '(1))
       (define a (+ 1 2))
       (define b (call/cc (lambda (return) (return (+ a 1)))))
       (define c (+ a b))
-      (out c))))
+      (assert (eq? c 7) "simple call/cc")
 
-; (define exp
-;   '((lambda ()
-;       (apply out '(1))
-;       (apply out '(2)))))
+      (define (search wanted? list)
+        (call/cc
+          (lambda (return)
+            (define (iter list)
+              (cond ((null? list) false)
+                    ((wanted? (car list)) (return (car list)))
+                    (else (iter (cdr list)))))
+            (iter list))))
+      (assert (eq? (search (lambda (x) (eq? x 3)) '(1 2 3 4)) 3) "call/cc in iteration")
+
+      (define (treat-element element like-it)
+        (cond ((eq? element 3) (like-it element))))
+      (define (search list)
+        (call/cc
+          (lambda (return)
+            (define (iter list)
+              (cond ((null? list) false))
+              (treat-element (car list) return)
+              (iter (cdr list)))
+            (iter list))))
+      (assert (eq? (search '(1 2 3 4)) 3) "call/cc in iteration, call from outside")
+
+      (define continued false)
+      (define cont false)
+      (define result (+ (call/cc
+                          (lambda (return)
+                            (set! cont return)
+                            1))
+                        1))
+      (assert (eq? result
+                   (if continued 16 2))
+              "call/cc with saved reference")
+      (cond ((not continued)
+             (set! continued true)
+             (cont 15)))
+
+      'ok)))
 
 (define js (compile-js exp))
 (out js)

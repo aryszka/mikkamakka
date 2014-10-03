@@ -496,14 +496,24 @@
     };
 
     var callCc = function () {
-        var env = regs.env;
-        var cont = regs.cont;
+        var regsSave = {
+            env: regs.env,
+            proc: regs.proc,
+            val: regs.val,
+            args: regs.args,
+            cont: regs.cont
+        };
+        var stackSave = stack.slice();
         regs.proc = car(regs.args);
         regs.args = ops.list(ops.makeProcedure(function () {
+            regs.env = regsSave.env;
+            regs.proc = regsSave.proc;
             regs.val = car(regs.args);
-            regs.env = env;
-            return cont;
-        }));
+            regs.args = regsSave.args;
+            regs.cont = regsSave.cont;
+            stack = stackSave.slice();
+            return regs.cont;
+        }, regs.env));
         return ops.call(regs, false);
     };
 
