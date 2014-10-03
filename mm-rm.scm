@@ -1273,34 +1273,39 @@
       (js-import-code / "exports.a = 1;
                       exports.b = true;
                       exports.c = \"some\";")
-      (out a)
-      (out b)
-      (out c)
+      (assert (eq? a 1) "import number")
+      (assert (eq? b true) "import boolean")
+      (assert (eq? c "some") "import string")
 
-      (js-import-code / "exports.log = function () {
-                      console.log.apply(this, Array.prototype.slice.call(arguments));
-                      return false;
+      (js-import-code / "exports.join = function () {
+                      return Array.prototype.slice.call(arguments).join(\" \");
                       };")
-      (log "some log")
-      (log "some log" "with" "multiple args")
-      (call log "some log" "with" "call")
-      (apply log '("some log" "with" "apply"))
+      (assert (eq? (join "some log") "some log") "import function")
+      (assert (eq? (join "some log" "with" "multiple args") "some log with multiple args")
+              "import function, pass multiple args")
+      (assert (eq? (call join "some log" "with" "call") "some log with call")
+              "import function, call with call")
+      (assert (eq? (apply join '("some log" "with" "apply")) "some log with apply")
+              "import function, call with apply")
       
       (js-import-code / "exports.func = function (a, b) { return a + b }")
-      (apply log (list (call/cc (lambda (return) (return (func 1 2))))))
+      (assert (eq? (apply call/cc (list (lambda (return) (return (func 1 2)))))
+                   3)
+              "call imported from inside applied call/cc")
 
-      (js-import-code / "exports.makeLog = function () {
+      (js-import-code / "exports.makeFunc = function () {
                       return function () {
-                          console.log.apply(this, Array.prototype.slice.call(arguments));
-                          return false;
+                        return Array.prototype.slice.call(arguments).join(\" \");
                       };
                       }")
-      (define log (makeLog))
-      (log "some log from converted function")
+      (define func (makeFunc))
+      (assert (eq? (func "some" "log" "from" "converted" "function")
+                   "some log from converted function")
+              "receive a function from imported and call")
 
       (js-import-code / "exports.op = function (f, a, b) { return f(a, b); }")
-      (out (op + 1 2))
-      (out (op (lambda (a b) (+ a b)) 1 2))
+      (assert (eq? (op + 1 2) 3) "pass a primitive function to be called")
+      (assert (eq? (op (lambda (a b) (+ a b)) 1 2) 3) "pass a compiled function to be called")
 
       ; the js ret tries to export whatever the last content of the value register is
       ; considered not a bug
