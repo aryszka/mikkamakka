@@ -141,7 +141,7 @@
             isCompiledProcedure(regs.proc);
     };
 
-    var call = function (regs, cont) {
+    var callOp = function (regs, cont) {
         if (isPrimitiveProcedure(regs.proc)) {
             regs.val = applyPrimitive(regs.proc, regs.args);
             return cont || regs.cont;
@@ -220,7 +220,7 @@
                 return structLookup(env, name);
             }
         }
-        return error("unbound variable");
+        return error("unbound variable: " + name);
     };
 
     var lookupVar = function (env, name) {
@@ -452,7 +452,7 @@
         compiledProcedureEnv: func(1, false, isCompiledProcedure, compiledProcedureEnv),
         cons: func(2, false, false, cons),
         list: func(0, true, false, list),
-        call: func(2, false, callCheck, call)
+        call: func(2, false, callCheck, callOp)
     };
 
     // registers
@@ -461,7 +461,6 @@
         proc: false,
         val: false,
         args: [],
-        next: false,
         cont: false
     };
 
@@ -484,7 +483,28 @@
 
         regs.proc = car(regs.args);
         regs.args = car(cdr(regs.args));
-        return ops.call(regs, regs.cont);
+        return ops.call(regs, false);
+    };
+
+    var call = function () {
+        if (isNull(regs.args)) {
+            return error("invalid arity");
+        }
+
+        regs.args = [car(regs.args), [cdr(regs.args), []]];
+        return apply;
+    };
+
+    var callCc = function () {
+        var env = regs.env;
+        var cont = regs.cont;
+        regs.proc = car(regs.args);
+        regs.args = ops.list(ops.makeProcedure(function () {
+            regs.val = car(regs.args);
+            regs.env = env;
+            return cont;
+        }));
+        return ops.call(regs, false);
     };
 
     // primitive definitions
@@ -494,6 +514,12 @@
 
     defineVar(regs.env, stringToSymbol("apply"),
         makeProcedure(apply, regs.env));
+
+    defineVar(regs.env, stringToSymbol("call/cc"),
+        makeProcedure(callCc, regs.env));
+
+    defineVar(regs.env, stringToSymbol("call"),
+        makeProcedure(call, regs.env));
 
     defineVar(regs.env, stringToSymbol("="),
         importPrimitive(numberEqual));
@@ -573,9 +599,5 @@
     // program
 
     // control
-    regs.next = start;
-    var control = function () {
-        for (; regs.next; regs.next = regs.next());
-    };
-    control();
+    for (var next = start; next; next = next());
 })();
