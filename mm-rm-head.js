@@ -270,27 +270,133 @@
         return {primitive: p};
     };
 
-    var argsToArray = function (args) {
-        var array = [];
+    var exportPair = function (p) {
+        var list = [];
         for (;;) {
-            if (isNull(args)) {
-                return array;
+            if (isNull(p)) {
+                return list;
             }
 
-            if (!isPair(args)) {
+            if (!isPair(p)) {
                 return error("argument error");
             }
 
-            array.push(car(args));
-            args = cdr(args);
+            list.push(exportVal(car(p)));
+            p = cdr(p);
         }
     };
 
-    var importFunction = function (f, ctx, value) {
+    var exportCompiledProcedure = function (p) {
+        var f = function () {
+            save(regs.env);
+            save(regs.val);
+            save(regs.proc);
+            save(regs.args);
+            save(regs.cont);
+            save(regs.next);
+            regs.args = importArray(Array.prototype.slice.call(arguments));
+            regs.proc = p;
+            regs.next = compiledEntry(p);
+            regs.cont = false;
+            control();
+            var val = regs.val;
+            regs.next = restore();
+            regs.cont = restore();
+            regs.args = restore();
+            regs.proc = restore();
+            regs.val = restore();
+            regs.env = restore();
+            return exportVal(val);
+        };
+        f.__exported = p;
+        return f;
+    };
+
+    var exportPrimitiveProcedure = function (p) {
+        return function () {
+            return p.primitive.call(this, importArray(Array.prototype.slice.call(arguments)));
+        };
+    };
+
+    var exportVal = function (val) {
+        switch (true) {
+        case isBoolean(val):
+        case isNumber(val):
+        case isString(val):
+            return val;
+        case isCompiledProcedure(val):
+            return exportCompiledProcedure(val);
+        case isPrimitiveProcedure(val):
+            return exportPrimitiveProcedure(val);
+        case isNull(val):
+            return [];
+        case isPair(val):
+            return exportPair(val);
+        default:
+            return error("invalid type to export");
+        }
+    };
+
+    var listToArray = function (list) {
+        var plist = [];
+        for (;;) {
+            if (isNull(list)) {
+                return plist;
+            }
+
+            if (!isPair(list)) {
+                return error("argument error");
+            }
+
+            plist.push(car(list));
+            list = cdr(list);
+        }
+    };
+
+    var importFunction = function (f, ctx, value, convert) {
         return importPrimitive(function (args) {
-            var result = f.apply(ctx || this, argsToArray(args));
-            return value === undefined ? result : value;
+            var result = f.apply(ctx || this, (convert ? exportPair : listToArray)(args));
+            return value === undefined ? (convert ? importVal(result) : result) : value;
         });
+    };
+
+    var isExportedProcedure = function (p) {
+        return isFunction(p) && p.__exported;
+    };
+
+    var importExportedProcedure = function (p) {
+        return p.__exported;
+    };
+
+    var importArray = function (val) {
+        var l = list();
+        for (var i = 0; i < val.length; i++) {
+            l = cons(importVal(val[i]), l);
+        }
+        return l;
+    };
+
+    var importVal = function (val, module) {
+        switch (true) {
+        case isBoolean(val):
+        case isNumber(val):
+        case isString(val):
+            return val;
+        case isExportedProcedure(val):
+            return importExportedProcedure(val);
+        case isFunction(val):
+            return importFunction(val, module, undefined, true);
+        case val instanceof Array:
+            return importArray(val);
+        default:
+            return error("invalid import type");
+        }
+    };
+
+    var importModule = function (name, module) {
+        for (var key in module) {
+            defineVar(regs.env, stringToSymbol(key), importVal(module[key], module));
+        }
     };
 
     // primitive procedures
@@ -461,7 +567,8 @@
         proc: false,
         val: false,
         args: [],
-        cont: false
+        cont: false,
+        next: false
     };
 
     var stack = [];
@@ -496,24 +603,41 @@
     };
 
     var callCc = function () {
+        if (isNull(regs.args) ||
+            !isNull(cdr(regs.args))) {
+            return error("invalid arity");
+        }
+
         var regsSave = {
             env: regs.env,
             proc: regs.proc,
             val: regs.val,
             args: regs.args,
-            cont: regs.cont
+            cont: regs.cont,
+            next: regs.next
         };
         var stackSave = stack.slice();
+
         regs.proc = car(regs.args);
         regs.args = ops.list(ops.makeProcedure(function () {
+            if (isNull(regs.args) ||
+                !isNull(cdr(regs.args))) {
+                return error("invalid arity");
+            }
+
+            regs.val = car(regs.args);
+
             regs.env = regsSave.env;
             regs.proc = regsSave.proc;
-            regs.val = car(regs.args);
             regs.args = regsSave.args;
             regs.cont = regsSave.cont;
+            regs.next = regsSave.next;
+
             stack = stackSave.slice();
+
             return regs.cont;
         }, regs.env));
+
         return ops.call(regs, false);
     };
 
@@ -609,5 +733,9 @@
     // program
 
     // control
-    for (var next = start; next; next = next());
+    regs.next = start;
+    var control = function () {
+        for (; regs.next; regs.next = regs.next());
+    };
+    control();
 })();

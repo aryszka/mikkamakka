@@ -554,6 +554,17 @@
         (construct-arglist operands)
         (compile-procedure-call target linkage)))))
 
+(define (js-import-code? exp)
+  (tagged-list? exp 'js-import-code))
+
+(define (compile-js-import-code exp target linkage)
+  (make-instruction-sequence
+    '(env)
+    '()
+    (list (list 'js-import-code
+                (list 'const (cadr exp))
+                (list 'const (caddr exp))))))
+
 (define (compile exp target linkage)
   (cond ((self-evaluating? exp) (compile-self-evaluating exp target linkage))
         ((quoted? exp)
@@ -575,6 +586,8 @@
          (compile-sequence (begin-actions exp)
                            target
                            linkage))
+        ((js-import-code? exp)
+         (compile-js-import-code exp target linkage))
         ((application? exp)
          (compile-application exp target linkage))
         (else (error 'compile "invalid expression type" exp))))
@@ -855,6 +868,18 @@
   (assemble-close-entry builder (cddr asm))
   (assemble builder (cddr asm)))
 
+(define (assembly-js-import-code? asm)
+  (tagged-list? (car asm) 'js-import-code))
+
+(define (assemble-js-import-code builder asm)
+  (assembly-append builder "importModule(stringToSymbol(\"")
+  (assembly-append builder (symbol->string (cadr (cadar asm))))
+  (assembly-append builder "\"), (function (exports) {\n")
+  (assembly-append builder (cadr (caddar asm)))
+  (assembly-append builder ";return exports;\n")
+  (assembly-append builder "})({}));\n")
+  (assemble builder (cdr asm)))
+
 (define (assemble builder asm)
   (cond ((null? asm)
          (assemble-close-entry builder asm)
@@ -875,6 +900,8 @@
          (assemble-perform-continue builder asm))
         ((assembly-test-branch? asm)
          (assemble-test-branch builder asm))
+        ((assembly-js-import-code? asm)
+         (assemble-js-import-code builder asm))
         (else (error 'assemble "invalid assembly" asm))))
 
 (define (compile-js exp)
@@ -1242,6 +1269,47 @@
       (cond ((not continued)
              (set! continued true)
              (cont 15)))
+
+      (js-import-code / "exports.a = 1;
+                      exports.b = true;
+                      exports.c = \"some\";")
+      (out a)
+      (out b)
+      (out c)
+
+      (js-import-code / "exports.log = function () {
+                      console.log.apply(this, Array.prototype.slice.call(arguments));
+                      return false;
+                      };")
+      (log "some log")
+      (log "some log" "with" "multiple args")
+      (call log "some log" "with" "call")
+      (apply log '("some log" "with" "apply"))
+      
+      (js-import-code / "exports.func = function (a, b) { return a + b }")
+      (apply log (list (call/cc (lambda (return) (return (func 1 2))))))
+
+      (js-import-code / "exports.makeLog = function () {
+                      return function () {
+                          console.log.apply(this, Array.prototype.slice.call(arguments));
+                          return false;
+                      };
+                      }")
+      (define log (makeLog))
+      (log "some log from converted function")
+
+      (js-import-code / "exports.op = function (f, a, b) { return f(a, b); }")
+      (out (op + 1 2))
+      (out (op (lambda (a b) (+ a b)) 1 2))
+
+      ; the js ret tries to export whatever the last content of the value register is
+      ; considered not a bug
+      ; (js-import-code / "exports.call = function (ret) {
+      ;                 console.log(\"called\");
+      ;                 ret(1);
+      ;                 return false;
+      ;                 }")
+      ; (out (call/cc call))
 
       'ok)))
 
