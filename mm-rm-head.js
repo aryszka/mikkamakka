@@ -30,6 +30,13 @@
         return left === right;
     };
 
+    // noprint
+    var noprint = function () { return noprint; };
+
+    var isNoprint = function (val) {
+        return val === noprint;
+    };
+
     // boolean
     var isBoolean = function (value) {
         return value === true || value === false;
@@ -332,6 +339,8 @@
             return [];
         case isPair(val):
             return exportPair(val);
+        case isNoprint(val):
+            return undefined;
         default:
             return error("invalid type to export");
         }
@@ -356,7 +365,10 @@
     var importFunction = function (f, ctx, value, convert) {
         return importPrimitive(function (args) {
             var result = f.apply(ctx || this, (convert ? exportPair : listToArray)(args));
-            return value === undefined ? (convert ? importVal(result) : result) : value;
+            if (value !== undefined) {
+                return value;
+            }
+            return convert ? importVal(result) : result;
         });
     };
 
@@ -370,7 +382,7 @@
 
     var importArray = function (val) {
         var l = list();
-        for (var i = 0; i < val.length; i++) {
+        for (var i = val.length - 1; i >= 0; i--) {
             l = cons(importVal(val[i]), l);
         }
         return l;
@@ -388,6 +400,8 @@
             return importFunction(val, module, undefined, true);
         case val instanceof Array:
             return importArray(val);
+        case val === undefined:
+            return noprint;
         default:
             return error("invalid import type");
         }
@@ -641,7 +655,17 @@
         return ops.call(regs, false);
     };
 
+    var breakExecution = function () {
+        if (!isNull(regs.args)) {
+            return error("invalid arity");
+        }
+
+        return false;
+    };
+
     // primitive definitions
+    defineVar(regs.env, stringToSymbol("noprint"), noprint);
+
     defineVar(regs.env, stringToSymbol("true"), true);
 
     defineVar(regs.env, stringToSymbol("false"), false);
@@ -651,6 +675,9 @@
 
     defineVar(regs.env, stringToSymbol("call/cc"),
         makeProcedure(callCc, regs.env));
+
+    defineVar(regs.env, stringToSymbol("break-execution"),
+        makeProcedure(breakExecution, regs.env));
 
     defineVar(regs.env, stringToSymbol("call"),
         makeProcedure(call, regs.env));
@@ -674,7 +701,7 @@
         importPrimitive(greaterOrEquals));
 
     defineVar(regs.env, stringToSymbol("out"),
-        importFunction(console.log, console, stringToSymbol("ok")));
+        importFunction(console.log, console, noprint));
 
     defineVar(regs.env, stringToSymbol("struct"),
         importFunction(func(0, true, false, makeStruct)));

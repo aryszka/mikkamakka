@@ -517,7 +517,8 @@
     (let ((calling-linkage
             (cond (not-return-not-val? (make-label 'procReturn))
                   ((eq? linkage 'next) after-call)
-                  (else 'false))))
+                  ((eq? linkage 'return) 'false)
+                  (else linkage))))
       (let ((statements
               (if not-return-not-val?
                 (list (list 'perform-continue
@@ -942,7 +943,7 @@
 ;             (loop (- counter 1)))))
 ;       (loop 100)
 ; 
-;       'ok)))
+;       noprint)))
 
 ; (print (cons 'start (statements (compile exp 'val 'next))))
 
@@ -1309,14 +1310,172 @@
 
       ; the js ret tries to export whatever the last content of the value register is
       ; considered not a bug
-      ; (js-import-code / "exports.call = function (ret) {
-      ;                 console.log(\"called\");
-      ;                 ret(1);
-      ;                 return false;
-      ;                 }")
-      ; (out (call/cc call))
+      (js-import-code / "exports.call = function (ret) {
+                      ret(1);
+                      }")
+      (assert (eq? (call/cc call) 1) "call/cc imported function")
 
-      'ok)))
+      (js-import-code / "
+        exports[\"date-time\"] = function () { return new Date().valueOf(); };
+        exports[\"set-timeout\"] = function (callback, ms) {
+            setTimeout(callback, ms);
+        };
+        ")
+      (define (sleep ms)
+        (call/cc
+          (lambda (return)
+            (set-timeout
+              (lambda () (return ms))
+              ms)
+            (break-execution))))
+      (define time-before (date-time))
+      (define delay 120)
+      (sleep delay)
+      (assert (>= (date-time) (+ time-before delay))
+              "sleep")
+
+      ; open stdin/stdout/stderr
+      (js-import-code / "
+        var noop = function () {};
+
+        var responseType = {
+            data: 0,
+            end: 1,
+            error: 2
+        };
+
+        var stdinHandlers = null;
+        var stdoutHandlers = null;
+        var stderrHandlers = null;
+
+        var makeStdinHandlers = function (f) {
+            if (!(f instanceof Function)) {
+                return {
+                    data: noop,
+                    end: noop,
+                    error: noop
+                };
+            }
+
+            var handlers = {
+                eofReceived: false,
+                data: function () {
+
+                    // nodejs hack:
+                    if (handlers.eofReceived) {
+                        return;
+                    }
+
+                    var data = process.stdin.read();
+                    if (data === null) {
+
+                        // nodejs hack, to avoid hanging the process:
+                        handlers.eofReceived = true;
+                        process.stdin.pause();
+
+                        return;
+                    }
+
+                    f(responseType.data, data.toString());
+                },
+                end: function () {
+                    f(responseType.end, \"\");
+                },
+                error: function (error) {
+                    f(responseType.error, error.toString());
+                }
+            };
+            return handlers;
+        };
+
+        var makeOutHandlers = function (out, f) {
+            if (!(f instanceof Function)) {
+                return {
+                    error: noop,
+                    write: noop
+                };
+            }
+
+            return {
+                error: function (error) {
+                    f(responseType.error, error.toString());
+                },
+                write: function (data) {
+                    out.write(data);
+                }
+            };
+        };
+
+        var openOut = function (out, f) {
+            var handlers = makeOutHandlers(out, f);
+            out.on(\"error\", handlers.error);
+            return handlers;
+        };
+
+        var closeOut = function (out, handlers) {
+            if (!handlers) {
+                return;
+            }
+            out.removeListener(\"error\", handlers.error);
+        };
+
+        var openStdin = function (f) {
+            stdinHandlers = makeStdinHandlers(f);
+            process.stdin.on(\"readable\", stdinHandlers.data);
+            process.stdin.on(\"end\", stdinHandlers.end);
+            process.stdin.on(\"error\", stdinHandlers.error);
+        };
+
+        var closeStdin = function () {
+            if (!stdinHandlers) {
+                return;
+            }
+            process.stdin.removeListener(\"readable\", stdinHandlers.data);
+            process.stdin.removeListener(\"end\", stdinHandlers.end);
+            process.stdin.removeListener(\"error\", stdinHandlers.error);
+            stdinHandlers = null;
+        };
+
+        var openStdout = function (f) {
+            stdoutHandlers = openOut(process.stdout, f);
+            return stdoutHandlers.write;
+        };
+
+        var closeStdout = function () {
+            closeOut(process.stdout, stdoutHandlers);
+            stdoutHandlers = null;
+        };
+
+        var openStderr = function (f) {
+            stderrHandlers = openOut(process.stderr, f);
+            return stderrHandlers.write;
+        };
+
+        var closeStderr = function (f) {
+            closeOut(process.stderr, stderrHandlers);
+            stderrHandlers = null;
+        };
+
+        exports[\"stdio-data\"] = responseType.data;
+        exports[\"stdio-end\"] = responseType.end;
+        exports[\"stdio-error\"] = responseType.error;
+        exports[\"open-stdin\"] = openStdin;
+        exports[\"open-stdout\"] = openStdout;
+        exports[\"open-stderr\"] = openStderr;
+        exports[\"close-stdin\"] = closeStdin;
+        exports[\"close-stdout\"] = closeStdout;
+        exports[\"close-stderr\"] = closeStderr;
+        ")
+
+      (open-stdin
+        (lambda (response-type data)
+          (out response-type)
+          (cond ((eq? response-type stdio-data)
+                 (out data))
+                (else (close-stdin)))
+          (out "done")))
+
+      noprint)))
 
 (define js (compile-js exp))
 (out js)
