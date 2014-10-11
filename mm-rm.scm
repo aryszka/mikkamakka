@@ -1597,12 +1597,39 @@
                     ((eq? message 'read-char) (read 1))
                     (else (error "invalid message" message)))))))
 
+      (define (open-out open close)
+        (let ((out (open
+                     (lambda (response-type data)
+                       (cond ((eq? response-type stdio-error)
+                              (close)
+                              (error data)))))))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port) false)
+                    ((eq? message 'output-port) true)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'write-string) (out (car args)))
+                    ((eq? message 'write-char) (out (string-copy (car args) 0 1)))
+                    (else (error "invalid message" message)))))))
+
+      (define (open-stdout)
+        (open-out open-stdout-js close-stdout-js))
+
+      (define (open-stderr)
+        (open-out open-stderr-js close-stderr-js))
+
       (define stdin (open-stdin))
-      (out (read-string stdin 2))
-      (out (read-string stdin 4))
-      (out (read-string stdin))
-      (out "closing")
+      (define stdout (open-stdout))
+      (define stderr (open-stderr))
+      (write-string stdout (read-string stdin 2))
+      (write-string stdout ":")
+      (write-string stdout (read-string stdin 4))
+      (write-string stdout ":")
+      (write-string stdout (read-string stdin))
+      (write-string stderr "closing")
       (close-port stdin)
+      (close-port stdout)
+      (close-port stderr)
 
       noprint)))
 
