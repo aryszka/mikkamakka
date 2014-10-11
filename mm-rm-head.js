@@ -295,24 +295,15 @@
 
     var exportCompiledProcedure = function (p) {
         var f = function () {
-            save(regs.env);
-            save(regs.val);
-            save(regs.proc);
-            save(regs.args);
-            save(regs.cont);
-            save(regs.next);
+            var regsSave = regs;
             regs.args = importArray(Array.prototype.slice.call(arguments));
             regs.proc = p;
             regs.next = compiledEntry(p);
             regs.cont = false;
             control();
             var val = regs.val;
-            regs.next = restore();
-            regs.cont = restore();
-            regs.args = restore();
-            regs.proc = restore();
-            regs.val = restore();
-            regs.env = restore();
+            regs = regsSave;
+            regs.cont = false;
             return exportVal(val);
         };
         f.__exported = p;

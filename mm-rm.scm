@@ -1103,6 +1103,7 @@
         (and (port? port)
              ((struct-lookup port 'port-object)
               'input-port?)))
+
       (define (output-port? port)
         (and (port? port)
              ((struct-lookup port 'port-object)
@@ -1185,8 +1186,7 @@
             (set! strings '())
             (set! ref 0))
           (make-port (lambda (message . args)
-                       (cond ((eq? message 'port) true)
-                             ((eq? message 'input-port?) true)
+                       (cond ((eq? message 'input-port?) true)
                              ((eq? message 'output-port?) true)
                              ((eq? message 'close) (close))
                              ((eq? message 'read-string) (apply read-string args))
@@ -1372,6 +1372,7 @@
                         // nodejs hack, to avoid hanging the process:
                         handlers.eofReceived = true;
                         process.stdin.pause();
+                        f(responseType.end, \"\");
 
                         return;
                     }
@@ -1396,14 +1397,18 @@
                 };
             }
 
-            return {
+            var handlers = {
                 error: function (error) {
                     f(responseType.error, error.toString());
                 },
                 write: function (data) {
+                    if (handlers.closed) {
+                        return;
+                    }
                     out.write(data);
                 }
             };
+            return handlers;
         };
 
         var openOut = function (out, f) {
@@ -1417,6 +1422,7 @@
                 return;
             }
             out.removeListener(\"error\", handlers.error);
+            handlers.closed = true;
         };
 
         var openStdin = function (f) {
@@ -1459,21 +1465,144 @@
         exports[\"stdio-data\"] = responseType.data;
         exports[\"stdio-end\"] = responseType.end;
         exports[\"stdio-error\"] = responseType.error;
-        exports[\"open-stdin\"] = openStdin;
-        exports[\"open-stdout\"] = openStdout;
-        exports[\"open-stderr\"] = openStderr;
-        exports[\"close-stdin\"] = closeStdin;
-        exports[\"close-stdout\"] = closeStdout;
-        exports[\"close-stderr\"] = closeStderr;
+        exports[\"open-stdin-js\"] = openStdin;
+        exports[\"open-stdout-js\"] = openStdout;
+        exports[\"open-stderr-js\"] = openStderr;
+        exports[\"close-stdin-js\"] = closeStdin;
+        exports[\"close-stdout-js\"] = closeStdout;
+        exports[\"close-stderr-js\"] = closeStderr;
         ")
 
-      (open-stdin
-        (lambda (response-type data)
-          (out response-type)
-          (cond ((eq? response-type stdio-data)
-                 (out data))
-                (else (close-stdin)))
-          (out "done")))
+      (define stdout-test
+        (open-stdout-js
+          (lambda (response-type _)
+            (cond ((eq? response-type stdio-error)
+                   (close-stdout-js))))))
+
+      (stdout-test "hello mikkamakka")
+      (close-stdout-js)
+      (stdout-test "hello again")
+
+      (define stderr-test
+        (open-stderr-js
+          (lambda (response-type _)
+            (cond ((eq? response-type stdio-error)
+                   (close-stderr-js))))))
+
+      (stderr-test "log from mikkamakka")
+      (close-stderr-js)
+      (stderr-test "log again")
+
+      (define (open-stdin)
+        (let ((buffer (open-string-port))
+              (error false)
+              (end false)
+              (requests '()))
+          (define (make-request return requested-length buffer buffer-length)
+            (lambda (message)
+              (cond ((eq? message 'return) return)
+                    ((eq? message 'requested-length) requested-length)
+                    ((eq? message 'buffer) buffer)
+                    ((eq? message 'buffer-length) buffer-length))))
+          (define (request-return request) (request 'return))
+          (define (requested-length request) (request 'requested-length))
+          (define (request-buffer request) (request 'buffer))
+          (define (request-buffer-length request) (request 'buffer-length))
+          (define (check-current-request)
+            (let ((request (and (not (null? requests)) (car requests))))
+              (cond ((and request (< (requested-length request) 0))
+                     (let ((string (read-string buffer)))
+                       (cond ((not (eof-object? string))
+                              (write-string
+                                (request-buffer request)
+                                string)
+                              (set! request
+                                (make-request
+                                  (request-return request)
+                                  -1
+                                  (request-buffer request)
+                                  (+ (request-buffer-length request)
+                                     (string-length string))))
+                              (set! requests
+                                (cons request (cdr requests)))))
+                       (cond (end
+                               ((request-return request)
+                                (if (eq? (request-buffer-length request) 0)
+                                  end-of-file
+                                  (read-string
+                                    (request-buffer request))))
+                               (set! requests (cdr requests))
+                               (check-current-request)))))
+                    (request
+                      (let ((string
+                              (read-string
+                                buffer
+                                (- (requested-length request)
+                                   (request-buffer-length request)))))
+                        (cond ((not (eof-object? string))
+                               (write-string
+                                 (request-buffer request)
+                                 string)
+                               (set! request 
+                                 (make-request
+                                   (request-return request)
+                                   (requested-length request)
+                                   (request-buffer request)
+                                   (+ (request-buffer-length request)
+                                      (string-length string))))
+                               (set! requests
+                                 (cons request (cdr requests)))))
+                        (cond ((or end
+                                   (eq? (- (requested-length request)
+                                           (request-buffer-length request))
+                                        0))
+                               ((request-return request)
+                                (if (eq? (request-buffer-length request) 0)
+                                  end-of-file
+                                  (read-string
+                                    (request-buffer request))))
+                               (set! requests (cdr requests))
+                               (check-current-reuqest))))))))
+          (define (close)
+            (close-port buffer)
+            (close-stdin-js))
+          (define (read . args)
+            (call/cc (lambda (return)
+                       (set! requests
+                         (cons (make-request
+                                 return
+                                 (if (null? args) -1 (car args))
+                                 (open-string-port)
+                                 0)
+                               requests))
+                       (check-current-request)
+                       (break-execution))))
+          (open-stdin-js
+            (lambda (response-type data)
+              (cond ((eq? response-type stdio-data)
+                     (write-string buffer data)
+                     (check-current-request))
+                    ((eq? response-type stdio-end)
+                     (set! end true)
+                     (check-current-request))
+                    ((eq? response-type stdio-error)
+                     (set! end true)
+                     (set! error data)))))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port) true)
+                    ((eq? message 'output-port) false)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'read-string) (apply read args))
+                    ((eq? message 'read-char) (read 1))
+                    (else (error "invalid message" message)))))))
+
+      (define stdin (open-stdin))
+      (out (read-string stdin 2))
+      (out (read-string stdin 4))
+      (out (read-string stdin))
+      (out "closing")
+      (close-port stdin)
 
       noprint)))
 
