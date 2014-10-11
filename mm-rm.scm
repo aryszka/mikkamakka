@@ -1377,6 +1377,7 @@
                         return;
                     }
 
+                    console.error(\"warning: non unicode input\");
                     f(responseType.data, data.toString());
                 },
                 end: function () {
@@ -1621,15 +1622,171 @@
       (define stdin (open-stdin))
       (define stdout (open-stdout))
       (define stderr (open-stderr))
-      (write-string stdout (read-string stdin 2))
-      (write-string stdout ":")
-      (write-string stdout (read-string stdin 4))
-      (write-string stdout ":")
-      (write-string stdout (read-string stdin))
+      (define data (read-string stdin 2))
+      (cond ((not (eof-object? data))
+             (write-string stdout data)
+             (write-string stdout ":")))
+      (define data (read-string stdin 4))
+      (cond ((not (eof-object? data))
+             (write-string stdout data)
+             (write-string stdout ":")))
+      (define data (read-string stdin))
+      (cond ((not (eof-object? data))
+             (write-string stdout data)))
       (write-string stderr "closing")
       (close-port stdin)
       (close-port stdout)
       (close-port stderr)
+
+      (define read-only 0)
+      (define write-only 1)
+      (define read-write 2)
+      (define create 64)
+      (define trunc 512)
+      (define append 1024)
+      (define excl 128)
+      (define sync 4096)
+
+      (define (flagged? flag value)
+        (eq? (& value flag) flag))
+
+      (js-import-code / "
+        var fs = require(\"fs\");
+
+        var responseType = {
+            ok: 0,
+            data: 1,
+            fileDescriptor: 2,
+            eof: 3,
+            error: 4
+        };
+
+        var open = function (path, flags, mode, callback) {
+            fs.open(path, flags, mode, function (err, fd) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.fileDescriptor, fd);
+            });
+        };
+
+        var close = function (fd, callback) {
+            fs.close(fd, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        var read = function (fd, position, length, callback) {
+            position = position < 0 ? null : position;
+            fs.read(fd, new Buffer(length), 0, length, position, function (err, bytesRead, buffer) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                if (!bytesRead) {
+                    callback(responseType.eof, false);
+                    return;
+                }
+
+                console.error(\"warning: non unicode input\");
+                callback(responseType.data, buffer.toString(\"utf8\", 0, bytesRead));
+            });
+        };
+
+        var write = function (fd, position, data, callback) {
+            position = position < 0 ? null : position;
+            var buffer = new Buffer(data);
+            fs.write(fd, buffer, 0, buffer.length, position, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        exports[\"fs-ok\"] = responseType.ok;
+        exports[\"fs-data\"] = responseType.data;
+        exports[\"fs-file-descriptor\"] = responseType.fileDescriptor;
+        exports[\"fs-eof\"] = responseType.eof;
+        exports[\"fs-error\"] = responseType.error;
+        exports[\"js-open-file\"] = open;
+        exports[\"js-close-file\"] = close;
+        exports[\"js-read-file\"] = read;
+        exports[\"js-write-file\"] = write;
+                      ")
+
+      (define (open-file-port name flags mode) 'ok)
+
+      (define fd
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some"
+              (| write-only create trunc)
+              438
+              (lambda (response-type data)
+                (cond ((eq? response-type fs-error)
+                       (error data))
+                      (else (return data)))))
+            (break-execution))))
+      (call/cc
+        (lambda (return)
+          (js-write-file
+            fd 0 "hello mikkamakka"
+            (lambda (response-type data)
+              (cond ((eq? response-type fs-error)
+                     (error data))
+                    (else (return false)))))
+          (break-execution)))
+      (call/cc
+        (lambda (return)
+          (js-close-file fd
+            (lambda (response-type data)
+              (cond ((eq? response-type fs-error)
+                     (error data))
+                    (else (return false)))))
+          (break-execution)))
+      (define fd
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some" read-only 0
+              (lambda (response-type data)
+                (cond ((eq? response-type fs-error)
+                       (error data))
+                      (else (return data)))))
+            (break-execution))))
+      (define content
+        (call/cc
+          (lambda (return)
+            (js-read-file
+              fd 0 12000
+              (lambda (response-type data)
+                (cond ((eq? response-type fs-error)
+                       (error data))
+                      (else (return data)))))
+            (break-execution))))
+      (define stdout (open-stdout))
+      (write-string stdout content)
+      (close-port stdout)
+      (call/cc
+        (lambda (return)
+          (js-close-file fd
+            (lambda (response-type data)
+              (cond ((eq? response-type fs-error)
+                     (error data))
+                    (else (return false)))))
+          (break-execution)))
 
       noprint)))
 

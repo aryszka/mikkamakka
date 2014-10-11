@@ -498,6 +498,38 @@
         }
     };
 
+    var bitwiseOr = function (args) {
+        var result = 0;
+        for (;;) {
+            if (isNull(args)) {
+                return result;
+            }
+
+            if (!isPair(args) || !isNumber(car(args))) {
+                return error("argument error");
+            }
+
+            result |= car(args);
+            args = cdr(args);
+        }
+    };
+
+    var bitwiseAnd = function (args) {
+        var result = -1;
+        for (;;) {
+            if (isNull(args)) {
+                return result;
+            }
+
+            if (!isPair(args) || !isNumber(car(args))) {
+                return error("argument error");
+            }
+
+            result &= car(args);
+            args = cdr(args);
+        }
+    };
+
     var makeCompareNumbers = function (compareTwo) {
         return function (args) {
             var last = false;
@@ -650,11 +682,13 @@
         if (!isNull(regs.args)) {
             return error("invalid arity");
         }
-
-        return false;
+return false;
     };
 
     // primitive definitions
+    defineVar(regs.env, stringToSymbol("error"),
+        importFunction(func(1, false, false, error)));
+
     defineVar(regs.env, stringToSymbol("noprint"), noprint);
 
     defineVar(regs.env, stringToSymbol("true"), true);
@@ -684,6 +718,12 @@
 
     defineVar(regs.env, stringToSymbol("*"),
         importPrimitive(multiply));
+
+    defineVar(regs.env, stringToSymbol("|"),
+        importPrimitive(bitwiseOr));
+
+    defineVar(regs.env, stringToSymbol("&"),
+        importPrimitive(bitwiseAnd));
 
     defineVar(regs.env, stringToSymbol("<"),
         importPrimitive(less));
