@@ -959,10 +959,13 @@
 
       (define (append . lists)
         (cond ((null? lists) '())
-              ((null? (car lists)) (apply append (cdr lists)))
-              (else (cons (car (car lists))
-                          (apply append (cons (cdr (car lists))
-                                              (cdr lists)))))))
+              ((null? (car lists))
+               (apply append (cdr lists)))
+              (else
+                (cons (car (car lists))
+                      (apply append
+                             (cons (cdr (car lists))
+                                   (cdr lists)))))))
 
       (define (reverse l)
         (if (null? l)
@@ -1152,7 +1155,7 @@
         (let ((ref 0))
           (define (read-string . args)
             (define (read-string parts length)
-              (cond ((and (null? strings) (null? parts)) end-of-file)
+              (cond ((and (null? strings) (null? parts)) "")
                     ((< length 0)
                      (let ((string
                              (apply
@@ -1181,6 +1184,7 @@
                         string))))
             (read-string '() (if (null? args) -1 (car args))))
           (define (write-string string)
+            (out strings)
             (set! strings (append strings (list string))))
           (define (close)
             (set! strings '())
@@ -1188,6 +1192,7 @@
           (make-port (lambda (message . args)
                        (cond ((eq? message 'input-port?) true)
                              ((eq? message 'output-port?) true)
+                             ((eq? message 'data-port?) false)
                              ((eq? message 'close) (close))
                              ((eq? message 'read-string) (apply read-string args))
                              ((eq? message 'write-string) (write-string (car args)))
@@ -1199,20 +1204,20 @@
       (assert (port? string-port) "port? string-port")
       (assert (input-port? string-port) "input-port? string-port")
       (assert (output-port? string-port) "output-port? string-port")
-      (assert (eof-object? (read-string string-port)) "read eof")
+      (assert (eq? (string-length (read-string string-port)) 0) "read end")
       (write-string string-port "hello")
       (assert (eq? (read-string string-port) "hello") "read hello")
-      (assert (eof-object? (read-string string-port)) "read eof again")
+      (assert (eq? (string-length (read-string string-port)) 0) "read end again")
 
       (define string-port (open-string-port "some string"))
       (assert (eq? (read-string string-port) "some string") "read initial")
-      (assert (eof-object? (read-string string-port)) "read eof after initial")
+      (assert (eq? (string-length (read-string string-port)) 0) "read end after initial")
 
       (define string-port (open-string-port))
       (write-string string-port "some")
       (write-string string-port " string")
       (assert (eq? (read-string string-port) "some string") "read all")
-      (assert (eof-object? (read-string string-port)) "after read all")
+      (assert (eq? (string-length (read-string string-port)) 0) "after read all")
 
       (define string-port (open-string-port))
       (write-string string-port "some")
@@ -1220,7 +1225,7 @@
       (assert (eq? (read-string string-port 2) "so") "read 2")
       (assert (eq? (read-string string-port 4) "me s") "read 4")
       (assert (eq? (read-string string-port 9) "tring") "read to end")
-      (assert (eof-object? (read-string string-port 3)) "read eof after parts")
+      (assert (eq? (string-length (read-string string-port 3)) 0) "read end after parts")
 
       (define string-port (open-string-port))
       (write-string string-port "some")
@@ -1228,7 +1233,7 @@
       (write-string string-port " indeed")
       (assert (eq? (read-string string-port 15) "some string ind") "read across parts")
       (assert (eq? (read-string string-port 15) "eed") "read rest")
-      (assert (eof-object? (read-string string-port 15)) "eof after reading across parts")
+      (assert (eq? (string-length (read-string string-port 15)) 0) "end after reading across parts")
 
       (define a (+ 1 2))
       (define b (call/cc (lambda (return) (return (+ a 1)))))
@@ -1492,6 +1497,7 @@
         };
 
         var open = function (path, flags, mode, callback) {
+            mode = mode < 0 ? 438 : mode;
             fs.open(path, flags, mode, function (err, fd) {
                 if (err) {
                     callback(responseType.error, err.toString());
@@ -1640,7 +1646,7 @@
             (let ((request (and (not (null? requests)) (car requests))))
               (cond ((and request (< (requested-length request) 0))
                      (let ((string (read-string buffer)))
-                       (cond ((not (eof-object? string))
+                       (cond ((> (string-length string) 0)
                               (write-string
                                 (request-buffer request)
                                 string)
@@ -1657,7 +1663,7 @@
                                (set! requests (cdr requests))
                                ((request-return request)
                                 (if (eq? (request-buffer-length request) 0)
-                                  end-of-file
+                                  ""
                                   (read-string
                                     (request-buffer request))))
                                (feed-requests)))))
@@ -1667,7 +1673,7 @@
                                 buffer
                                 (- (requested-length request)
                                    (request-buffer-length request)))))
-                        (cond ((not (eof-object? string))
+                        (cond ((> (string-length string) 0)
                                (write-string
                                  (request-buffer request)
                                  string)
@@ -1687,7 +1693,7 @@
                                (set! requests (cdr requests))
                                ((request-return request)
                                 (if (eq? (request-buffer-length request) 0)
-                                  end-of-file
+                                  ""
                                   (read-string
                                     (request-buffer request))))
                                (feed-requests))))))))
@@ -1700,12 +1706,13 @@
             (call/cc
               (lambda (return)
                 (set! requests
-                  (cons (make-request
-                          return
-                          (if (null? args) -1 (car args))
-                          (open-string-port)
-                          0)
-                        requests))
+                  (append
+                    requests
+                    (list (make-request
+                            return
+                            (if (null? args) -1 (car args))
+                            (open-string-port)
+                            0))))
                 (feed-requests)
                 (break-execution))))
           (define (write . args)
@@ -1715,6 +1722,7 @@
             (lambda (message . args)
               (cond ((eq? message 'input-port?) true)
                     ((eq? message 'output-port?) true)
+                    ((eq? message 'data-port?) false)
                     ((eq? message 'close) (close))
                     ((eq? message 'read-string) (apply read args))
                     ((eq? message 'read-char) (read 1))
@@ -1742,6 +1750,7 @@
             (lambda (message . args)
               (cond ((eq? message 'input-port?) true)
                     ((eq? message 'output-port?) false)
+                    ((eq? message 'data-port?) false)
                     ((eq? message 'close) (close))
                     ((eq? message 'read-string) (apply read args))
                     ((eq? message 'read-char) (read 1))
@@ -1758,6 +1767,7 @@
             (lambda (message . args)
               (cond ((eq? message 'input-port?) false)
                     ((eq? message 'output-port?) true)
+                    ((eq? message 'data-port?) false)
                     ((eq? message 'close) (close))
                     ((eq? message 'write-string) (write (car args)))
                     ((eq? message 'write-char) (write (string-copy (car args) 0 1)))
@@ -1788,14 +1798,14 @@
       (close-port stdout)
       (close-port stderr)
 
-      (define read-only 0)
-      (define write-only 1)
-      (define read-write 2)
-      (define create 64)
-      (define trunc 512)
-      (define append 1024)
-      (define excl 128)
-      (define sync 4096)
+      (define fs-read-only 0)
+      (define fs-write-only 1)
+      (define fs-read-write 2)
+      (define fs-create 64)
+      (define fs-trunc 512)
+      (define fs-append 1024)
+      (define fs-excl 128)
+      (define fs-sync 4096)
 
       (define (flagged? flag value)
         (eq? (& value flag) flag))
@@ -1805,7 +1815,7 @@
           (lambda (return)
             (js-open-file
               "some"
-              (| write-only create trunc)
+              (| fs-write-only fs-create fs-trunc)
               438
               (lambda (response-type data)
                 (cond ((eq? response-type io-error)
@@ -1833,7 +1843,7 @@
         (call/cc
           (lambda (return)
             (js-open-file
-              "some" read-only 0
+              "some" fs-read-only 0
               (lambda (response-type data)
                 (cond ((eq? response-type io-error)
                        (error data))
@@ -1866,23 +1876,186 @@
       (define seek-cur 1)
       (define seek-end 2)
 
-      (define (open-file-port name flags mode)
-        (let ((input-port? (not (flagged? write-only flags)))
-              (output-port? (or (flagged? write-only flags)
-                                (flagged? read-write flags)))
-              (offset 0))
+      (define (open-file-port name flags . args)
+        (let ((input-port? (not (flagged? fs-write-only flags)))
+              (output-port? (or (flagged? fs-write-only flags)
+                                (flagged? fs-read-write flags)))
+              (position 0)
+              (fd (call/cc
+                    (lambda (return)
+                      (js-open-file
+                        name flags (if (null? args) 438 (car args))
+                        (lambda (response-type data)
+                          (cond ((eq? response-type io-error)
+                                 (error data))
+                                (else (return data)))))
+                      (break-execution)))))
+          (define (close)
+            (call/cc
+              (lambda (return)
+                (js-close-file
+                  fd
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else (return data)))))
+                (break-execution))))
+          (define (size)
+            (call/cc
+              (lambda (return)
+                (js-file-size
+                  fd
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else (return data)))))
+                (break-execution))))
+          (define (seek offset . args)
+            (let ((reference (if (null? args) seek-set (car args))))
+              (cond ((eq? reference seek-set)
+                     (set! position offset))
+                    ((eq? reference seek-cur)
+                     (set! position (+ position offset)))
+                    ((eq? reference seek-end)
+                     (set! position (- (size) offset)))
+                    (else (error "invalid reference" reference)))))
+          (define (read-data . args)
+            (call/cc
+              (lambda (return)
+                (js-read-file
+                  fd position (car args)
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else
+                            (set! position (+ position (car args)))
+                            (return data)))))
+                (break-execution))))
+          (define (local-read-string . args)
+            (let ((buffer (open-string-port))
+                  (buffer-length 0)
+                  (all? (or (null? args)
+                            (< (car args) 0))))
+              (let ((length (if all? 8192
+                              (+ (floor (* (car args) 1.2)) 1)))
+                    (decoder (js-make-decoder enc-utf8)))
+                (define (read)
+                  (cond ((and (not all?)
+                              (>= buffer-length (car args)))
+                         (read-string buffer (car args)))
+                        (else
+                          (let ((data (read-data length)))
+                            (let ((string (js-decode decoder data)))
+                              (let ((read-length (string-length string)))
+                                (cond ((eq? read-length 0)
+                                       (read-string buffer))
+                                      (else
+                                        (write-string buffer string)
+                                        (set! buffer-length (+ buffer-length read-length))
+                                        (read)))))))))
+                (read))))
+          (define (write-data . args)
+            (call/cc
+              (lambda (return)
+                (js-write-file
+                  fd position (car args)
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else
+                            (set! position
+                              (+ position (js-encoded-size (car args))))
+                            (return false)))))
+                (break-execution))))
+          (define (local-write-string . args)
+            (write-data (js-encode (car args) enc-utf8)))
           (make-port
             (lambda (message . args)
               (cond ((eq? message 'input-port?) input-port?)
                     ((eq? message 'output-port?) output-port?)
+                    ((eq? message 'data-port?) true)
                     ((eq? message 'close) (close))
-                    ((eq? message 'read-string) (apply read-string args))
-                    ((eq? message 'read-char) (read-string 1))
-                    ((eq? message 'write-string) (apply write-string args))
-                    ((eq? message 'write-char) (write-string (string-copy (car args) 0 1)))
                     ((eq? message 'size) (size))
                     ((eq? message 'seek) (apply seek args))
+                    ((eq? message 'read-data) (apply read-data args))
+                    ((eq? message 'read-string) (apply local-read-string args))
+                    ((eq? message 'read-char) (local-read-string 1))
+                    ((eq? message 'write-data) (apply write-data args))
+                    ((eq? message 'write-string) (apply local-write-string args))
+                    ((eq? message 'write-char) (local-write-string (string-copy (car args) 0 1)))
                     (else (error "invalid message" message)))))))
+
+      (define (read-data port . args)
+        (apply (struct-lookup port 'port-object)
+               (cons 'read-data args)))
+
+      (define (write-data port . args)
+        (apply (struct-lookup port 'port-object)
+               (cons 'write-data args)))
+
+      (define (file-size port)
+        ((struct-lookup port 'port-object) 'size))
+
+      (define (file-seek port . args)
+        (apply (struct-lookup port 'port-object)
+               (cons 'seek args)))
+
+      (define (data-port? port)
+        ((struct-lookup port 'port-object) 'data-port?))
+
+      (define file-0
+        (open-file-port
+          "file-0" (| fs-write-only fs-create fs-trunc) 438))
+      (write-string file-0 "hello mikkamakka, this is a file port")
+      (close-port file-0)
+      (define file-0
+        (open-file-port
+          "file-0" fs-read-only))
+      (file-seek file-0 0)
+      (define data (read-data file-0 (file-size file-0)))
+      (close-port file-0)
+      (define file-1
+        (open-file-port
+          "file-1" (| fs-write-only fs-create fs-trunc) 438))
+      (write-data file-1 data)
+      (close-port file-1)
+
+      (define (copy-port source target)
+        (let ((buffer-size 8192)
+              (both-data-port?
+                (and (data-port? source)
+                     (data-port? target))))
+          (let ((read (if both-data-port?
+                        read-data read-string))
+                (write (if both-data-port?
+                         write-data write-string))
+                (size (if both-data-port?
+                        js-encoded-size string-length)))
+            (define (copy)
+              (let ((data (read source buffer-size)))
+                (cond ((eq? (size data) 0) false)
+                      (else
+                        (write target data)
+                        (copy)))))
+            (copy))))
+      (define source (open-file-port "mm-rm.scm" fs-read-only))
+      (define target
+        (open-file-port
+          "copy-of-mikkamakka.scm"
+          (| fs-write-only fs-create fs-trunc) 438))
+      (copy-port source target)
+      (close-port source)
+      (close-port target)
+
+      (out "starting")
+      (define source
+        (open-file-port
+          "copy-of-mikkamakka.scm"
+          fs-read-only))
+      (define stdout (open-stdout))
+      (copy-port source stdout)
+      (close-port source)
+      (close-port stdout)
 
       noprint)))
 

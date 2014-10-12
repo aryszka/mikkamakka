@@ -14,11 +14,11 @@
                 return error("invalid arity");
             }
 
-            if (customCheck && !customCheck.apply(undefined, args)) {
+            if (customCheck && !customCheck.apply(this, args)) {
                 return error("argument error");
             }
 
-            return f.apply(undefined, args);
+            return f.apply(this, args);
         };
     };
 
@@ -567,9 +567,22 @@
         return left < right;
     });
 
+    var greater = makeCompareNumbers(function (left, right) {
+        return left > right;
+    });
+
     var greaterOrEquals = makeCompareNumbers(function (left, right) {
         return left >= right;
     });
+
+    var floor = function (args) {
+        if (isNull(args) ||
+            !isNumber(car(args)) ||
+            !isNull(cdr(args))) {
+            return error("argument error");
+        }
+        return Math.floor(car(args));
+    };
 
     var stringAppend = function (args) {
         var strings = [];
@@ -738,8 +751,14 @@ return false;
     defineVar(regs.env, stringToSymbol("<"),
         importPrimitive(less));
 
+    defineVar(regs.env, stringToSymbol(">"),
+        importPrimitive(greater));
+
     defineVar(regs.env, stringToSymbol(">="),
         importPrimitive(greaterOrEquals));
+
+    defineVar(regs.env, stringToSymbol("floor"),
+        importPrimitive(floor));
 
     defineVar(regs.env, stringToSymbol("out"),
         importFunction(console.log, console, noprint));
