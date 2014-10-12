@@ -272,11 +272,7 @@
         }
     };
 
-    // import
-    var importPrimitive = function (p) {
-        return {primitive: p};
-    };
-
+    // import/export
     var exportPair = function (p) {
         var list = [];
         for (;;) {
@@ -310,10 +306,66 @@
         return f;
     };
 
+    var isExportedProcedure = function (p) {
+        return isFunction(p) && p.__exported;
+    };
+
+    var importExportedProcedure = function (p) {
+        return p.__exported;
+    };
+
+    var importPrimitive = function (p, external) {
+        return {primitive: p, external: external};
+    };
+
     var exportPrimitiveProcedure = function (p) {
-        return function () {
+        if (p.external) {
+            return p.external;
+        }
+
+        var exported = function () {
             return p.primitive.call(this, importArray(Array.prototype.slice.call(arguments)));
         };
+        exported.__exportedPrimitive = p;
+        return exported;
+    };
+
+    var importFunction = function (f, ctx, value, convert) {
+        if (f.__exportedPrimitive) {
+            return f.__exportedPrimitive;
+        }
+
+        return importPrimitive(function (args) {
+            var result = f.apply(ctx || this, (convert ? exportPair : listToArray)(args));
+            if (value !== undefined) {
+                return value;
+            }
+            return convert ? importVal(result) : result;
+        }, f);
+    };
+
+    var listToArray = function (list) {
+        var plist = [];
+        for (;;) {
+            if (isNull(list)) {
+                return plist;
+            }
+
+            if (!isPair(list)) {
+                return error("argument error");
+            }
+
+            plist.push(car(list));
+            list = cdr(list);
+        }
+    };
+
+    var importArray = function (val) {
+        var l = list();
+        for (var i = val.length - 1; i >= 0; i--) {
+            l = cons(importVal(val[i]), l);
+        }
+        return l;
     };
 
     var exportVal = function (val) {
@@ -335,48 +387,6 @@
         default:
             return error("invalid type to export");
         }
-    };
-
-    var listToArray = function (list) {
-        var plist = [];
-        for (;;) {
-            if (isNull(list)) {
-                return plist;
-            }
-
-            if (!isPair(list)) {
-                return error("argument error");
-            }
-
-            plist.push(car(list));
-            list = cdr(list);
-        }
-    };
-
-    var importFunction = function (f, ctx, value, convert) {
-        return importPrimitive(function (args) {
-            var result = f.apply(ctx || this, (convert ? exportPair : listToArray)(args));
-            if (value !== undefined) {
-                return value;
-            }
-            return convert ? importVal(result) : result;
-        });
-    };
-
-    var isExportedProcedure = function (p) {
-        return isFunction(p) && p.__exported;
-    };
-
-    var importExportedProcedure = function (p) {
-        return p.__exported;
-    };
-
-    var importArray = function (val) {
-        var l = list();
-        for (var i = val.length - 1; i >= 0; i--) {
-            l = cons(importVal(val[i]), l);
-        }
-        return l;
     };
 
     var importVal = function (val, module) {

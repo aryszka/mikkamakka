@@ -1343,12 +1343,33 @@
         var responseType = {
             ok: 0,
             data: 1,
-            fileDescriptor: 2,
-            eof: 3,
-            error: 4
+            eof: 2,
+            error: 3
+        };
+
+        var encoding = {
+            ascii: \"ascii\",
+            utf8: \"utf8\",
+            utf16le: \"utf16le\",
+            base64: \"base64\",
+            binary: \"binary\",
+            hex: \"hex\"
         };
 
         var noop = function () {};
+        var packKey = function () {};
+
+        var pack = function (object) {
+            return function (key) {
+                if (key === packKey) {
+                    return object;
+                }
+            };
+        };
+
+        var unpack = function (object) {
+            return object(packKey);
+        };
 
         var stdinHandlers = null;
         var stdoutHandlers = null;
@@ -1383,7 +1404,7 @@
                         return;
                     }
 
-                    f(responseType.data, data);
+                    f(responseType.data, pack(data));
                 },
                 end: function () {
                     f(responseType.eof, false);
@@ -1392,6 +1413,7 @@
                     f(responseType.error, error.toString());
                 }
             };
+
             return handlers;
         };
 
@@ -1411,9 +1433,10 @@
                     if (handlers.closed) {
                         return;
                     }
-                    out.write(data);
+                    out.write(unpack(data));
                 }
             };
+
             return handlers;
         };
 
@@ -1433,7 +1456,6 @@
 
         var openStdin = function (f) {
             stdinHandlers = makeStdinHandlers(f);
-            process.stdin.setEncoding(\"utf8\");
             process.stdin.on(\"readable\", stdinHandlers.data);
             process.stdin.on(\"end\", stdinHandlers.end);
             process.stdin.on(\"error\", stdinHandlers.error);
@@ -1476,7 +1498,7 @@
                     return;
                 }
 
-                callback(responseType.fileDescriptor, fd);
+                callback(responseType.data, fd);
             });
         };
 
@@ -1491,49 +1513,36 @@
             });
         };
 
-        var read = function (fd, position, length, callback) {
-            position = position < 0 ? null : position;
-            var decoder = new stringDecoder.StringDecoder(\"utf8\");
-            var data = \"\";
-            var blength = Math.floor(length * 1.2);
-
-            var read = function (buffer, receive) {
-                fs.read(fd, buffer, 0, blength, position, receive);
-            };
-
-            var receive = function (err, bytesRead, buffer) {
+        var size = function (fd, callback) {
+            fs.fstat(fd, function (err, stat) {
                 if (err) {
                     callback(responseType.error, err.toString());
                     return;
                 }
 
-                if (!bytesRead) {
-                    if (data) {
-                        callback(responseType.data, data);
-                    } else {
-                        callback(responseType.eof, false);
-                    }
+                callback(responseType.data, stat.size);
+            });
+        };
+
+        var read = function (fd, position, length, callback) {
+            position = position < 0 ? null : position;
+            var buffer = new Buffer(length);
+            fs.read(fd, buffer, 0, length, position, function (err, bytesRead) {
+                if (err) {
+                    callback(responseType.error, err.toString());
                     return;
                 }
 
-                data += decoder.write(buffer.slice(0, bytesRead));
-
-                if (data.length < length) {
-                    position += blength;
-                    read(new Buffer(blength), receive);
-                    return;
-                }
-
-                callback(responseType.data, data.substr(0, length));
-            };
-
-            read(new Buffer(blength), receive);
+                var data = new Buffer(bytesRead);
+                buffer.copy(data, 0, 0, bytesRead);
+                callback(responseType.data, pack(data));
+            });
         };
 
         var write = function (fd, position, data, callback) {
             position = position < 0 ? null : position;
-            var buffer = new Buffer(data);
-            fs.write(fd, buffer, 0, buffer.length, position, function (err) {
+            var d = unpack(data);
+            fs.write(fd, d, 0, d.length, position, function (err) {
                 if (err) {
                     callback(responseType.error, err.toString());
                     return;
@@ -1543,47 +1552,79 @@
             });
         };
 
+        var encode = function (string, encoding) {
+            return pack(new Buffer(string, encoding));
+        };
+
+        var makeDecoder = function (encoding) {
+            return pack(new stringDecoder.StringDecoder(encoding));
+        };
+
+        var decode = function (decoder, data) {
+            var d = unpack(decoder);
+            return d.write(unpack(data));
+        };
+
+        var isEmptyDecoder = function (decoder) {
+            var d = unpack(decoder);
+            return d.end().length === 0;
+        };
+
+        var encodedSize = function (data) {
+            return unpack(data).length;
+        };
+
         exports[\"io-ok\"] = responseType.ok;
         exports[\"io-data\"] = responseType.data;
-        exports[\"io-file-descriptor\"] = responseType.fileDescriptor;
         exports[\"io-eof\"] = responseType.eof;
         exports[\"io-error\"] = responseType.error;
-        exports[\"open-stdin-js\"] = openStdin;
-        exports[\"open-stdout-js\"] = openStdout;
-        exports[\"open-stderr-js\"] = openStderr;
-        exports[\"close-stdin-js\"] = closeStdin;
-        exports[\"close-stdout-js\"] = closeStdout;
-        exports[\"close-stderr-js\"] = closeStderr;
+        exports[\"enc-ascii\"] = encoding.ascii;
+        exports[\"enc-utf8\"] = encoding.utf8;
+        exports[\"enc-utf16le\"] = encoding.utf16le;
+        exports[\"enc-base64\"] = encoding.base64;
+        exports[\"enc-binary\"] = encoding.binary;
+        exports[\"enc-hex\"] = encoding.hex;
+        exports[\"js-open-stdin\"] = openStdin;
+        exports[\"js-open-stdout\"] = openStdout;
+        exports[\"js-open-stderr\"] = openStderr;
+        exports[\"js-close-stdin\"] = closeStdin;
+        exports[\"js-close-stdout\"] = closeStdout;
+        exports[\"js-close-stderr\"] = closeStderr;
         exports[\"js-open-file\"] = open;
         exports[\"js-close-file\"] = close;
+        exports[\"js-file-size\"] = size;
         exports[\"js-read-file\"] = read;
         exports[\"js-write-file\"] = write;
+        exports[\"js-encode\"] = encode;
+        exports[\"js-make-decoder\"] = makeDecoder;
+        exports[\"js-decode\"] = decode;
+        exports[\"js-empty-decoder?\"] = isEmptyDecoder;
+        exports[\"js-encoded-size\"] = encodedSize;
         ")
 
       (define stdout-test
-        (open-stdout-js
+        (js-open-stdout
           (lambda (response-type _)
             (cond ((eq? response-type io-error)
-                   (close-stdout-js))))))
+                   (js-close-stdout))))))
 
-      (stdout-test "hello mikkamakka")
-      (close-stdout-js)
-      (stdout-test "hello again")
+      (stdout-test (js-encode "hello mikkamakka" enc-utf8))
+      (js-close-stdout)
+      (stdout-test (js-encode "hello again" enc-utf8))
 
       (define stderr-test
-        (open-stderr-js
+        (js-open-stderr
           (lambda (response-type _)
             (cond ((eq? response-type io-error)
-                   (close-stderr-js))))))
+                   (js-close-stderr))))))
 
-      (stderr-test "log from mikkamakka")
-      (close-stderr-js)
-      (stderr-test "log again")
+      (stderr-test (js-encode "log from mikkamakka" enc-utf8))
+      (js-close-stderr)
+      (stderr-test (js-encode "log again" enc-utf8))
 
-      (define (open-stdin)
-        (let ((buffer (open-string-port))
-              (error false)
-              (end false)
+      (define (open-sync-string-port . strings)
+        (let ((buffer (apply open-string-port strings))
+              (eof false)
               (requests '()))
           (define (make-request return requested-length buffer buffer-length)
             (lambda (message)
@@ -1595,7 +1636,7 @@
           (define (requested-length request) (request 'requested-length))
           (define (request-buffer request) (request 'buffer))
           (define (request-buffer-length request) (request 'buffer-length))
-          (define (check-current-request)
+          (define (feed-requests)
             (let ((request (and (not (null? requests)) (car requests))))
               (cond ((and request (< (requested-length request) 0))
                      (let ((string (read-string buffer)))
@@ -1612,14 +1653,14 @@
                                      (string-length string))))
                               (set! requests
                                 (cons request (cdr requests)))))
-                       (cond (end
+                       (cond (eof
+                               (set! requests (cdr requests))
                                ((request-return request)
                                 (if (eq? (request-buffer-length request) 0)
                                   end-of-file
                                   (read-string
                                     (request-buffer request))))
-                               (set! requests (cdr requests))
-                               (check-current-request)))))
+                               (feed-requests)))))
                     (request
                       (let ((string
                               (read-string
@@ -1639,46 +1680,68 @@
                                       (string-length string))))
                                (set! requests
                                  (cons request (cdr requests)))))
-                        (cond ((or end
+                        (cond ((or eof
                                    (eq? (- (requested-length request)
                                            (request-buffer-length request))
                                         0))
+                               (set! requests (cdr requests))
                                ((request-return request)
                                 (if (eq? (request-buffer-length request) 0)
                                   end-of-file
                                   (read-string
                                     (request-buffer request))))
-                               (set! requests (cdr requests))
-                               (check-current-reuqest))))))))
+                               (feed-requests))))))))
           (define (close)
-            (close-port buffer)
-            (close-stdin-js))
+            (cond ((not eof)
+                   (close-port buffer)
+                   (set! eof true)
+                   (feed-requests))))
           (define (read . args)
-            (call/cc (lambda (return)
-                       (set! requests
-                         (cons (make-request
-                                 return
-                                 (if (null? args) -1 (car args))
-                                 (open-string-port)
-                                 0)
-                               requests))
-                       (check-current-request)
-                       (break-execution))))
-          (open-stdin-js
-            (lambda (response-type data)
-              (cond ((eq? response-type io-data)
-                     (write-string buffer data)
-                     (check-current-request))
-                    ((eq? response-type io-eof)
-                     (set! end true)
-                     (check-current-request))
-                    ((eq? response-type io-error)
-                     (set! end true)
-                     (set! error data)))))
+            (call/cc
+              (lambda (return)
+                (set! requests
+                  (cons (make-request
+                          return
+                          (if (null? args) -1 (car args))
+                          (open-string-port)
+                          0)
+                        requests))
+                (feed-requests)
+                (break-execution))))
+          (define (write . args)
+            (apply write-string (cons buffer args))
+            (feed-requests))
           (make-port
             (lambda (message . args)
-              (cond ((eq? message 'input-port) true)
-                    ((eq? message 'output-port) false)
+              (cond ((eq? message 'input-port?) true)
+                    ((eq? message 'output-port?) true)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'read-string) (apply read args))
+                    ((eq? message 'read-char) (read 1))
+                    ((eq? message 'write-string) (apply write args))
+                    ((eq? message 'write-char) (write (string-copy (car args) 0 1)))
+                    (else (error "invalid message" message)))))))
+
+      (define (open-stdin)
+        (let ((buffer (open-sync-string-port))
+              (decoder (js-make-decoder enc-utf8)))
+          (define (close)
+            (close-port buffer)
+            (js-close-stdin))
+          (define (read . args)
+            (apply read-string (cons buffer args)))
+          (js-open-stdin
+            (lambda (response-type data)
+              (cond ((eq? response-type io-data)
+                     (write-string buffer (js-decode decoder data)))
+                    ((eq? response-type io-eof)
+                     (close-port buffer))
+                    ((eq? response-type io-error)
+                     (error data)))))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) true)
+                    ((eq? message 'output-port?) false)
                     ((eq? message 'close) (close))
                     ((eq? message 'read-string) (apply read args))
                     ((eq? message 'read-char) (read 1))
@@ -1688,22 +1751,23 @@
         (let ((out (open
                      (lambda (response-type data)
                        (cond ((eq? response-type io-error)
-                              (close)
                               (error data)))))))
+          (define (write string)
+            (out (js-encode string enc-utf8)))
           (make-port
             (lambda (message . args)
-              (cond ((eq? message 'input-port) false)
-                    ((eq? message 'output-port) true)
+              (cond ((eq? message 'input-port?) false)
+                    ((eq? message 'output-port?) true)
                     ((eq? message 'close) (close))
-                    ((eq? message 'write-string) (out (car args)))
-                    ((eq? message 'write-char) (out (string-copy (car args) 0 1)))
+                    ((eq? message 'write-string) (write (car args)))
+                    ((eq? message 'write-char) (write (string-copy (car args) 0 1)))
                     (else (error "invalid message" message)))))))
 
       (define (open-stdout)
-        (open-out open-stdout-js close-stdout-js))
+        (open-out js-open-stdout js-close-stdout))
 
       (define (open-stderr)
-        (open-out open-stderr-js close-stderr-js))
+        (open-out js-open-stderr js-close-stderr))
 
       (define stdin (open-stdin))
       (define stdout (open-stdout))
@@ -1751,7 +1815,7 @@
       (call/cc
         (lambda (return)
           (js-write-file
-            fd 0 "hello mikkamakka in the house"
+            fd 0 (js-encode "hello mikkamakka in the house" enc-utf8)
             (lambda (response-type data)
               (cond ((eq? response-type io-error)
                      (error data))
@@ -1775,6 +1839,7 @@
                        (error data))
                       (else (return data)))))
             (break-execution))))
+      (define decoder (js-make-decoder enc-utf8))
       (define content
         (call/cc
           (lambda (return)
@@ -1783,7 +1848,7 @@
               (lambda (response-type data)
                 (cond ((eq? response-type io-error)
                        (error data))
-                      (else (return data)))))
+                      (else (return (js-decode decoder data))))))
             (break-execution))))
       (define stdout (open-stdout))
       (write-string stdout content)
@@ -1797,7 +1862,27 @@
                     (else (return false)))))
           (break-execution)))
 
-      (define (open-file-port name flags mode) 'ok)
+      (define seek-set 0)
+      (define seek-cur 1)
+      (define seek-end 2)
+
+      (define (open-file-port name flags mode)
+        (let ((input-port? (not (flagged? write-only flags)))
+              (output-port? (or (flagged? write-only flags)
+                                (flagged? read-write flags)))
+              (offset 0))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) input-port?)
+                    ((eq? message 'output-port?) output-port?)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'read-string) (apply read-string args))
+                    ((eq? message 'read-char) (read-string 1))
+                    ((eq? message 'write-string) (apply write-string args))
+                    ((eq? message 'write-char) (write-string (string-copy (car args) 0 1)))
+                    ((eq? message 'size) (size))
+                    ((eq? message 'seek) (apply seek args))
+                    (else (error "invalid message" message)))))))
 
       noprint)))
 
