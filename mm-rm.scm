@@ -1336,13 +1336,19 @@
 
       ; open stdin/stdout/stderr
       (js-import-code / "
-        var noop = function () {};
+
+        var fs = require(\"fs\");
+        var stringDecoder = require(\"string_decoder\");
 
         var responseType = {
-            data: 0,
-            end: 1,
-            error: 2
+            ok: 0,
+            data: 1,
+            fileDescriptor: 2,
+            eof: 3,
+            error: 4
         };
+
+        var noop = function () {};
 
         var stdinHandlers = null;
         var stdoutHandlers = null;
@@ -1372,16 +1378,15 @@
                         // nodejs hack, to avoid hanging the process:
                         handlers.eofReceived = true;
                         process.stdin.pause();
-                        f(responseType.end, \"\");
+                        f(responseType.eof, false);
 
                         return;
                     }
 
-                    console.error(\"warning: non unicode input\");
-                    f(responseType.data, data.toString());
+                    f(responseType.data, data);
                 },
                 end: function () {
-                    f(responseType.end, \"\");
+                    f(responseType.eof, false);
                 },
                 error: function (error) {
                     f(responseType.error, error.toString());
@@ -1428,6 +1433,7 @@
 
         var openStdin = function (f) {
             stdinHandlers = makeStdinHandlers(f);
+            process.stdin.setEncoding(\"utf8\");
             process.stdin.on(\"readable\", stdinHandlers.data);
             process.stdin.on(\"end\", stdinHandlers.end);
             process.stdin.on(\"error\", stdinHandlers.error);
@@ -1463,21 +1469,101 @@
             stderrHandlers = null;
         };
 
-        exports[\"stdio-data\"] = responseType.data;
-        exports[\"stdio-end\"] = responseType.end;
-        exports[\"stdio-error\"] = responseType.error;
+        var open = function (path, flags, mode, callback) {
+            fs.open(path, flags, mode, function (err, fd) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.fileDescriptor, fd);
+            });
+        };
+
+        var close = function (fd, callback) {
+            fs.close(fd, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        var read = function (fd, position, length, callback) {
+            position = position < 0 ? null : position;
+            var decoder = new stringDecoder.StringDecoder(\"utf8\");
+            var data = \"\";
+            var blength = Math.floor(length * 1.2);
+
+            var read = function (buffer, receive) {
+                fs.read(fd, buffer, 0, blength, position, receive);
+            };
+
+            var receive = function (err, bytesRead, buffer) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                if (!bytesRead) {
+                    if (data) {
+                        callback(responseType.data, data);
+                    } else {
+                        callback(responseType.eof, false);
+                    }
+                    return;
+                }
+
+                data += decoder.write(buffer.slice(0, bytesRead));
+
+                if (data.length < length) {
+                    position += blength;
+                    read(new Buffer(blength), receive);
+                    return;
+                }
+
+                callback(responseType.data, data.substr(0, length));
+            };
+
+            read(new Buffer(blength), receive);
+        };
+
+        var write = function (fd, position, data, callback) {
+            position = position < 0 ? null : position;
+            var buffer = new Buffer(data);
+            fs.write(fd, buffer, 0, buffer.length, position, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        exports[\"io-ok\"] = responseType.ok;
+        exports[\"io-data\"] = responseType.data;
+        exports[\"io-file-descriptor\"] = responseType.fileDescriptor;
+        exports[\"io-eof\"] = responseType.eof;
+        exports[\"io-error\"] = responseType.error;
         exports[\"open-stdin-js\"] = openStdin;
         exports[\"open-stdout-js\"] = openStdout;
         exports[\"open-stderr-js\"] = openStderr;
         exports[\"close-stdin-js\"] = closeStdin;
         exports[\"close-stdout-js\"] = closeStdout;
         exports[\"close-stderr-js\"] = closeStderr;
+        exports[\"js-open-file\"] = open;
+        exports[\"js-close-file\"] = close;
+        exports[\"js-read-file\"] = read;
+        exports[\"js-write-file\"] = write;
         ")
 
       (define stdout-test
         (open-stdout-js
           (lambda (response-type _)
-            (cond ((eq? response-type stdio-error)
+            (cond ((eq? response-type io-error)
                    (close-stdout-js))))))
 
       (stdout-test "hello mikkamakka")
@@ -1487,7 +1573,7 @@
       (define stderr-test
         (open-stderr-js
           (lambda (response-type _)
-            (cond ((eq? response-type stdio-error)
+            (cond ((eq? response-type io-error)
                    (close-stderr-js))))))
 
       (stderr-test "log from mikkamakka")
@@ -1580,13 +1666,13 @@
                        (break-execution))))
           (open-stdin-js
             (lambda (response-type data)
-              (cond ((eq? response-type stdio-data)
+              (cond ((eq? response-type io-data)
                      (write-string buffer data)
                      (check-current-request))
-                    ((eq? response-type stdio-end)
+                    ((eq? response-type io-eof)
                      (set! end true)
                      (check-current-request))
-                    ((eq? response-type stdio-error)
+                    ((eq? response-type io-error)
                      (set! end true)
                      (set! error data)))))
           (make-port
@@ -1601,7 +1687,7 @@
       (define (open-out open close)
         (let ((out (open
                      (lambda (response-type data)
-                       (cond ((eq? response-type stdio-error)
+                       (cond ((eq? response-type io-error)
                               (close)
                               (error data)))))))
           (make-port
@@ -1650,83 +1736,6 @@
       (define (flagged? flag value)
         (eq? (& value flag) flag))
 
-      (js-import-code / "
-        var fs = require(\"fs\");
-
-        var responseType = {
-            ok: 0,
-            data: 1,
-            fileDescriptor: 2,
-            eof: 3,
-            error: 4
-        };
-
-        var open = function (path, flags, mode, callback) {
-            fs.open(path, flags, mode, function (err, fd) {
-                if (err) {
-                    callback(responseType.error, err.toString());
-                    return;
-                }
-
-                callback(responseType.fileDescriptor, fd);
-            });
-        };
-
-        var close = function (fd, callback) {
-            fs.close(fd, function (err) {
-                if (err) {
-                    callback(responseType.error, err.toString());
-                    return;
-                }
-
-                callback(responseType.ok, false);
-            });
-        };
-
-        var read = function (fd, position, length, callback) {
-            position = position < 0 ? null : position;
-            fs.read(fd, new Buffer(length), 0, length, position, function (err, bytesRead, buffer) {
-                if (err) {
-                    callback(responseType.error, err.toString());
-                    return;
-                }
-
-                if (!bytesRead) {
-                    callback(responseType.eof, false);
-                    return;
-                }
-
-                console.error(\"warning: non unicode input\");
-                callback(responseType.data, buffer.toString(\"utf8\", 0, bytesRead));
-            });
-        };
-
-        var write = function (fd, position, data, callback) {
-            position = position < 0 ? null : position;
-            var buffer = new Buffer(data);
-            fs.write(fd, buffer, 0, buffer.length, position, function (err) {
-                if (err) {
-                    callback(responseType.error, err.toString());
-                    return;
-                }
-
-                callback(responseType.ok, false);
-            });
-        };
-
-        exports[\"fs-ok\"] = responseType.ok;
-        exports[\"fs-data\"] = responseType.data;
-        exports[\"fs-file-descriptor\"] = responseType.fileDescriptor;
-        exports[\"fs-eof\"] = responseType.eof;
-        exports[\"fs-error\"] = responseType.error;
-        exports[\"js-open-file\"] = open;
-        exports[\"js-close-file\"] = close;
-        exports[\"js-read-file\"] = read;
-        exports[\"js-write-file\"] = write;
-                      ")
-
-      (define (open-file-port name flags mode) 'ok)
-
       (define fd
         (call/cc
           (lambda (return)
@@ -1735,16 +1744,16 @@
               (| write-only create trunc)
               438
               (lambda (response-type data)
-                (cond ((eq? response-type fs-error)
+                (cond ((eq? response-type io-error)
                        (error data))
                       (else (return data)))))
             (break-execution))))
       (call/cc
         (lambda (return)
           (js-write-file
-            fd 0 "hello mikkamakka"
+            fd 0 "hello mikkamakka in the house"
             (lambda (response-type data)
-              (cond ((eq? response-type fs-error)
+              (cond ((eq? response-type io-error)
                      (error data))
                     (else (return false)))))
           (break-execution)))
@@ -1752,7 +1761,7 @@
         (lambda (return)
           (js-close-file fd
             (lambda (response-type data)
-              (cond ((eq? response-type fs-error)
+              (cond ((eq? response-type io-error)
                      (error data))
                     (else (return false)))))
           (break-execution)))
@@ -1762,7 +1771,7 @@
             (js-open-file
               "some" read-only 0
               (lambda (response-type data)
-                (cond ((eq? response-type fs-error)
+                (cond ((eq? response-type io-error)
                        (error data))
                       (else (return data)))))
             (break-execution))))
@@ -1772,7 +1781,7 @@
             (js-read-file
               fd 0 12000
               (lambda (response-type data)
-                (cond ((eq? response-type fs-error)
+                (cond ((eq? response-type io-error)
                        (error data))
                       (else (return data)))))
             (break-execution))))
@@ -1783,10 +1792,12 @@
         (lambda (return)
           (js-close-file fd
             (lambda (response-type data)
-              (cond ((eq? response-type fs-error)
+              (cond ((eq? response-type io-error)
                      (error data))
                     (else (return false)))))
           (break-execution)))
+
+      (define (open-file-port name flags mode) 'ok)
 
       noprint)))
 
