@@ -107,7 +107,6 @@
         return pair[1];
     };
 
-    // list
     var list = function () {
         var l = [];
         for (var i = 0; i < arguments.length; i++) {
@@ -140,24 +139,6 @@
 
     var compiledProcedureEnv = function (p) {
         return p.env;
-    };
-
-    // call
-    var callCheck = function (regs) {
-        return isPrimitiveProcedure(regs.proc) ||
-            isCompiledProcedure(regs.proc);
-    };
-
-    var callOp = function (regs, cont) {
-        if (isPrimitiveProcedure(regs.proc)) {
-            regs.val = applyPrimitive(regs.proc, regs.args);
-            return cont || regs.cont;
-        };
-
-        if (cont) {
-            regs.cont = cont;
-        }
-        return compiledEntry(regs.proc);
     };
 
     // struct
@@ -270,6 +251,24 @@
             names = cdr(names);
             values = cdr(values);
         }
+    };
+
+    // call
+    var callCheck = function (regs) {
+        return isPrimitiveProcedure(regs.proc) ||
+            isCompiledProcedure(regs.proc);
+    };
+
+    var callOp = function (regs, cont) {
+        if (isPrimitiveProcedure(regs.proc)) {
+            regs.val = applyPrimitive(regs.proc, regs.args);
+            return cont || regs.cont;
+        };
+
+        if (cont) {
+            regs.cont = cont;
+        }
+        return compiledEntry(regs.proc);
     };
 
     // import/export
@@ -705,7 +704,8 @@
         if (!isNull(regs.args)) {
             return error("invalid arity");
         }
-return false;
+
+        return false;
     };
 
     // primitive definitions
@@ -817,7 +817,7 @@ return false;
     defineVar(regs.env, stringToSymbol("string-append"),
         importPrimitive(stringAppend));
 
-    // program
+    /* [program] */
 
     // control
     regs.next = start;

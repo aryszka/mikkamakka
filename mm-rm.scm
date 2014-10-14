@@ -616,7 +616,14 @@
 
 (define (assembly->string builder)
   (builder (lambda (b) b)
-           (lambda (b) (apply string-append (reverse b)))))
+           ; if no stack overflow:
+           ; (lambda (b) (apply string-append (reverse b)))))
+           (lambda (b)
+             (define (recur string b)
+               (if (null? b)
+                 string
+                 (recur (string-append string (car b)) (cdr b))))
+             (recur "" (reverse b)))))
 
 (define (assemble-pair builder exp)
   (assembly-append builder "[")
@@ -2057,7 +2064,162 @@
       (close-port source)
       (close-port stdout)
 
+      (assert (and (not (eq? io-ok io-data))
+                   (not (eq? io-data io-eof))
+                   (not (eq? io-eof io-error))
+                   (not (eq? io-error io-ok)))
+              "io message types")
+
+      (define test-data (js-encode "hello mikkamakka" enc-utf8))
+      (define decoder (js-make-decoder enc-utf8))
+      (assert (eq? (js-decode decoder test-data)
+                   "hello mikkamakka")
+              "encode/decode")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test"
+              (| fs-write-only fs-create fs-trunc)
+              438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-write-file
+                          fd 0 test-data
+                          (lambda (response-type data)
+                            (cond ((not (eq? response-type io-ok))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "create file")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test" fs-read-only 438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-file-size
+                          fd
+                          (lambda (response-type data)
+                            (cond ((or (not (eq? response-type io-data))
+                                       (not (eq? data (js-encoded-size test-data))))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "check file size")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test" fs-read-only 438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-read-file
+                          fd 0 (string-length "hello mikkamakka")
+                          (lambda (response-type data)
+                            (cond ((or (not (eq? response-type io-data))
+                                       (not (eq? (js-decode decoder data)
+                                                 "hello mikkamakka")))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "read file")
+
+      ((lambda ()
+         (define (open fn flags)
+           (call/cc
+             (lambda (return)
+               (js-open-file
+                 fn flags 438
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "open" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (get-size fd)
+           (call/cc
+             (lambda (return)
+               (js-file-size
+                 fd
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "get-size" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (read fd size)
+           (call/cc
+             (lambda (return)
+               (js-read-file
+                 fd 0 size
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "read" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (write fd data)
+           (call/cc
+             (lambda (return)
+               (js-write-file
+                 fd 0 data
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "write" data))
+                         (else (return false)))))
+               (break-execution))))
+
+         (define (close fd)
+           (call/cc
+             (lambda (return)
+               (js-close-file
+                 fd
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "close" data))
+                         (else (return false)))))
+               (break-execution))))
+
+         (define fd (open "mm-rm.scm" fs-read-only))
+         (define size (get-size fd))
+         (define data (read fd size))
+         (close fd)
+         (define fd (open "copy-of-mm-rm.scm"
+                          (| fs-write-only fs-create fs-trunc)))
+         (write fd data)
+         (close fd)
+         (define fd (open "copy-of-mm-rm.scm" fs-read-only))
+         (define size-check (get-size fd))
+         (define data-check (read fd size-check))
+         (assert (eq? size size-check) "copied size")
+         (define decoder (js-make-decoder enc-utf8))
+         (assert (eq? (js-decode decoder data)
+                      (js-decode decoder data-check))
+                 "copied data")))
+
       noprint)))
 
-(define js (compile-js exp))
-(out js)
+(define js (compile-js exp)) (out js)
