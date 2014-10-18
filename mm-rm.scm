@@ -1191,7 +1191,6 @@
                         string))))
             (read-string '() (if (null? args) -1 (car args))))
           (define (write-string string)
-            (out strings)
             (set! strings (append strings (list string))))
           (define (close)
             (set! strings '())
@@ -1615,25 +1614,25 @@
         exports[\"js-encoded-size\"] = encodedSize;
         ")
 
-      (define stdout-test
-        (js-open-stdout
-          (lambda (response-type _)
-            (cond ((eq? response-type io-error)
-                   (js-close-stdout))))))
+      ; (define stdout-test
+      ;   (js-open-stdout
+      ;     (lambda (response-type _)
+      ;       (cond ((eq? response-type io-error)
+      ;              (js-close-stdout))))))
 
-      (stdout-test (js-encode "hello mikkamakka" enc-utf8))
-      (js-close-stdout)
-      (stdout-test (js-encode "hello again" enc-utf8))
+      ; (stdout-test (js-encode "hello mikkamakka" enc-utf8))
+      ; (js-close-stdout)
+      ; (stdout-test (js-encode "hello again" enc-utf8))
 
-      (define stderr-test
-        (js-open-stderr
-          (lambda (response-type _)
-            (cond ((eq? response-type io-error)
-                   (js-close-stderr))))))
+      ; (define stderr-test
+      ;   (js-open-stderr
+      ;     (lambda (response-type _)
+      ;       (cond ((eq? response-type io-error)
+      ;              (js-close-stderr))))))
 
-      (stderr-test (js-encode "log from mikkamakka" enc-utf8))
-      (js-close-stderr)
-      (stderr-test (js-encode "log again" enc-utf8))
+      ; (stderr-test (js-encode "log from mikkamakka" enc-utf8))
+      ; (js-close-stderr)
+      ; (stderr-test (js-encode "log again" enc-utf8))
 
       (define (open-sync-string-port . strings)
         (let ((buffer (apply open-string-port strings))
@@ -1786,24 +1785,24 @@
       (define (open-stderr)
         (open-out js-open-stderr js-close-stderr))
 
-      (define stdin (open-stdin))
-      (define stdout (open-stdout))
-      (define stderr (open-stderr))
-      (define data (read-string stdin 2))
-      (cond ((not (eof-object? data))
-             (write-string stdout data)
-             (write-string stdout ":")))
-      (define data (read-string stdin 4))
-      (cond ((not (eof-object? data))
-             (write-string stdout data)
-             (write-string stdout ":")))
-      (define data (read-string stdin))
-      (cond ((not (eof-object? data))
-             (write-string stdout data)))
-      (write-string stderr "closing")
-      (close-port stdin)
-      (close-port stdout)
-      (close-port stderr)
+      ; (define stdin (open-stdin))
+      ; (define stdout (open-stdout))
+      ; (define stderr (open-stderr))
+      ; (define data (read-string stdin 2))
+      ; (cond ((not (eof-object? data))
+      ;        (write-string stdout data)
+      ;        (write-string stdout ":")))
+      ; (define data (read-string stdin 4))
+      ; (cond ((not (eof-object? data))
+      ;        (write-string stdout data)
+      ;        (write-string stdout ":")))
+      ; (define data (read-string stdin))
+      ; (cond ((not (eof-object? data))
+      ;        (write-string stdout data)))
+      ; (write-string stderr "closing")
+      ; (close-port stdin)
+      ; (close-port stdout)
+      ; (close-port stderr)
 
       (define fs-read-only 0)
       (define fs-write-only 1)
@@ -1829,55 +1828,55 @@
                        (error data))
                       (else (return data)))))
             (break-execution))))
-      (call/cc
-        (lambda (return)
-          (js-write-file
-            fd 0 (js-encode "hello mikkamakka in the house" enc-utf8)
-            (lambda (response-type data)
-              (cond ((eq? response-type io-error)
-                     (error data))
-                    (else (return false)))))
-          (break-execution)))
-      (call/cc
-        (lambda (return)
-          (js-close-file fd
-            (lambda (response-type data)
-              (cond ((eq? response-type io-error)
-                     (error data))
-                    (else (return false)))))
-          (break-execution)))
-      (define fd
-        (call/cc
-          (lambda (return)
-            (js-open-file
-              "some" fs-read-only 0
-              (lambda (response-type data)
-                (cond ((eq? response-type io-error)
-                       (error data))
-                      (else (return data)))))
-            (break-execution))))
-      (define decoder (js-make-decoder enc-utf8))
-      (define content
-        (call/cc
-          (lambda (return)
-            (js-read-file
-              fd 0 12000
-              (lambda (response-type data)
-                (cond ((eq? response-type io-error)
-                       (error data))
-                      (else (return (js-decode decoder data))))))
-            (break-execution))))
-      (define stdout (open-stdout))
-      (write-string stdout content)
-      (close-port stdout)
-      (call/cc
-        (lambda (return)
-          (js-close-file fd
-            (lambda (response-type data)
-              (cond ((eq? response-type io-error)
-                     (error data))
-                    (else (return false)))))
-          (break-execution)))
+      ; (call/cc
+      ;   (lambda (return)
+      ;     (js-write-file
+      ;       fd 0 (js-encode "hello mikkamakka in the house" enc-utf8)
+      ;       (lambda (response-type data)
+      ;         (cond ((eq? response-type io-error)
+      ;                (error data))
+      ;               (else (return false)))))
+      ;     (break-execution)))
+      ; (call/cc
+      ;   (lambda (return)
+      ;     (js-close-file fd
+      ;       (lambda (response-type data)
+      ;         (cond ((eq? response-type io-error)
+      ;                (error data))
+      ;               (else (return false)))))
+      ;     (break-execution)))
+      ; (define fd
+      ;   (call/cc
+      ;     (lambda (return)
+      ;       (js-open-file
+      ;         "some" fs-read-only 0
+      ;         (lambda (response-type data)
+      ;           (cond ((eq? response-type io-error)
+      ;                  (error data))
+      ;                 (else (return data)))))
+      ;       (break-execution))))
+      ; (define decoder (js-make-decoder enc-utf8))
+      ; (define content
+      ;   (call/cc
+      ;     (lambda (return)
+      ;       (js-read-file
+      ;         fd 0 12000
+      ;         (lambda (response-type data)
+      ;           (cond ((eq? response-type io-error)
+      ;                  (error data))
+      ;                 (else (return (js-decode decoder data))))))
+      ;       (break-execution))))
+      ; (define stdout (open-stdout))
+      ; (write-string stdout content)
+      ; (close-port stdout)
+      ; (call/cc
+      ;   (lambda (return)
+      ;     (js-close-file fd
+      ;       (lambda (response-type data)
+      ;         (cond ((eq? response-type io-error)
+      ;                (error data))
+      ;               (else (return false)))))
+      ;     (break-execution)))
 
       (define seek-set 0)
       (define seek-cur 1)
@@ -2010,59 +2009,59 @@
       (define (data-port? port)
         ((struct-lookup port 'port-object) 'data-port?))
 
-      (define file-0
-        (open-file-port
-          "file-0" (| fs-write-only fs-create fs-trunc) 438))
-      (write-string file-0 "hello mikkamakka, this is a file port")
-      (close-port file-0)
-      (define file-0
-        (open-file-port
-          "file-0" fs-read-only))
-      (file-seek file-0 0)
-      (define data (read-data file-0 (file-size file-0)))
-      (close-port file-0)
-      (define file-1
-        (open-file-port
-          "file-1" (| fs-write-only fs-create fs-trunc) 438))
-      (write-data file-1 data)
-      (close-port file-1)
+      ; (define file-0
+      ;   (open-file-port
+      ;     "file-0" (| fs-write-only fs-create fs-trunc) 438))
+      ; (write-string file-0 "hello mikkamakka, this is a file port")
+      ; (close-port file-0)
+      ; (define file-0
+      ;   (open-file-port
+      ;     "file-0" fs-read-only))
+      ; (file-seek file-0 0)
+      ; (define data (read-data file-0 (file-size file-0)))
+      ; (close-port file-0)
+      ; (define file-1
+      ;   (open-file-port
+      ;     "file-1" (| fs-write-only fs-create fs-trunc) 438))
+      ; (write-data file-1 data)
+      ; (close-port file-1)
 
-      (define (copy-port source target)
-        (let ((buffer-size 8192)
-              (both-data-port?
-                (and (data-port? source)
-                     (data-port? target))))
-          (let ((read (if both-data-port?
-                        read-data read-string))
-                (write (if both-data-port?
-                         write-data write-string))
-                (size (if both-data-port?
-                        js-encoded-size string-length)))
-            (define (copy)
-              (let ((data (read source buffer-size)))
-                (cond ((eq? (size data) 0) false)
-                      (else
-                        (write target data)
-                        (copy)))))
-            (copy))))
-      (define source (open-file-port "mm-rm.scm" fs-read-only))
-      (define target
-        (open-file-port
-          "copy-of-mikkamakka.scm"
-          (| fs-write-only fs-create fs-trunc) 438))
-      (copy-port source target)
-      (close-port source)
-      (close-port target)
+      ; (define (copy-port source target)
+      ;   (let ((buffer-size 8192)
+      ;         (both-data-port?
+      ;           (and (data-port? source)
+      ;                (data-port? target))))
+      ;     (let ((read (if both-data-port?
+      ;                   read-data read-string))
+      ;           (write (if both-data-port?
+      ;                    write-data write-string))
+      ;           (size (if both-data-port?
+      ;                   js-encoded-size string-length)))
+      ;       (define (copy)
+      ;         (let ((data (read source buffer-size)))
+      ;           (cond ((eq? (size data) 0) false)
+      ;                 (else
+      ;                   (write target data)
+      ;                   (copy)))))
+      ;       (copy))))
+      ; (define source (open-file-port "mm-rm.scm" fs-read-only))
+      ; (define target
+      ;   (open-file-port
+      ;     "copy-of-mikkamakka.scm"
+      ;     (| fs-write-only fs-create fs-trunc) 438))
+      ; (copy-port source target)
+      ; (close-port source)
+      ; (close-port target)
 
-      (out "starting")
-      (define source
-        (open-file-port
-          "copy-of-mikkamakka.scm"
-          fs-read-only))
-      (define stdout (open-stdout))
-      (copy-port source stdout)
-      (close-port source)
-      (close-port stdout)
+      ; (out "starting")
+      ; (define source
+      ;   (open-file-port
+      ;     "copy-of-mikkamakka.scm"
+      ;     fs-read-only))
+      ; (define stdout (open-stdout))
+      ; (copy-port source stdout)
+      ; (close-port source)
+      ; (close-port stdout)
 
       (assert (and (not (eq? io-ok io-data))
                    (not (eq? io-data io-eof))
@@ -2219,6 +2218,24 @@
          (assert (eq? (js-decode decoder data)
                       (js-decode decoder data-check))
                  "copied data")))
+
+      (define (go p) (set-timeout p 0))
+
+      (define (go-write port string)
+        (go (lambda ()
+              (write-string port string))))
+
+      (let ((io-port (open-sync-string-port)))
+        (go-write io-port "12")
+        (go-write io-port "345")
+        (go-write io-port "6789")
+        (let ((a (read-string io-port 3))
+              (b (read-string io-port 3))
+              (c (read-string io-port 3)))
+          (assert (and (eq? (string-length a) 3)
+                       (eq? (string-length b) 3)
+                       (eq? (string-length c) 3))
+                  "read all from sync port")))
 
       noprint)))
 
