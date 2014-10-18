@@ -1591,8 +1591,8 @@
         exports[\"io-eof\"] = responseType.eof;
         exports[\"io-error\"] = responseType.error;
         exports[\"enc-ascii\"] = encoding.ascii;
-        exports[\"enc-utf8\"] = encoding.utf8;
-        exports[\"enc-utf16le\"] = encoding.utf16le;
+        exports[\"enc-utf-8\"] = encoding.utf8;
+        exports[\"enc-utf-16le\"] = encoding.utf16le;
         exports[\"enc-base64\"] = encoding.base64;
         exports[\"enc-binary\"] = encoding.binary;
         exports[\"enc-hex\"] = encoding.hex;
@@ -1620,9 +1620,9 @@
       ;       (cond ((eq? response-type io-error)
       ;              (js-close-stdout))))))
 
-      ; (stdout-test (js-encode "hello mikkamakka" enc-utf8))
+      ; (stdout-test (js-encode "hello mikkamakka" enc-utf-8))
       ; (js-close-stdout)
-      ; (stdout-test (js-encode "hello again" enc-utf8))
+      ; (stdout-test (js-encode "hello again" enc-utf-8))
 
       ; (define stderr-test
       ;   (js-open-stderr
@@ -1630,9 +1630,9 @@
       ;       (cond ((eq? response-type io-error)
       ;              (js-close-stderr))))))
 
-      ; (stderr-test (js-encode "log from mikkamakka" enc-utf8))
+      ; (stderr-test (js-encode "log from mikkamakka" enc-utf-8))
       ; (js-close-stderr)
-      ; (stderr-test (js-encode "log again" enc-utf8))
+      ; (stderr-test (js-encode "log again" enc-utf-8))
 
       (define (open-sync-string-port . strings)
         (let ((buffer (apply open-string-port strings))
@@ -1738,7 +1738,7 @@
 
       (define (open-stdin)
         (let ((buffer (open-sync-string-port))
-              (decoder (js-make-decoder enc-utf8)))
+              (decoder (js-make-decoder enc-utf-8)))
           (define (close)
             (close-port buffer)
             (js-close-stdin))
@@ -1768,7 +1768,7 @@
                        (cond ((eq? response-type io-error)
                               (error data)))))))
           (define (write string)
-            (out (js-encode string enc-utf8)))
+            (out (js-encode string enc-utf-8)))
           (make-port
             (lambda (message . args)
               (cond ((eq? message 'input-port?) false)
@@ -1816,22 +1816,22 @@
       (define (flagged? flag value)
         (eq? (& value flag) flag))
 
-      (define fd
-        (call/cc
-          (lambda (return)
-            (js-open-file
-              "some"
-              (| fs-write-only fs-create fs-trunc)
-              438
-              (lambda (response-type data)
-                (cond ((eq? response-type io-error)
-                       (error data))
-                      (else (return data)))))
-            (break-execution))))
+      ; (define fd
+      ;   (call/cc
+      ;     (lambda (return)
+      ;       (js-open-file
+      ;         "some"
+      ;         (| fs-write-only fs-create fs-trunc)
+      ;         438
+      ;         (lambda (response-type data)
+      ;           (cond ((eq? response-type io-error)
+      ;                  (error data))
+      ;                 (else (return data)))))
+      ;       (break-execution))))
       ; (call/cc
       ;   (lambda (return)
       ;     (js-write-file
-      ;       fd 0 (js-encode "hello mikkamakka in the house" enc-utf8)
+      ;       fd 0 (js-encode "hello mikkamakka in the house" enc-utf-8)
       ;       (lambda (response-type data)
       ;         (cond ((eq? response-type io-error)
       ;                (error data))
@@ -1855,7 +1855,7 @@
       ;                  (error data))
       ;                 (else (return data)))))
       ;       (break-execution))))
-      ; (define decoder (js-make-decoder enc-utf8))
+      ; (define decoder (js-make-decoder enc-utf-8))
       ; (define content
       ;   (call/cc
       ;     (lambda (return)
@@ -1934,31 +1934,35 @@
                     (cond ((eq? response-type io-error)
                            (error data))
                           (else
-                            (set! position (+ position (car args)))
+                            (set! position (+ position (js-encoded-size data)))
                             (return data)))))
                 (break-execution))))
           (define (local-read-string . args)
             (let ((buffer (open-string-port))
                   (buffer-length 0)
                   (all? (or (null? args)
-                            (< (car args) 0))))
+                            (< (car args) 0)))
+                  (original-position position))
               (let ((length (if all? 8192
                               (+ (floor (* (car args) 1.2)) 1)))
-                    (decoder (js-make-decoder enc-utf8)))
+                    (decoder (js-make-decoder enc-utf-8)))
                 (define (read)
                   (cond ((and (not all?)
                               (>= buffer-length (car args)))
-                         (read-string buffer (car args)))
+                         (let ((string (read-string buffer (car args))))
+                           (set! position
+                             (+ original-position
+                                (js-encoded-size (js-encode string))))
+                           string))
                         (else
                           (let ((data (read-data length)))
-                            (let ((string (js-decode decoder data)))
-                              (let ((read-length (string-length string)))
-                                (cond ((eq? read-length 0)
-                                       (read-string buffer))
-                                      (else
-                                        (write-string buffer string)
-                                        (set! buffer-length (+ buffer-length read-length))
-                                        (read)))))))))
+                            (if (eq? (js-encoded-size data) 0)
+                              (read-string buffer)
+                              (let ((string (js-decode decoder data)))
+                                (write-string buffer string)
+                                (set! buffer-length
+                                  (+ buffer-length (string-length string)))
+                                (read)))))))
                 (read))))
           (define (write-data . args)
             (call/cc
@@ -1974,7 +1978,7 @@
                             (return false)))))
                 (break-execution))))
           (define (local-write-string . args)
-            (write-data (js-encode (car args) enc-utf8)))
+            (write-data (js-encode (car args) enc-utf-8)))
           (make-port
             (lambda (message . args)
               (cond ((eq? message 'input-port?) input-port?)
@@ -2063,14 +2067,8 @@
       ; (close-port source)
       ; (close-port stdout)
 
-      (assert (and (not (eq? io-ok io-data))
-                   (not (eq? io-data io-eof))
-                   (not (eq? io-eof io-error))
-                   (not (eq? io-error io-ok)))
-              "io message types")
-
-      (define test-data (js-encode "hello mikkamakka" enc-utf8))
-      (define decoder (js-make-decoder enc-utf8))
+      (define test-data (js-encode "hello mikkamakka" enc-utf-8))
+      (define decoder (js-make-decoder enc-utf-8))
       (assert (eq? (js-decode decoder test-data)
                    "hello mikkamakka")
               "encode/decode")
@@ -2214,7 +2212,7 @@
          (define size-check (get-size fd))
          (define data-check (read fd size-check))
          (assert (eq? size size-check) "copied size")
-         (define decoder (js-make-decoder enc-utf8))
+         (define decoder (js-make-decoder enc-utf-8))
          (assert (eq? (js-decode decoder data)
                       (js-decode decoder data-check))
                  "copied data")))
@@ -2236,6 +2234,27 @@
                        (eq? (string-length b) 3)
                        (eq? (string-length c) 3))
                   "read all from sync port")))
+
+      (let ((port (open-file-port
+                    "some"
+                    (| fs-write-only fs-create fs-trunc)
+                    438))
+            (chunk-0 (js-encode "some " enc-utf-8))
+            (chunk-1 (js-encode "data" enc-utf-8)))
+        (write-data port chunk-0)
+        (write-data port chunk-1)
+        (close-port port)
+        (let ((port (open-file-port
+                      "some" fs-read-only))
+              (decoder (js-make-decoder enc-utf-8)))
+          (assert (eq? (file-size port)
+                       (+ (js-encoded-size chunk-0)
+                          (js-encoded-size chunk-1)))
+                  "file size right")
+          (assert (eq? (read-string port 4) "some")
+                  "read part of file 0")
+          (assert (eq? (read-string port 5) " data")
+                  "read part of file 1")))
 
       noprint)))
 
