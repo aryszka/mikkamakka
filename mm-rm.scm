@@ -431,82 +431,6 @@
             code-to-get-last-arg
             (code-to-get-rest-args (cdr operands))))))))
 
-; (define (compile-proc-appl target linkage)
-;   (cond ((and (eq? target 'val) (not (eq? linkage 'return)))
-;          (make-instruction-sequence
-;            '(proc) all-regs
-;            (list (list 'assign
-;                        'cont
-;                        (list 'label linkage))
-;                  '(assign val
-;                           (op compiled-procedure-entry)
-;                           (reg proc))
-;                  '(goto (reg val)))))
-;         ((and (not (eq? target 'val))
-;               (not (eq? linkage 'return)))
-;          (let ((proc-return (make-label 'procReturn)))
-;            (make-instruction-sequence
-;              '(proc) all-regs
-;              (list (list 'assign
-;                          'cont
-;                          (list 'label proc-return))
-;                    '(assign val
-;                             (op compiled-procedure-entry)
-;                             (reg proc))
-;                    '(goto (reg val))
-;                    proc-return
-;                    (list 'assign target '(reg val))
-;                    (list 'goto (list 'label linkage))))))
-;         ((and (eq? target 'val) (eq? linkage 'return))
-;          (make-instruction-sequence
-;            '(proc cont)
-;            all-regs
-;            '((assign val
-;                      (op compiled-procedure-entry)
-;                      (reg proc))
-;              (goto (reg val)))))
-;         (else
-;           (error 'compile-proc-appl
-;                  "return linkage, target not val"
-;                  target))))
-; 
-; (define (compile-procedure-call target linkage)
-;   (let ((after-call (make-label 'afterCall))
-;         (primitive-branch (make-label 'primitiveBranch))
-;         (compiled-branch (make-label 'compiledBranch)))
-;     (let ((compiled-linkage
-;             (if (eq? linkage 'next) after-call linkage)))
-;       (append-instruction-sequences
-;         (make-instruction-sequence
-;           '(proc) '()
-;           (list '(test (op primitive-procedure?) (reg proc))
-;                 (list 'branch (list 'label primitive-branch))))
-;         (parallel-instruction-sequences
-;           (append-instruction-sequences
-;             compiled-branch
-;             (compile-proc-appl target compiled-linkage))
-;           (append-instruction-sequences
-;             primitive-branch
-;             (end-with-linkage
-;               linkage
-;               (make-instruction-sequence
-;                 '(proc args) (list target)
-;                 (list (list 'assign
-;                             target
-;                             '(op apply-primitive-procedure)
-;                             '(reg proc)
-;                             '(reg args)))))))
-;         after-call))))
-
-; proc args and cont if return
-; all-regs
-; (perform (op procedure-call) (const regs) compiled-linkage)
-; if not return and not val:
-; (perform (op procedure-call) (const regs) proc-return)
-; proc-return
-; target = val
-; compiled-linkage
-
 (define (compile-procedure-call target linkage)
   (let ((after-call (make-label 'afterCall))
         (uses (if (eq? linkage 'return)
@@ -2066,6 +1990,161 @@
                   "read part of file 0")
           (assert (eq? (read-string 5 port) " data")
                   "read part of file 1")))
+
+      (define (write . args)
+        (cond
+          ((null? args) noprint)
+          (else
+            (define (escape-char char)
+              (cond ((eq? char "\b") "\\b")
+                    ((eq? char "\t") "\\t")
+                    ((eq? char "\n") "\\n")
+                    ((eq? char "\v") "\\v")
+                    ((eq? char "\f") "\\f")
+                    ((eq? char "\r") "\\r")
+                    ((eq? char "\"") "\\\"")
+                    ((eq? char "\\") "\\\\")
+                    (else char)))
+            (define (escape-char? char)
+              (not (eq? char (escape-char char))))
+            (define (write-char-escaped char port)
+              (write-string (escape-char char) port))
+            (define (write-string-escaped string port)
+              (cond ((> (string-length string) 0)
+                     (write-char-escaped (string-copy string 0 1) port)
+                     (write-string-escaped (string-copy string 1) port))))
+            (define (write-symbol-escaped symbol port)
+              (define (find-escape-char string)
+                (cond ((eq? (string-length string) 0)
+                       (write-string (symbol->string symbol) port))
+                      ((escape-char? (string-copy string 0 1))
+                       (write-string "|" port)
+                       (write-string (symbol->string symbol) port)
+                       (write-string "|" port))
+                      (else
+                        (find-escape-char (string-copy string 1)))))
+              (find-escape-char (symbol->string symbol)))
+            (define (write-quote quote port)
+              (if (null? (cdr quote))
+                (write-string "#<???>" port)
+                (begin
+                  (write-string "(quote " port)
+                  (write (quote-text quote) port false)
+                  (write-string ")" port))))
+            (define (write-pair pair port in-list?)
+              (write-string (if in-list? " " "(") port)
+              (write (car pair) port false)
+              (cond ((null? (cdr pair))
+                     (write-string ")" port))
+                    ((and (pair? (cdr pair))
+                          (not (quote? (cdr pair))))
+                     (write (cdr pair) port true))
+                    (else
+                      (write-string " . " port)
+                      (write (cdr pair) port true)
+                      (write-string ")" port))))
+            (define (write-struct struct port)
+              (define (struct-members->list names)
+                (cond ((null? names) '())
+                      (else
+                        (cons
+                          (list (car names)
+                                (struct-lookup struct (car names)))
+                          (struct-members->list (cdr names))))))
+              (write-string "#s" port)
+              (write
+                (struct-members->list (struct-names struct))
+                port false))
+            (define (write object port in-list?)
+              (cond
+                ((eq? object noprint) noprint)
+                ((eq? object false)
+                 (write-string "false" port))
+                ((eq? object true)
+                 (write-string "true" port))
+                ((number? object)
+                 (write-string (number->string object) port))
+                ((string? object)
+                 (write-string "\"" port)
+                 (write-string-escaped object port)
+                 (write-string "\"" port))
+                ((symbol? object)
+                 (write-symbol-escaped object port))
+                ((null? object)
+                 (write-string "()" port))
+                ((quote? object)
+                 (write-quote object port))
+                ((pair? object)
+                 (write-pair object port in-list?))
+                ((struct? object)
+                 (write-struct object port))
+                ((primitive-procedure? object)
+                 (write-string "#<primitive-procedure>" port))
+                ((compiled-procedure? object)
+                 (write-string "#<compiled-procedure>" port))
+                ((error? object)
+                 (write-string (error->string object) port))
+                (else
+                  (error "unknown type"))))
+            (write
+              (car args)
+              (if (null? (cdr args))
+                current-output-port
+                (car (cdr args)))
+              false))))
+
+      (define current-output-port (open-stdout))
+
+      (define (procedure? object)
+        (or (primitive-procedure? object)
+            (compiled-procedure? object)))
+
+      (define (test-write object test message)
+        (let ((port (open-string-port)))
+          (write object port)
+          (assert (if (procedure? test)
+                    (test (read-string -1 port))
+                    (eq? (read-string -1 port) test))
+                  message)))
+
+      (test-write noprint "" "no print")
+      (test-write false "false" "false")
+      (test-write true "true" "true")
+      (test-write 1.2 "1.2" "number")
+      (test-write "hello mikkamakka" "\"hello mikkamakka\"" "string")
+      (test-write 'symbol "symbol" "symbol")
+      (test-write '() "()" "null")
+      (test-write ''some-quote "(quote some-quote)" "quote")
+      (test-write '(1 . 2) "(1 . 2)" "pair")
+      (test-write '(1 2 3) "(1 2 3)" "list")
+
+      (test-write "\"" "\"\\\"\"" "escape string")
+
+      ; will work when reader is done
+      ; (test-write '|
+      ;        | "|        \n|" "escape symbol")
+
+      (test-write '(1 2 . 3) "(1 2 . 3)" "unclosed list")
+      (test-write
+        '(1 (2 3) 4 (''some-quote))
+        "(1 (2 3) 4 ((quote (quote some-quote))))"
+        "mixed list")
+
+      (test-write
+        number?
+        "#<primitive-procedure>"
+        "primitive procedure")
+      (test-write
+        write
+        "#<compiled-procedure>"
+        "compiled procedure")
+
+      (test-write
+        (struct '(some value) '(some-other other-value))
+        (lambda (value)
+          (or (eq? value "#s((some value) (some-other other-value))")
+              (eq? value "#s((some-other other-value) (some value))")))
+        "struct")
 
       noprint)))
 

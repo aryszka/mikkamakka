@@ -1,10 +1,6 @@
 (function () {
     var identity = function (x) { return x; };
 
-    var error = function (msg) {
-        throw new Error(msg);
-    };
-
     var func = function (argLength, allowMore, customCheck, f) {
         return function () {
             var args = Array.prototype.slice.call(arguments);
@@ -30,6 +26,19 @@
         return left === right;
     };
 
+    // error
+    var error = function (msg) {
+        throw new Error(msg);
+    };
+
+    var isError = function (object) {
+        return object instanceof Error;
+    };
+
+    var errorToString = function (error) {
+        return error.message;
+    };
+
     // noprint
     var noprint = function () { return noprint; };
 
@@ -49,6 +58,10 @@
     // number
     var isNumber = function (number) {
         return typeof number === "number";
+    };
+
+    var numberToString = function (number) {
+        return String(number);
     };
 
     // string
@@ -186,6 +199,19 @@
 
     var structCheck = function (s, name) {
         return isStruct(s) && isSymbol(name);
+    };
+
+    var structNames = function (args) {
+        if (isNull(args) || !isStruct(car(args))) {
+            return error("argument error");
+        }
+
+        var names = [];
+        for (var name in car(args).struct) {
+            names = cons(stringToSymbol(name), names);
+        }
+
+        return names;
     };
 
     // env
@@ -709,14 +735,32 @@
     };
 
     // primitive definitions
+    defineVar(regs.env, stringToSymbol("noprint"), noprint);
+
+    defineVar(regs.env, stringToSymbol("error?"),
+        importFunction(func(1, false, false, isError)));
+
     defineVar(regs.env, stringToSymbol("error"),
         importFunction(func(1, false, false, error)));
 
-    defineVar(regs.env, stringToSymbol("noprint"), noprint);
+    defineVar(regs.env, stringToSymbol("error->string"),
+        importFunction(func(1, false, isError, errorToString)));
 
     defineVar(regs.env, stringToSymbol("true"), true);
 
     defineVar(regs.env, stringToSymbol("false"), false);
+
+    defineVar(regs.env, stringToSymbol("number?"),
+        importFunction(func(1, false, false, isNumber)));
+
+    defineVar(regs.env, stringToSymbol("number->string"),
+        importFunction(func(1, false, isNumber, numberToString)));
+
+    defineVar(regs.env, stringToSymbol("compiled-procedure?"),
+        importFunction(func(1, false, false, isCompiledProcedure)));
+
+    defineVar(regs.env, stringToSymbol("primitive-procedure?"),
+        importFunction(func(1, false, false, isPrimitiveProcedure)));
 
     defineVar(regs.env, stringToSymbol("apply"),
         makeProcedure(apply, regs.env));
@@ -780,6 +824,9 @@
 
     defineVar(regs.env, stringToSymbol("struct-set!"),
         importFunction(func(3, false, structCheck, structSet)));
+
+    defineVar(regs.env, stringToSymbol("struct-names"),
+        importPrimitive(structNames));
 
     defineVar(regs.env, stringToSymbol("null?"),
         importFunction(func(1, false, false, isNull)));
