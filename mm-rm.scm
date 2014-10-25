@@ -1991,6 +1991,26 @@
           (assert (eq? (read-string 5 port) " data")
                   "read part of file 1")))
 
+      (assert (vector? (vector)) "empty vector")
+      (define v (vector 1 2 3 4 5))
+      (assert (vector? v) "not empty vector")
+      (assert (eq? (vector-ref v 0) 1) "vector-ref")
+      (assert (eq? (vector-length v) 5) "vector-length")
+      (assert (vector? (vector-slice (vector)))
+              "empty slice")
+      (assert (vector? (vector-slice v)) "full slice")
+      (assert (eq? (vector-length (vector-slice v))
+                   (vector-length v))
+              "full slice length")
+      (define s (vector-slice v 1 3))
+      (assert (vector? s) "slice")
+      (assert (eq? (vector-length s) 2) "slice length")
+      (assert (eq? (vector-ref s 0) 2) "slice ref")
+      (assert (vector? (vector-slice v 3))
+              "slice to end")
+      (assert (eq? (vector-length (vector-slice v 3)) 2)
+              "slice to end length")
+
       (define (write . args)
         (cond
           ((null? args) noprint)
@@ -2043,6 +2063,16 @@
                       (write-string " . " port)
                       (write (cdr pair) port true)
                       (write-string ")" port))))
+            (define (write-vector vector port)
+              (define (write-ref ref)
+                (cond ((< ref (vector-length vector))
+                       (cond ((> ref 0)
+                              (write-string " " port)))
+                       (write (vector-ref vector ref) port false)
+                       (write-ref (+ ref 1)))))
+              (write-string "#(" port)
+              (write-ref 0)
+              (write-string ")" port))
             (define (write-struct struct port)
               (define (struct-members->list names)
                 (cond ((null? names) '())
@@ -2076,6 +2106,8 @@
                  (write-quote object port))
                 ((pair? object)
                  (write-pair object port in-list?))
+                ((vector? object)
+                 (write-vector object port))
                 ((struct? object)
                  (write-struct object port))
                 ((primitive-procedure? object)
@@ -2139,12 +2171,193 @@
         "#<compiled-procedure>"
         "compiled procedure")
 
+      (test-write (vector) "#()" "empty vector")
+      (test-write (vector 1 2 3) "#(1 2 3)" "vector")
+
       (test-write
         (struct '(some value) '(some-other other-value))
         (lambda (value)
           (or (eq? value "#s((some value) (some-other other-value))")
               (eq? value "#s((some-other other-value) (some value))")))
         "struct")
+
+      (js-import-code / "
+        var makeRegexp = function (expression, flags) {
+            if (typeof expression !== \"string\" ||
+                arguments.length > 1 &&
+                typeof flags !== \"string\") {
+                throw new Error(\"invalid argument\");
+            }
+
+            var regexp = new RegExp(expression, flags || \"\")
+            return function (string) {
+                return string.match(regexp) || [];
+            };
+
+        };
+
+        exports[\"js-make-regexp\"] = makeRegexp;
+        ")
+
+      (define rx-global 1)
+      (define rx-ignore-case 2)
+
+      (define (make-regexp expression . flags)
+        (js-make-regexp
+          expression
+          (apply
+            string-append
+            (map
+              (lambda (flag)
+                (cond ((eq? flag rx-global) "g")
+                      ((eq? flag rx-ignore-case) "i")
+                      (else (error "invalid regexp flag"))))
+              flags))))
+
+      (define (read port)
+        (define tokenizer-expression
+          '(";[^\\n]*\\n?|"                    ; comment
+            "\\(|\\)|"                         ; list open, list/vector/struct close
+            "#\\(|"                            ; vector open
+            "#s\\(|"                           ; struct open
+            "'|"                               ; quote
+            "\"(\\\\\\\\|\\\\\"|[^\"])*\"?|"   ; string
+            "(\\\\.|"                          ; symbol, single escape
+            "\\|(\\\\\\\\|\\\\\\||[^|])*\\|?|" ; symbol, range escape
+            "[^;()#'|\"\\s])+"))               ; symbol, no comment/list/type-escape/quote/string/whitespace
+        (define tokenizer-rx
+          (make-regexp
+            (apply string-append tokenizer-expression)
+            rx-global))
+        (define token-complete-expression
+          '("^(;[^\\n]*\\n|"                        ; comment
+            "\\(|"                                  ; list open
+            "\\)|"                                  ; list/vector/struct close
+            "#\\(|"                                 ; vector open
+            "#s\\(|"                                ; struct open
+            "'|"                                    ; quote
+            "\"(\\\\\"|\\\\[^\"]|[^\\\\\"])*\"|"    ; string
+            "(\\\\.|"                               ; symbol, single escape
+            "\\|(\\\\\\||\\\\[^\\|]|[^\\\\|])*\\||" ; symbol, range escape
+            "[^;()#'|\"\\s\\\\])+)$"))              ; symbol, no comment/list/type-escape/quote/string/whitespace/escape
+        (define token-complete?
+          ((lambda ()
+             (let ((rx (make-regexp
+                         (apply string-append
+                                token-complete-expression))))
+               (lambda (token) (not (null? (rx token))))))))
+        (define (make-token-reader)
+          (let ((buffer (open-string-port))
+                (read-chunk-length 8192)
+                (tokens '()))
+            (define (read-token)
+              (cond
+                ((null? tokens)
+                 (let ((string (read-string read-chunk-length port)))
+                   (if (or (eof-object? string)
+                           (eq? (string-length string) 0))
+                     end-of-file
+                     (begin
+                       (write-string string buffer)
+                       (set! tokens (tokenizer-rx (read-string -1 buffer)))
+                       (read-token)))))
+                ((not (token-complete? (car tokens)))
+                 ; depends on port specification
+                 ; for current use cases, error needs to be thrown here
+                 ; for future use cases, need to be able to tell if
+                 ; something is in the buffer
+                 (error "invalid end of input" (car tokens)))
+
+                 ; ; some safety
+                 ; (cond ((not (null? (cdr tokens)))
+                 ;        (error "tokenization error" tokens)))
+
+                 ; (write-string (car tokens) buffer)
+                 ; (set! tokens '())
+                 ; (read-token))
+                (else
+                  (let ((token (car tokens)))
+                    (set! tokens (cdr tokens))
+                    token))))
+            read-token))
+        (define read-token (make-token-reader))
+        (define (unescape string)
+          (define (unescape buffer s)
+            (let ((eref (string-index s "\\\\")))
+              (cond ((< eref 0)
+                     (write-string s buffer)
+                     buffer)
+                    ((eq? (string-length s) (+ eref 1))
+                     (error "invalid escape sequence" string))
+                    (else
+                      (write-string (string-copy s 0 eref) buffer)
+                      (write-string (unescape-char (string-copy s (+ eref 1) 1)) buffer)
+                      (unescape buffer (string-copy (+ eref 2)))))))
+          (read-string -1 (unescape (open-string-port) string)))
+        (define (unescape-symbol string)
+          (define (unescape buffer escaped? s)
+            (let ((eref (string-index s "\\\\|\\|")))
+              (cond ((< eref 0)
+                     (write-string s buffer)
+                     buffer)
+                    (else
+                      (write-string (string-copy s 0 eref) buffer)
+                      (let ((echar (string-copy s eref 1)))
+                        (cond ((eq? echar "|")
+                               (unescape
+                                 buffer
+                                 (not escaped?)
+                                 (string-copy s (+ eref 1) -1)))
+                              ((eq? (string-length s) 1)
+                               (write-string "\\" buffer)
+                               buffer)
+                              ((eq? (string-copy s (+ eref 1) 1) "|")
+                               (write-string "|" buffer)
+                               (unescape
+                                 buffer
+                                 escaped?
+                                 (string-copy s (+ eref 2))))
+                              (escpaed?
+                                (write-string (string-copy s eref (+ eref 2)) buffer)
+                                (unescape
+                                  buffer
+                                  true
+                                  (string-copy s (+ eref 2))))
+                              (else
+                                (write-string (string-copy s (+ eref 1) 1) buffer)
+                                (unescape buffer false (string-copy s (+ eref 2))))))))))
+          (string->symbol (read-string -1 (unescape (open-string-port) false string))))
+        (define (list-open? token) (eq? token "("))
+        (define (list-close? token) (eq? token ")"))
+        (define (token->string token)
+          (and (eq? (string-copy token 0 1) "\"")
+               (unescape (string-copy
+                           token 1 (- (string-length token) 1)))))
+        (define (token->symbol token) (unescape-symbol token))
+        (define (read-datum token)
+          (or (string->number token)
+              (token->string token)
+              (token->symbol token)))
+        (define (read-list l)
+          (let ((object (read l)))
+            (cond ((eof-object? object)
+                   (error "unclosed list" l))
+                  ((eq? object l) (reverse l))
+                  (else (read-list (cons object l))))))
+        (define (read l)
+          (let ((token (read-token)))
+            (cond ((eof-object? token) end-of-file)
+                  ((list-open? token) (read-list '()))
+                  ((list-close? token) l)
+                  (else (read-datum token)))))
+        (read '()))
+
+      ; (define port (open-string-port))
+      ; (write-string "(1 2 3 (4 5 6) 7) 8" port)
+      ; (write-string "(define false #f)" port)
+      (define port (open-file-port "mm-rm-self.scm" fs-read-only))
+      (write (read port))
+      (close-port port)
 
       noprint)))
 

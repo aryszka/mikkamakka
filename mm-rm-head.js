@@ -64,6 +64,12 @@
         return String(number);
     };
 
+    var stringToNumber = function (string) {
+        var num = Number(string);
+        return Number.isNaN(num) ? false : num;
+    };
+
+
     // string
     var isString = function (string) {
         return typeof string === "string";
@@ -80,7 +86,19 @@
     };
 
     var stringCopy = function (string, from, to) {
-        return string.substring(from, to);
+        return string ? string.substring(from, to) : "";
+    };
+
+    var stringIndex = function (string, expression) {
+        var m = string.match(new RegExp(expression));
+        if (!m) {
+            return -1;
+        }
+        return m.index;
+    };
+
+    var stringIndexCheck = function (string, expression) {
+        return isString(string) && isString(expression);
     };
 
     // symbol
@@ -152,6 +170,63 @@
 
     var compiledProcedureEnv = function (p) {
         return p.env;
+    };
+
+    // vector
+    var vector = function (args) {
+        var v = {vector: [], slice: {from: 0, to: 0}};
+        for (;;) {
+            if (isNull(args)) {
+                return v;
+            }
+
+            v.vector.push(car(args));
+            v.slice.to++;
+            args = cdr(args);
+        }
+    };
+
+    var isVector = function (v) {
+        return !!(v && v.vector);
+    };
+
+    var vectorRef = function (v, r) {
+        return v.vector[v.slice.from + r];
+    };
+
+    var vectorRefCheck = function (v, r) {
+        return isVector(v) &&
+            isNumber(r) &&
+            r >= 0 &&
+            (v.slice.from + r) < v.slice.to;
+    };
+
+    var vectorLength = function (v) {
+        return v.slice.to - v.slice.from;
+    };
+
+    var vectorSlice = function (v, from, to) {
+        from = from || 0;
+        to = to || vectorLength(v);
+        return {
+            vector: v.vector,
+            slice: {
+                from: v.slice.from + from,
+                to: v.slice.from + to
+            }
+        };
+    };
+
+    var vectorSliceCheck = function (v, from, to) {
+        return isVector(v) &&
+            (arguments.length < 2 ||
+            isNumber(from) &&
+            from >= 0 &&
+            from < (v.slice.to - v.slice.from)) &&
+            (arguments.length < 3 ||
+            isNumber(to) &&
+            to >= from &&
+            to < (v.slice.to - v.slice.from));
     };
 
     // struct
@@ -756,6 +831,9 @@
     defineVar(regs.env, stringToSymbol("number->string"),
         importFunction(func(1, false, isNumber, numberToString)));
 
+    defineVar(regs.env, stringToSymbol("string->number"),
+        importFunction(func(1, false, isString, stringToNumber)));
+
     defineVar(regs.env, stringToSymbol("compiled-procedure?"),
         importFunction(func(1, false, false, isCompiledProcedure)));
 
@@ -806,6 +884,21 @@
 
     defineVar(regs.env, stringToSymbol("out"),
         importFunction(console.log, console, noprint));
+
+    defineVar(regs.env, stringToSymbol("vector"),
+        importPrimitive(vector));
+
+    defineVar(regs.env, stringToSymbol("vector?"),
+        importFunction(func(1, false, false, isVector)));
+
+    defineVar(regs.env, stringToSymbol("vector-ref"),
+        importFunction(func(2, false, vectorRefCheck, vectorRef)));
+
+    defineVar(regs.env, stringToSymbol("vector-length"),
+        importFunction(func(1, false, isVector, vectorLength)));
+
+    defineVar(regs.env, stringToSymbol("vector-slice"),
+        importFunction(func(1, true, vectorSliceCheck, vectorSlice)));
 
     defineVar(regs.env, stringToSymbol("struct"),
         importFunction(func(0, true, false, makeStruct)));
@@ -861,8 +954,14 @@
     defineVar(regs.env, stringToSymbol("string-copy"),
         importFunction(func(0, true, stringCopyCheck, stringCopy)));
 
+    defineVar(regs.env, stringToSymbol("string-index"),
+        importFunction(func(2, false, stringIndexCheck, stringIndex)))
+
     defineVar(regs.env, stringToSymbol("string-append"),
         importPrimitive(stringAppend));
+
+    defineVar(regs.env, stringToSymbol("string->symbol"),
+        importFunction(func(1, false, isString, stringToSymbol)));
 
     /* [program] */
 
