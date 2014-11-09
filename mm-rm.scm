@@ -929,9 +929,7 @@
     (define (write-number asm)
       (write-string (number->string asm) port))
     (define (write-string-asm asm)
-      (write-string "\"" port)
-      (write-string asm port true)
-      (write-string "\"" port))
+      (write-string (with-output-to-string (lambda () (write asm))) port))
     (define (write-boolean asm)
       (write-string
         (if asm "true" "false")
@@ -1416,1122 +1414,1121 @@
       (assert (>= (date-time) (+ time-before delay))
               "sleep")
 
-      ; ; open stdin/stdout/stderr
-      ; (js-import-code / "
-
-      ;   var fs = require(\"fs\");
-      ;   var stringDecoder = require(\"string_decoder\");
-
-      ;   var responseType = {
-      ;       ok: 0,
-      ;       data: 1,
-      ;       eof: 2,
-      ;       error: 3
-      ;   };
-
-      ;   var encoding = {
-      ;       ascii: \"ascii\",
-      ;       utf8: \"utf8\",
-      ;       utf16le: \"utf16le\",
-      ;       base64: \"base64\",
-      ;       binary: \"binary\",
-      ;       hex: \"hex\"
-      ;   };
-
-      ;   var noop = function () {};
-      ;   var packKey = function () {};
-
-      ;   var pack = function (object) {
-      ;       return function (key) {
-      ;           if (key === packKey) {
-      ;               return object;
-      ;           }
-      ;       };
-      ;   };
-
-      ;   var unpack = function (object) {
-      ;       return object(packKey);
-      ;   };
-
-      ;   var stdinHandlers = null;
-      ;   var stdoutHandlers = null;
-      ;   var stderrHandlers = null;
-
-      ;   var makeStdinHandlers = function (f) {
-      ;       if (!(f instanceof Function)) {
-      ;           return {
-      ;               data: noop,
-      ;               end: noop,
-      ;               error: noop
-      ;           };
-      ;       }
-
-      ;       var handlers = {
-      ;           eofReceived: false,
-      ;           data: function () {
-
-      ;               // nodejs hack:
-      ;               if (handlers.eofReceived) {
-      ;                   return;
-      ;               }
-
-      ;               var data = process.stdin.read();
-      ;               if (data === null) {
-
-      ;                   // nodejs hack, to avoid hanging the process:
-      ;                   handlers.eofReceived = true;
-      ;                   process.stdin.pause();
-      ;                   f(responseType.eof, false);
-
-      ;                   return;
-      ;               }
-
-      ;               f(responseType.data, pack(data));
-      ;           },
-      ;           end: function () {
-      ;               f(responseType.eof, false);
-      ;           },
-      ;           error: function (error) {
-      ;               f(responseType.error, error.toString());
-      ;           }
-      ;       };
-
-      ;       return handlers;
-      ;   };
-
-      ;   var makeOutHandlers = function (out, f) {
-      ;       if (!(f instanceof Function)) {
-      ;           return {
-      ;               error: noop,
-      ;               write: noop
-      ;           };
-      ;       }
-
-      ;       var handlers = {
-      ;           error: function (error) {
-      ;               f(responseType.error, error.toString());
-      ;           },
-      ;           write: function (data) {
-      ;               if (handlers.closed) {
-      ;                   return;
-      ;               }
-      ;               out.write(unpack(data));
-      ;           }
-      ;       };
-
-      ;       return handlers;
-      ;   };
-
-      ;   var openOut = function (out, f) {
-      ;       var handlers = makeOutHandlers(out, f);
-      ;       out.on(\"error\", handlers.error);
-      ;       return handlers;
-      ;   };
-
-      ;   var closeOut = function (out, handlers) {
-      ;       if (!handlers) {
-      ;           return;
-      ;       }
-      ;       out.removeListener(\"error\", handlers.error);
-      ;       handlers.closed = true;
-      ;   };
-
-      ;   var openStdin = function (f) {
-      ;       stdinHandlers = makeStdinHandlers(f);
-      ;       process.stdin.on(\"readable\", stdinHandlers.data);
-      ;       process.stdin.on(\"end\", stdinHandlers.end);
-      ;       process.stdin.on(\"error\", stdinHandlers.error);
-      ;   };
-
-      ;   var closeStdin = function () {
-      ;       if (!stdinHandlers) {
-      ;           return;
-      ;       }
-      ;       process.stdin.removeListener(\"readable\", stdinHandlers.data);
-      ;       process.stdin.removeListener(\"end\", stdinHandlers.end);
-      ;       process.stdin.removeListener(\"error\", stdinHandlers.error);
-      ;       stdinHandlers = null;
-      ;   };
-
-      ;   var openStdout = function (f) {
-      ;       stdoutHandlers = openOut(process.stdout, f);
-      ;       return stdoutHandlers.write;
-      ;   };
-
-      ;   var closeStdout = function () {
-      ;       closeOut(process.stdout, stdoutHandlers);
-      ;       stdoutHandlers = null;
-      ;   };
-
-      ;   var openStderr = function (f) {
-      ;       stderrHandlers = openOut(process.stderr, f);
-      ;       return stderrHandlers.write;
-      ;   };
-
-      ;   var closeStderr = function (f) {
-      ;       closeOut(process.stderr, stderrHandlers);
-      ;       stderrHandlers = null;
-      ;   };
-
-      ;   var open = function (path, flags, mode, callback) {
-      ;       mode = mode < 0 ? 438 : mode;
-      ;       fs.open(path, flags, mode, function (err, fd) {
-      ;           if (err) {
-      ;               callback(responseType.error, err.toString());
-      ;               return;
-      ;           }
-
-      ;           callback(responseType.data, fd);
-      ;       });
-      ;   };
-
-      ;   var close = function (fd, callback) {
-      ;       fs.close(fd, function (err) {
-      ;           if (err) {
-      ;               callback(responseType.error, err.toString());
-      ;               return;
-      ;           }
-
-      ;           callback(responseType.ok, false);
-      ;       });
-      ;   };
-
-      ;   var size = function (fd, callback) {
-      ;       fs.fstat(fd, function (err, stat) {
-      ;           if (err) {
-      ;               callback(responseType.error, err.toString());
-      ;               return;
-      ;           }
-
-      ;           callback(responseType.data, stat.size);
-      ;       });
-      ;   };
-
-      ;   var read = function (fd, position, length, callback) {
-      ;       position = position < 0 ? null : position;
-      ;       var buffer = new Buffer(length);
-      ;       fs.read(fd, buffer, 0, length, position, function (err, bytesRead) {
-      ;           if (err) {
-      ;               callback(responseType.error, err.toString());
-      ;               return;
-      ;           }
-
-      ;           var data = new Buffer(bytesRead);
-      ;           buffer.copy(data, 0, 0, bytesRead);
-      ;           callback(responseType.data, pack(data));
-      ;       });
-      ;   };
-
-      ;   var write = function (fd, position, data, callback) {
-      ;       position = position < 0 ? null : position;
-      ;       var d = unpack(data);
-      ;       fs.write(fd, d, 0, d.length, position, function (err) {
-      ;           if (err) {
-      ;               callback(responseType.error, err.toString());
-      ;               return;
-      ;           }
-
-      ;           callback(responseType.ok, false);
-      ;       });
-      ;   };
-
-      ;   var encode = function (string, encoding) {
-      ;       return pack(new Buffer(string, encoding));
-      ;   };
-
-      ;   var makeDecoder = function (encoding) {
-      ;       return pack(new stringDecoder.StringDecoder(encoding));
-      ;   };
-
-      ;   var decode = function (decoder, data) {
-      ;       var d = unpack(decoder);
-      ;       return d.write(unpack(data));
-      ;   };
-
-      ;   var isEmptyDecoder = function (decoder) {
-      ;       var d = unpack(decoder);
-      ;       return d.end().length === 0;
-      ;   };
-
-      ;   var encodedSize = function (data) {
-      ;       return unpack(data).length;
-      ;   };
-
-      ;   exports[\"io-ok\"] = responseType.ok;
-      ;   exports[\"io-data\"] = responseType.data;
-      ;   exports[\"io-eof\"] = responseType.eof;
-      ;   exports[\"io-error\"] = responseType.error;
-      ;   exports[\"enc-ascii\"] = encoding.ascii;
-      ;   exports[\"enc-utf-8\"] = encoding.utf8;
-      ;   exports[\"enc-utf-16le\"] = encoding.utf16le;
-      ;   exports[\"enc-base64\"] = encoding.base64;
-      ;   exports[\"enc-binary\"] = encoding.binary;
-      ;   exports[\"enc-hex\"] = encoding.hex;
-      ;   exports[\"js-open-stdin\"] = openStdin;
-      ;   exports[\"js-open-stdout\"] = openStdout;
-      ;   exports[\"js-open-stderr\"] = openStderr;
-      ;   exports[\"js-close-stdin\"] = closeStdin;
-      ;   exports[\"js-close-stdout\"] = closeStdout;
-      ;   exports[\"js-close-stderr\"] = closeStderr;
-      ;   exports[\"js-open-file\"] = open;
-      ;   exports[\"js-close-file\"] = close;
-      ;   exports[\"js-file-size\"] = size;
-      ;   exports[\"js-read-file\"] = read;
-      ;   exports[\"js-write-file\"] = write;
-      ;   exports[\"js-encode\"] = encode;
-      ;   exports[\"js-make-decoder\"] = makeDecoder;
-      ;   exports[\"js-decode\"] = decode;
-      ;   exports[\"js-empty-decoder?\"] = isEmptyDecoder;
-      ;   exports[\"js-encoded-size\"] = encodedSize;
-      ;   ")
-
-      ; (define (open-sync-string-port . strings)
-      ;   (let ((buffer (apply open-string-port strings))
-      ;         (eof false)
-      ;         (requests '()))
-      ;     (define (make-request return requested-length buffer buffer-length)
-      ;       (lambda (message)
-      ;         (cond ((eq? message 'return) return)
-      ;               ((eq? message 'requested-length) requested-length)
-      ;               ((eq? message 'buffer) buffer)
-      ;               ((eq? message 'buffer-length) buffer-length))))
-      ;     (define (request-return request) (request 'return))
-      ;     (define (requested-length request) (request 'requested-length))
-      ;     (define (request-buffer request) (request 'buffer))
-      ;     (define (request-buffer-length request) (request 'buffer-length))
-      ;     (define (feed-requests)
-      ;       (let ((request (and (not (null? requests)) (car requests))))
-      ;         (cond ((and request (< (requested-length request) 0))
-      ;                (let ((string (read-string -1 buffer)))
-      ;                  (cond ((> (string-length string) 0)
-      ;                         (write-string
-      ;                           string
-      ;                           (request-buffer request))
-      ;                         (set! request
-      ;                           (make-request
-      ;                             (request-return request)
-      ;                             -1
-      ;                             (request-buffer request)
-      ;                             (+ (request-buffer-length request)
-      ;                                (string-length string))))
-      ;                         (set! requests
-      ;                           (cons request (cdr requests)))))
-      ;                  (cond (eof
-      ;                          (set! requests (cdr requests))
-      ;                          ((request-return request)
-      ;                           (if (eq? (request-buffer-length request) 0)
-      ;                             ""
-      ;                             (read-string
-      ;                               -1
-      ;                               (request-buffer request))))
-      ;                          (feed-requests)))))
-      ;               (request
-      ;                 (let ((string
-      ;                         (read-string
-      ;                           (- (requested-length request)
-      ;                              (request-buffer-length request))
-      ;                           buffer)))
-      ;                   (cond ((> (string-length string) 0)
-      ;                          (write-string
-      ;                            string
-      ;                            (request-buffer request))
-      ;                          (set! request 
-      ;                            (make-request
-      ;                              (request-return request)
-      ;                              (requested-length request)
-      ;                              (request-buffer request)
-      ;                              (+ (request-buffer-length request)
-      ;                                 (string-length string))))
-      ;                          (set! requests
-      ;                            (cons request (cdr requests)))))
-      ;                   (cond ((or eof
-      ;                              (eq? (- (requested-length request)
-      ;                                      (request-buffer-length request))
-      ;                                   0))
-      ;                          (set! requests (cdr requests))
-      ;                          ((request-return request)
-      ;                           (if (eq? (request-buffer-length request) 0)
-      ;                             ""
-      ;                             (read-string
-      ;                               -1
-      ;                               (request-buffer request))))
-      ;                          (feed-requests))))))))
-      ;     (define (close)
-      ;       (cond ((not eof)
-      ;              (close-port buffer)
-      ;              (set! eof true)
-      ;              (feed-requests))))
-      ;     (define (read length)
-      ;       (call/cc
-      ;         (lambda (return)
-      ;           (set! requests
-      ;             (append
-      ;               requests
-      ;               (list (make-request
-      ;                       return
-      ;                       length
-      ;                       (open-string-port)
-      ;                       0))))
-      ;           (feed-requests)
-      ;           (break-execution))))
-      ;     (define (write string)
-      ;       (write-string string buffer)
-      ;       (feed-requests))
-      ;     (make-port
-      ;       (lambda (message . args)
-      ;         (cond ((eq? message 'input-port?) true)
-      ;               ((eq? message 'output-port?) true)
-      ;               ((eq? message 'data-port?) false)
-      ;               ((eq? message 'close) (close))
-      ;               ((eq? message 'read-string) (read (car args)))
-      ;               ((eq? message 'write-string) (write (car args)))
-      ;               (else (error "invalid message" message)))))))
-
-      ; (define (open-stdin)
-      ;   (let ((buffer (open-sync-string-port))
-      ;         (decoder (js-make-decoder enc-utf-8)))
-      ;     (define (close)
-      ;       (close-port buffer)
-      ;       (js-close-stdin))
-      ;     (define (read length)
-      ;       (read-string length buffer))
-      ;     (js-open-stdin
-      ;       (lambda (response-type data)
-      ;         (cond ((eq? response-type io-data)
-      ;                (write-string (js-decode decoder data) buffer))
-      ;               ((eq? response-type io-eof)
-      ;                (close-port buffer))
-      ;               ((eq? response-type io-error)
-      ;                (error data)))))
-      ;     (make-port
-      ;       (lambda (message . args)
-      ;         (cond ((eq? message 'input-port?) true)
-      ;               ((eq? message 'output-port?) false)
-      ;               ((eq? message 'data-port?) false)
-      ;               ((eq? message 'close) (close))
-      ;               ((eq? message 'read-string) (read (car args)))
-      ;               (else (error "invalid message" message)))))))
-
-      ; (define (open-out open close)
-      ;   (let ((out (open
-      ;                (lambda (response-type data)
-      ;                  (cond ((eq? response-type io-error)
-      ;                         (error data)))))))
-      ;     (define (write string)
-      ;       (out (js-encode string enc-utf-8)))
-      ;     (make-port
-      ;       (lambda (message . args)
-      ;         (cond ((eq? message 'input-port?) false)
-      ;               ((eq? message 'output-port?) true)
-      ;               ((eq? message 'data-port?) false)
-      ;               ((eq? message 'close) (close))
-      ;               ((eq? message 'write-string) (write (car args)))
-      ;               (else (error "invalid message" message)))))))
-
-      ; (define (open-stdout)
-      ;   (open-out js-open-stdout js-close-stdout))
-
-      ; (define (open-stderr)
-      ;   (open-out js-open-stderr js-close-stderr))
-
-      ; (define fs-read-only 0)
-      ; (define fs-write-only 1)
-      ; (define fs-read-write 2)
-      ; (define fs-create 64)
-      ; (define fs-trunc 512)
-      ; (define fs-append 1024)
-      ; (define fs-excl 128)
-      ; (define fs-sync 4096)
-
-      ; (define (flagged? flag value)
-      ;   (eq? (& value flag) flag))
-
-      ; (define seek-set 0)
-      ; (define seek-cur 1)
-      ; (define seek-end 2)
-
-      ; (define (open-file-port name flags . args)
-      ;   (let ((input-port? (not (flagged? fs-write-only flags)))
-      ;         (output-port? (or (flagged? fs-write-only flags)
-      ;                           (flagged? fs-read-write flags)))
-      ;         (position 0)
-      ;         (fd (call/cc
-      ;               (lambda (return)
-      ;                 (js-open-file
-      ;                   name flags (if (null? args) 438 (car args))
-      ;                   (lambda (response-type data)
-      ;                     (cond ((eq? response-type io-error)
-      ;                            (error data))
-      ;                           (else (return data)))))
-      ;                 (break-execution)))))
-      ;     (define (close)
-      ;       (call/cc
-      ;         (lambda (return)
-      ;           (js-close-file
-      ;             fd
-      ;             (lambda (response-type data)
-      ;               (cond ((eq? response-type io-error)
-      ;                      (error data))
-      ;                     (else (return data)))))
-      ;           (break-execution))))
-      ;     (define (size)
-      ;       (call/cc
-      ;         (lambda (return)
-      ;           (js-file-size
-      ;             fd
-      ;             (lambda (response-type data)
-      ;               (cond ((eq? response-type io-error)
-      ;                      (error data))
-      ;                     (else (return data)))))
-      ;           (break-execution))))
-      ;     (define (seek offset . args)
-      ;       (let ((reference (if (null? args) seek-set (car args))))
-      ;         (cond ((eq? reference seek-set)
-      ;                (set! position offset))
-      ;               ((eq? reference seek-cur)
-      ;                (set! position (+ position offset)))
-      ;               ((eq? reference seek-end)
-      ;                (set! position (- (size) offset)))
-      ;               (else (error "invalid reference" reference)))))
-      ;     (define (read-data length)
-      ;       (call/cc
-      ;         (lambda (return)
-      ;           (js-read-file
-      ;             fd position length
-      ;             (lambda (response-type data)
-      ;               (cond ((eq? response-type io-error)
-      ;                      (error data))
-      ;                     (else
-      ;                       (set! position (+ position (js-encoded-size data)))
-      ;                       (return data)))))
-      ;           (break-execution))))
-      ;     (define (local-read-string length)
-      ;       (let ((buffer (open-string-port))
-      ;             (buffer-length 0)
-      ;             (all? (< length 0))
-      ;             (original-position position))
-      ;         (let ((data-length (if all? 8192
-      ;                         (+ (floor (* length 1.2)) 1)))
-      ;               (decoder (js-make-decoder enc-utf-8)))
-      ;           (define (read)
-      ;             (cond ((and (not all?)
-      ;                         (>= buffer-length length))
-      ;                    (let ((string (read-string length buffer)))
-      ;                      (set! position
-      ;                        (+ original-position
-      ;                           (js-encoded-size (js-encode string))))
-      ;                      string))
-      ;                   (else
-      ;                     (let ((data (read-data data-length)))
-      ;                       (if (eq? (js-encoded-size data) 0)
-      ;                         (read-string -1 buffer)
-      ;                         (let ((string (js-decode decoder data)))
-      ;                           (write-string string buffer)
-      ;                           (set! buffer-length
-      ;                             (+ buffer-length (string-length string)))
-      ;                           (read)))))))
-      ;           (read))))
-      ;     (define (write-data data)
-      ;       (call/cc
-      ;         (lambda (return)
-      ;           (js-write-file
-      ;             fd position data
-      ;             (lambda (response-type result)
-      ;               (cond ((eq? response-type io-error)
-      ;                      (error result))
-      ;                     (else
-      ;                       (set! position
-      ;                         (+ position (js-encoded-size data)))
-      ;                       (return false)))))
-      ;           (break-execution))))
-      ;     (define (local-write-string string)
-      ;       (write-data (js-encode string enc-utf-8)))
-      ;     (make-port
-      ;       (lambda (message . args)
-      ;         (cond ((eq? message 'input-port?) input-port?)
-      ;               ((eq? message 'output-port?) output-port?)
-      ;               ((eq? message 'data-port?) true)
-      ;               ((eq? message 'close) (close))
-      ;               ((eq? message 'size) (size))
-      ;               ((eq? message 'seek) (apply seek args))
-      ;               ((eq? message 'read-data) (read-data (car args)))
-      ;               ((eq? message 'read-string) (local-read-string (car args)))
-      ;               ((eq? message 'write-data) (write-data (car args)))
-      ;               ((eq? message 'write-string) (local-write-string (car args)))
-      ;               (else (error "invalid message" message)))))))
-
-      ; (define (read-data length port)
-      ;   ((struct-lookup port 'port-object) 'read-data length))
-
-      ; (define (write-data data port)
-      ;   ((struct-lookup port 'port-object) 'write-data data))
-
-      ; (define (file-size port)
-      ;   ((struct-lookup port 'port-object) 'size))
-
-      ; (define (file-seek port . args)
-      ;   (apply (struct-lookup port 'port-object)
-      ;          (cons 'seek args)))
-
-      ; (define (data-port? port)
-      ;   ((struct-lookup port 'port-object) 'data-port?))
-
-      ; (define test-data (js-encode "hello mikkamakka" enc-utf-8))
-      ; (define decoder (js-make-decoder enc-utf-8))
-      ; (assert (eq? (js-decode decoder test-data)
-      ;              "hello mikkamakka")
-      ;         "encode/decode")
-
-      ; (assert
-      ;   (call/cc
-      ;     (lambda (return)
-      ;       (js-open-file
-      ;         "some-test"
-      ;         (| fs-write-only fs-create fs-trunc)
-      ;         438
-      ;         (lambda (response-type fd)
-      ;           (cond ((not (eq? response-type io-data))
-      ;                  (return false))
-      ;                 (else
-      ;                   (js-write-file
-      ;                     fd 0 test-data
-      ;                     (lambda (response-type data)
-      ;                       (cond ((not (eq? response-type io-ok))
-      ;                              (return false))
-      ;                             (else
-      ;                               (js-close-file
-      ;                                 fd
-      ;                                 (lambda (response-type data)
-      ;                                   (return (eq? response-type io-ok))))))))))))
-      ;       (break-execution)))
-      ;   "create file")
-
-      ; (assert
-      ;   (call/cc
-      ;     (lambda (return)
-      ;       (js-open-file
-      ;         "some-test" fs-read-only 438
-      ;         (lambda (response-type fd)
-      ;           (cond ((not (eq? response-type io-data))
-      ;                  (return false))
-      ;                 (else
-      ;                   (js-file-size
-      ;                     fd
-      ;                     (lambda (response-type data)
-      ;                       (cond ((or (not (eq? response-type io-data))
-      ;                                  (not (eq? data (js-encoded-size test-data))))
-      ;                              (return false))
-      ;                             (else
-      ;                               (js-close-file
-      ;                                 fd
-      ;                                 (lambda (response-type data)
-      ;                                   (return (eq? response-type io-ok))))))))))))
-      ;       (break-execution)))
-      ;   "check file size")
-
-      ; (assert
-      ;   (call/cc
-      ;     (lambda (return)
-      ;       (js-open-file
-      ;         "some-test" fs-read-only 438
-      ;         (lambda (response-type fd)
-      ;           (cond ((not (eq? response-type io-data))
-      ;                  (return false))
-      ;                 (else
-      ;                   (js-read-file
-      ;                     fd 0 (string-length "hello mikkamakka")
-      ;                     (lambda (response-type data)
-      ;                       (cond ((or (not (eq? response-type io-data))
-      ;                                  (not (eq? (js-decode decoder data)
-      ;                                            "hello mikkamakka")))
-      ;                              (return false))
-      ;                             (else
-      ;                               (js-close-file
-      ;                                 fd
-      ;                                 (lambda (response-type data)
-      ;                                   (return (eq? response-type io-ok))))))))))))
-      ;       (break-execution)))
-      ;   "read file")
-
-      ; ((lambda ()
-      ;    (define (open fn flags)
-      ;      (call/cc
-      ;        (lambda (return)
-      ;          (js-open-file
-      ;            fn flags 438
-      ;            (lambda (response-type data)
-      ;              (cond ((eq? response-type io-error)
-      ;                     (error "open" data))
-      ;                    (else (return data)))))
-      ;          (break-execution))))
-
-      ;    (define (get-size fd)
-      ;      (call/cc
-      ;        (lambda (return)
-      ;          (js-file-size
-      ;            fd
-      ;            (lambda (response-type data)
-      ;              (cond ((eq? response-type io-error)
-      ;                     (error "get-size" data))
-      ;                    (else (return data)))))
-      ;          (break-execution))))
-
-      ;    (define (read size fd)
-      ;      (call/cc
-      ;        (lambda (return)
-      ;          (js-read-file
-      ;            fd 0 size
-      ;            (lambda (response-type data)
-      ;              (cond ((eq? response-type io-error)
-      ;                     (error "read" data))
-      ;                    (else (return data)))))
-      ;          (break-execution))))
-
-      ;    (define (write data fd)
-      ;      (call/cc
-      ;        (lambda (return)
-      ;          (js-write-file
-      ;            fd 0 data
-      ;            (lambda (response-type data)
-      ;              (cond ((eq? response-type io-error)
-      ;                     (error "write" data))
-      ;                    (else (return false)))))
-      ;          (break-execution))))
-
-      ;    (define (close fd)
-      ;      (call/cc
-      ;        (lambda (return)
-      ;          (js-close-file
-      ;            fd
-      ;            (lambda (response-type data)
-      ;              (cond ((eq? response-type io-error)
-      ;                     (error "close" data))
-      ;                    (else (return false)))))
-      ;          (break-execution))))
-
-      ;    (define fd (open "mm-rm.scm" fs-read-only))
-      ;    (define size (get-size fd))
-      ;    (define data (read size fd))
-      ;    (close fd)
-      ;    (define fd (open "copy-of-mm-rm.scm"
-      ;                     (| fs-write-only fs-create fs-trunc)))
-      ;    (write data fd)
-      ;    (close fd)
-      ;    (define fd (open "copy-of-mm-rm.scm" fs-read-only))
-      ;    (define size-check (get-size fd))
-      ;    (define data-check (read size-check fd))
-      ;    (assert (eq? size size-check) "copied size")
-      ;    (define decoder (js-make-decoder enc-utf-8))
-      ;    (assert (eq? (js-decode decoder data)
-      ;                 (js-decode decoder data-check))
-      ;            "copied data")))
-
-      ; (define (go p) (set-timeout p 0))
-
-      ; (define (go-write string port)
-      ;   (go (lambda ()
-      ;         (write-string string port))))
-
-      ; (let ((io-port (open-sync-string-port)))
-      ;   (go-write "12" io-port)
-      ;   (go-write "345" io-port)
-      ;   (go-write "6789" io-port)
-      ;   (let ((a (read-string 3 io-port))
-      ;         (b (read-string 3 io-port))
-      ;         (c (read-string 3 io-port)))
-      ;     (assert (and (eq? (string-length a) 3)
-      ;                  (eq? (string-length b) 3)
-      ;                  (eq? (string-length c) 3))
-      ;             "read all from sync port")))
-
-      ; (let ((port (open-file-port
-      ;               "some"
-      ;               (| fs-write-only fs-create fs-trunc)
-      ;               438))
-      ;       (chunk-0 (js-encode "some " enc-utf-8))
-      ;       (chunk-1 (js-encode "data" enc-utf-8)))
-      ;   (write-data chunk-0 port)
-      ;   (write-data chunk-1 port)
-      ;   (close-port port)
-      ;   (let ((port (open-file-port
-      ;                 "some" fs-read-only))
-      ;         (decoder (js-make-decoder enc-utf-8)))
-      ;     (assert (eq? (file-size port)
-      ;                  (+ (js-encoded-size chunk-0)
-      ;                     (js-encoded-size chunk-1)))
-      ;             "file size right")
-      ;     (assert (eq? (read-string 4 port) "some")
-      ;             "read part of file 0")
-      ;     (assert (eq? (read-string 5 port) " data")
-      ;             "read part of file 1")))
-
-      ; (assert (vector? (vector)) "empty vector")
-      ; (define v (vector 1 2 3 4 5))
-      ; (assert (vector? v) "not empty vector")
-      ; (assert (eq? (vector-ref v 0) 1) "vector-ref")
-      ; (assert (eq? (vector-length v) 5) "vector-length")
-      ; (assert (vector? (vector-slice (vector)))
-      ;         "empty slice")
-      ; (assert (vector? (vector-slice v)) "full slice")
-      ; (assert (eq? (vector-length (vector-slice v))
-      ;              (vector-length v))
-      ;         "full slice length")
-      ; (define s (vector-slice v 1 3))
-      ; (assert (vector? s) "slice")
-      ; (assert (eq? (vector-length s) 2) "slice length")
-      ; (assert (eq? (vector-ref s 0) 2) "slice ref")
-      ; (assert (vector? (vector-slice v 3))
-      ;         "slice to end")
-      ; (assert (eq? (vector-length (vector-slice v 3)) 2)
-      ;         "slice to end length")
-
-      ; (define (write . args)
-      ;   (cond
-      ;     ((null? args) noprint)
-      ;     (else
-      ;       (define (escape-char char)
-      ;         (cond ((eq? char "\b") "\\b")
-      ;               ((eq? char "\t") "\\t")
-      ;               ((eq? char "\n") "\\n")
-      ;               ((eq? char "\v") "\\v")
-      ;               ((eq? char "\f") "\\f")
-      ;               ((eq? char "\r") "\\r")
-      ;               ((eq? char "\"") "\\\"")
-      ;               ((eq? char "\\") "\\\\")
-      ;               (else char)))
-      ;       (define (escape-char? char)
-      ;         (not (eq? char (escape-char char))))
-      ;       (define (write-char-escaped char port)
-      ;         (write-string (escape-char char) port))
-      ;       (define (write-string-escaped string port)
-      ;         (cond ((> (string-length string) 0)
-      ;                (write-char-escaped (string-copy string 0 1) port)
-      ;                (write-string-escaped (string-copy string 1) port))))
-      ;       (define (write-symbol-escaped symbol port)
-      ;         (define (find-escape-char string)
-      ;           (cond ((eq? (string-length string) 0)
-      ;                  (write-string (symbol->string symbol) port))
-      ;                 ((escape-char? (string-copy string 0 1))
-      ;                  (write-string "|" port)
-      ;                  (write-string (symbol->string symbol) port)
-      ;                  (write-string "|" port))
-      ;                 (else
-      ;                   (find-escape-char (string-copy string 1)))))
-      ;         (find-escape-char (symbol->string symbol)))
-      ;       (define (write-quote quote port)
-      ;         (if (null? (cdr quote))
-      ;           (write-string "#<???>" port)
-      ;           (begin
-      ;             (write-string "(quote " port)
-      ;             (write (quote-text quote) port false)
-      ;             (write-string ")" port))))
-      ;       (define (write-pair pair port in-list?)
-      ;         (write-string (if in-list? " " "(") port)
-      ;         (write (car pair) port false)
-      ;         (cond ((null? (cdr pair))
-      ;                (write-string ")" port))
-      ;               ((and (pair? (cdr pair))
-      ;                     (not (quote? (cdr pair))))
-      ;                (write (cdr pair) port true))
-      ;               (else
-      ;                 (write-string " . " port)
-      ;                 (write (cdr pair) port true)
-      ;                 (write-string ")" port))))
-      ;       (define (write-vector vector port)
-      ;         (define (write-ref ref)
-      ;           (cond ((< ref (vector-length vector))
-      ;                  (cond ((> ref 0)
-      ;                         (write-string " " port)))
-      ;                  (write (vector-ref vector ref) port false)
-      ;                  (write-ref (+ ref 1)))))
-      ;         (write-string "#(" port)
-      ;         (write-ref 0)
-      ;         (write-string ")" port))
-      ;       (define (write-struct struct port)
-      ;         (define (struct-members->list names)
-      ;           (cond ((null? names) '())
-      ;                 (else
-      ;                   (cons
-      ;                     (list (car names)
-      ;                           (struct-lookup struct (car names)))
-      ;                     (struct-members->list (cdr names))))))
-      ;         (write-string "#s" port)
-      ;         (write
-      ;           (struct-members->list (struct-names struct))
-      ;           port false))
-      ;       (define (write object port in-list?)
-      ;         (cond
-      ;           ((eq? object noprint) noprint)
-      ;           ((eq? object false)
-      ;            (write-string "false" port))
-      ;           ((eq? object true)
-      ;            (write-string "true" port))
-      ;           ((number? object)
-      ;            (write-string (number->string object) port))
-      ;           ((string? object)
-      ;            (write-string "\"" port)
-      ;            (write-string-escaped object port)
-      ;            (write-string "\"" port))
-      ;           ((symbol? object)
-      ;            (write-symbol-escaped object port))
-      ;           ((null? object)
-      ;            (write-string "()" port))
-      ;           ((quote? object)
-      ;            (write-quote object port))
-      ;           ((pair? object)
-      ;            (write-pair object port in-list?))
-      ;           ((vector? object)
-      ;            (write-vector object port))
-      ;           ((struct? object)
-      ;            (write-struct object port))
-      ;           ((primitive-procedure? object)
-      ;            (write-string "#<primitive-procedure>" port))
-      ;           ((compiled-procedure? object)
-      ;            (write-string "#<compiled-procedure>" port))
-      ;           ((error? object)
-      ;            (write-string (error->string object) port))
-      ;           (else
-      ;             (error "unknown type"))))
-      ;       (write
-      ;         (car args)
-      ;         (if (null? (cdr args))
-      ;           current-output-port
-      ;           (car (cdr args)))
-      ;         false))))
-
-      ; (define current-output-port (open-stdout))
-
-      ; (define (procedure? object)
-      ;   (or (primitive-procedure? object)
-      ;       (compiled-procedure? object)))
-
-      ; (define (test-write object test message)
-      ;   (let ((port (open-string-port)))
-      ;     (write object port)
-      ;     (assert (if (procedure? test)
-      ;               (test (read-string -1 port))
-      ;               (eq? (read-string -1 port) test))
-      ;             message)))
-
-      ; (test-write noprint "" "no print")
-      ; (test-write false "false" "false")
-      ; (test-write true "true" "true")
-      ; (test-write 1.2 "1.2" "number")
-      ; (test-write "hello mikkamakka" "\"hello mikkamakka\"" "string")
-      ; (test-write 'symbol "symbol" "symbol")
-      ; (test-write '() "()" "null")
-      ; (test-write ''some-quote "(quote some-quote)" "quote")
-      ; (test-write '(1 . 2) "(1 . 2)" "pair")
-      ; (test-write '(1 2 3) "(1 2 3)" "list")
-
-      ; (test-write "\"" "\"\\\"\"" "escape string")
-
-      ; ; will work when reader is done
-      ; ; (test-write '|
-      ; ;        | "|        \n|" "escape symbol")
-
-      ; (test-write '(1 2 . 3) "(1 2 . 3)" "unclosed list")
-      ; (test-write
-      ;   '(1 (2 3) 4 (''some-quote))
-      ;   "(1 (2 3) 4 ((quote (quote some-quote))))"
-      ;   "mixed list")
-
-      ; (test-write
-      ;   number?
-      ;   "#<primitive-procedure>"
-      ;   "primitive procedure")
-      ; (test-write
-      ;   write
-      ;   "#<compiled-procedure>"
-      ;   "compiled procedure")
-
-      ; (test-write (vector) "#()" "empty vector")
-      ; (test-write (vector 1 2 3) "#(1 2 3)" "vector")
-
-      ; (test-write
-      ;   (struct '(some value) '(some-other other-value))
-      ;   (lambda (value)
-      ;     (or (eq? value "#s((some value) (some-other other-value))")
-      ;         (eq? value "#s((some-other other-value) (some value))")))
-      ;   "struct")
-
-      ; (js-import-code / "
-      ;   var makeRegexp = function (expression, flags) {
-      ;       if (typeof expression !== \"string\" ||
-      ;           arguments.length > 1 &&
-      ;           typeof flags !== \"string\") {
-      ;           throw new Error(\"invalid argument\");
-      ;       }
-
-      ;       var regexp = new RegExp(expression, flags || \"\")
-      ;       return function (string) {
-      ;           return string.match(regexp) || [];
-      ;       };
-
-      ;   };
-
-      ;   exports[\"js-make-regexp\"] = makeRegexp;
-      ;   ")
-
-      ; (define rx-global 1)
-      ; (define rx-ignore-case 2)
-
-      ; (define (make-regexp expression . flags)
-      ;   (js-make-regexp
-      ;     expression
-      ;     (apply
-      ;       string-append
-      ;       (map
-      ;         (lambda (flag)
-      ;           (cond ((eq? flag rx-global) "g")
-      ;                 ((eq? flag rx-ignore-case) "i")
-      ;                 (else (error "invalid regexp flag"))))
-      ;         flags))))
-
-      ; (define (read port)
-      ;   (define tokenizer-expression
-      ;     '(";[^\\n]*\\n?|"                    ; comment
-      ;       "\\(|\\)|"                         ; list open, list/vector/struct close
-      ;       "#\\(|"                            ; vector open
-      ;       "#s\\(|"                           ; struct open
-      ;       "'|"                               ; quote
-      ;       "\"(\\\\\\\\|\\\\\"|[^\"])*\"?|"   ; string
-      ;       "(\\\\.|"                          ; symbol, single escape
-      ;       "\\|(\\\\\\\\|\\\\\\||[^|])*\\|?|" ; symbol, range escape
-      ;       "[^;()#'|\"\\s])+"))               ; symbol, no comment/list/type-escape/quote/string/whitespace
-      ;   (define tokenizer-rx
-      ;     (make-regexp
-      ;       (apply string-append tokenizer-expression)
-      ;       rx-global))
-      ;   (define token-complete-expression
-      ;     '("^(;[^\\n]*\\n|"                        ; comment
-      ;       "\\(|"                                  ; list open
-      ;       "\\)|"                                  ; list/vector/struct close
-      ;       "#\\(|"                                 ; vector open
-      ;       "#s\\(|"                                ; struct open
-      ;       "'|"                                    ; quote
-      ;       "\"(\\\\\"|\\\\[^\"]|[^\\\\\"])*\"|"    ; string
-      ;       "(\\\\.|"                               ; symbol, single escape
-      ;       "\\|(\\\\\\||\\\\[^\\|]|[^\\\\|])*\\||" ; symbol, range escape
-      ;       "[^;()#'|\"\\s\\\\])+)$"))              ; symbol, no comment/list/type-escape/quote/string/whitespace/escape
-      ;   (define token-complete?
-      ;     ((lambda ()
-      ;        (let ((rx (make-regexp
-      ;                    (apply string-append
-      ;                           token-complete-expression))))
-      ;          (lambda (token) (not (null? (rx token))))))))
-      ;   (define (make-token-reader)
-      ;     (let ((buffer (open-string-port))
-      ;           (read-chunk-length 8192)
-      ;           (tokens '()))
-      ;       (define (read-token)
-      ;         (cond
-      ;           ((null? tokens)
-      ;            (let ((string (read-string read-chunk-length port)))
-      ;              (if (or (eof-object? string)
-      ;                      (eq? (string-length string) 0))
-      ;                end-of-file
-      ;                (begin
-      ;                  (write-string string buffer)
-      ;                  (set! tokens (tokenizer-rx (read-string -1 buffer)))
-      ;                  (read-token)))))
-      ;           ((not (token-complete? (car tokens)))
-      ;            ; depends on port specification
-      ;            ; for current use cases, error needs to be thrown here
-      ;            ; for future use cases, need to be able to tell if
-      ;            ; something is in the buffer
-      ;            (error "invalid end of input" (car tokens)))
-
-      ;            ; ; some safety
-      ;            ; (cond ((not (null? (cdr tokens)))
-      ;            ;        (error "tokenization error" tokens)))
-
-      ;            ; (write-string (car tokens) buffer)
-      ;            ; (set! tokens '())
-      ;            ; (read-token))
-      ;           (else
-      ;             (let ((token (car tokens)))
-      ;               (set! tokens (cdr tokens))
-      ;               token))))
-      ;       read-token))
-      ;   (define read-token (make-token-reader))
-      ;   (define (unescape string)
-      ;     (define (unescape buffer s)
-      ;       (let ((eref (string-index s "\\\\")))
-      ;         (cond ((< eref 0)
-      ;                (write-string s buffer)
-      ;                buffer)
-      ;               ((eq? (string-length s) (+ eref 1))
-      ;                (error "invalid escape sequence" string))
-      ;               (else
-      ;                 (write-string (string-copy s 0 eref) buffer)
-      ;                 (write-string (unescape-char (string-copy s (+ eref 1) 1)) buffer)
-      ;                 (unescape buffer (string-copy (+ eref 2)))))))
-      ;     (read-string -1 (unescape (open-string-port) string)))
-      ;   (define (unescape-symbol string)
-      ;     (define (unescape buffer escaped? s)
-      ;       (let ((eref (string-index s "\\\\|\\|")))
-      ;         (cond ((< eref 0)
-      ;                (write-string s buffer)
-      ;                buffer)
-      ;               (else
-      ;                 (write-string (string-copy s 0 eref) buffer)
-      ;                 (let ((echar (string-copy s eref 1)))
-      ;                   (cond ((eq? echar "|")
-      ;                          (unescape
-      ;                            buffer
-      ;                            (not escaped?)
-      ;                            (string-copy s (+ eref 1) -1)))
-      ;                         ((eq? (string-length s) 1)
-      ;                          (write-string "\\" buffer)
-      ;                          buffer)
-      ;                         ((eq? (string-copy s (+ eref 1) 1) "|")
-      ;                          (write-string "|" buffer)
-      ;                          (unescape
-      ;                            buffer
-      ;                            escaped?
-      ;                            (string-copy s (+ eref 2))))
-      ;                         (escpaed?
-      ;                           (write-string (string-copy s eref (+ eref 2)) buffer)
-      ;                           (unescape
-      ;                             buffer
-      ;                             true
-      ;                             (string-copy s (+ eref 2))))
-      ;                         (else
-      ;                           (write-string (string-copy s (+ eref 1) 1) buffer)
-      ;                           (unescape buffer false (string-copy s (+ eref 2))))))))))
-      ;     (string->symbol (read-string -1 (unescape (open-string-port) false string))))
-      ;   (define (list-open? token) (eq? token "("))
-      ;   (define (list-close? token) (eq? token ")"))
-      ;   (define (token->string token)
-      ;     (and (eq? (string-copy token 0 1) "\"")
-      ;          (unescape (string-copy
-      ;                      token 1 (- (string-length token) 1)))))
-      ;   (define (token->symbol token) (unescape-symbol token))
-      ;   (define (read-datum token)
-      ;     (or (string->number token)
-      ;         (token->string token)
-      ;         (token->symbol token)))
-      ;   (define (read-list l)
-      ;     (let ((object (read l)))
-      ;       (cond ((eof-object? object)
-      ;              (error "unclosed list" l))
-      ;             ((eq? object l) (reverse l))
-      ;             (else (read-list (cons object l))))))
-      ;   (define (read l)
-      ;     (let ((token (read-token)))
-      ;       (cond ((eof-object? token) end-of-file)
-      ;             ((list-open? token) (read-list '()))
-      ;             ((list-close? token) l)
-      ;             (else (read-datum token)))))
-      ;   (read '()))
-
-      ; ; (define port (open-string-port))
-      ; ; (write-string "(1 2 3 (4 5 6) 7) 8" port)
-      ; ; (write-string "(define false #f)" port)
+      ; open stdin/stdout/stderr
+      (js-import-code / "
+
+        var fs = require(\"fs\");
+        var stringDecoder = require(\"string_decoder\");
+
+        var responseType = {
+            ok: 0,
+            data: 1,
+            eof: 2,
+            error: 3
+        };
+
+        var encoding = {
+            ascii: \"ascii\",
+            utf8: \"utf8\",
+            utf16le: \"utf16le\",
+            base64: \"base64\",
+            binary: \"binary\",
+            hex: \"hex\"
+        };
+
+        var noop = function () {};
+        var packKey = function () {};
+
+        var pack = function (object) {
+            return function (key) {
+                if (key === packKey) {
+                    return object;
+                }
+            };
+        };
+
+        var unpack = function (object) {
+            return object(packKey);
+        };
+
+        var stdinHandlers = null;
+        var stdoutHandlers = null;
+        var stderrHandlers = null;
+
+        var makeStdinHandlers = function (f) {
+            if (!(f instanceof Function)) {
+                return {
+                    data: noop,
+                    end: noop,
+                    error: noop
+                };
+            }
+
+            var handlers = {
+                eofReceived: false,
+                data: function () {
+
+                    // nodejs hack:
+                    if (handlers.eofReceived) {
+                        return;
+                    }
+
+                    var data = process.stdin.read();
+                    if (data === null) {
+
+                        // nodejs hack, to avoid hanging the process:
+                        handlers.eofReceived = true;
+                        process.stdin.pause();
+                        f(responseType.eof, false);
+
+                        return;
+                    }
+
+                    f(responseType.data, pack(data));
+                },
+                end: function () {
+                    f(responseType.eof, false);
+                },
+                error: function (error) {
+                    f(responseType.error, error.toString());
+                }
+            };
+
+            return handlers;
+        };
+
+        var makeOutHandlers = function (out, f) {
+            if (!(f instanceof Function)) {
+                return {
+                    error: noop,
+                    write: noop
+                };
+            }
+
+            var handlers = {
+                error: function (error) {
+                    f(responseType.error, error.toString());
+                },
+                write: function (data) {
+                    if (handlers.closed) {
+                        return;
+                    }
+                    out.write(unpack(data));
+                }
+            };
+
+            return handlers;
+        };
+
+        var openOut = function (out, f) {
+            var handlers = makeOutHandlers(out, f);
+            out.on(\"error\", handlers.error);
+            return handlers;
+        };
+
+        var closeOut = function (out, handlers) {
+            if (!handlers) {
+                return;
+            }
+            out.removeListener(\"error\", handlers.error);
+            handlers.closed = true;
+        };
+
+        var openStdin = function (f) {
+            stdinHandlers = makeStdinHandlers(f);
+            process.stdin.on(\"readable\", stdinHandlers.data);
+            process.stdin.on(\"end\", stdinHandlers.end);
+            process.stdin.on(\"error\", stdinHandlers.error);
+        };
+
+        var closeStdin = function () {
+            if (!stdinHandlers) {
+                return;
+            }
+            process.stdin.removeListener(\"readable\", stdinHandlers.data);
+            process.stdin.removeListener(\"end\", stdinHandlers.end);
+            process.stdin.removeListener(\"error\", stdinHandlers.error);
+            stdinHandlers = null;
+        };
+
+        var openStdout = function (f) {
+            stdoutHandlers = openOut(process.stdout, f);
+            return stdoutHandlers.write;
+        };
+
+        var closeStdout = function () {
+            closeOut(process.stdout, stdoutHandlers);
+            stdoutHandlers = null;
+        };
+
+        var openStderr = function (f) {
+            stderrHandlers = openOut(process.stderr, f);
+            return stderrHandlers.write;
+        };
+
+        var closeStderr = function (f) {
+            closeOut(process.stderr, stderrHandlers);
+            stderrHandlers = null;
+        };
+
+        var open = function (path, flags, mode, callback) {
+            mode = mode < 0 ? 438 : mode;
+            fs.open(path, flags, mode, function (err, fd) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.data, fd);
+            });
+        };
+
+        var close = function (fd, callback) {
+            fs.close(fd, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        var size = function (fd, callback) {
+            fs.fstat(fd, function (err, stat) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.data, stat.size);
+            });
+        };
+
+        var read = function (fd, position, length, callback) {
+            position = position < 0 ? null : position;
+            var buffer = new Buffer(length);
+            fs.read(fd, buffer, 0, length, position, function (err, bytesRead) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                var data = new Buffer(bytesRead);
+                buffer.copy(data, 0, 0, bytesRead);
+                callback(responseType.data, pack(data));
+            });
+        };
+
+        var write = function (fd, position, data, callback) {
+            position = position < 0 ? null : position;
+            var d = unpack(data);
+            fs.write(fd, d, 0, d.length, position, function (err) {
+                if (err) {
+                    callback(responseType.error, err.toString());
+                    return;
+                }
+
+                callback(responseType.ok, false);
+            });
+        };
+
+        var encode = function (string, encoding) {
+            return pack(new Buffer(string, encoding));
+        };
+
+        var makeDecoder = function (encoding) {
+            return pack(new stringDecoder.StringDecoder(encoding));
+        };
+
+        var decode = function (decoder, data) {
+            var d = unpack(decoder);
+            return d.write(unpack(data));
+        };
+
+        var isEmptyDecoder = function (decoder) {
+            var d = unpack(decoder);
+            return d.end().length === 0;
+        };
+
+        var encodedSize = function (data) {
+            return unpack(data).length;
+        };
+
+        exports[\"io-ok\"] = responseType.ok;
+        exports[\"io-data\"] = responseType.data;
+        exports[\"io-eof\"] = responseType.eof;
+        exports[\"io-error\"] = responseType.error;
+        exports[\"enc-ascii\"] = encoding.ascii;
+        exports[\"enc-utf-8\"] = encoding.utf8;
+        exports[\"enc-utf-16le\"] = encoding.utf16le;
+        exports[\"enc-base64\"] = encoding.base64;
+        exports[\"enc-binary\"] = encoding.binary;
+        exports[\"enc-hex\"] = encoding.hex;
+        exports[\"js-open-stdin\"] = openStdin;
+        exports[\"js-open-stdout\"] = openStdout;
+        exports[\"js-open-stderr\"] = openStderr;
+        exports[\"js-close-stdin\"] = closeStdin;
+        exports[\"js-close-stdout\"] = closeStdout;
+        exports[\"js-close-stderr\"] = closeStderr;
+        exports[\"js-open-file\"] = open;
+        exports[\"js-close-file\"] = close;
+        exports[\"js-file-size\"] = size;
+        exports[\"js-read-file\"] = read;
+        exports[\"js-write-file\"] = write;
+        exports[\"js-encode\"] = encode;
+        exports[\"js-make-decoder\"] = makeDecoder;
+        exports[\"js-decode\"] = decode;
+        exports[\"js-empty-decoder?\"] = isEmptyDecoder;
+        exports[\"js-encoded-size\"] = encodedSize;
+        ")
+
+      (define (open-sync-string-port . strings)
+        (let ((buffer (apply open-string-port strings))
+              (eof false)
+              (requests '()))
+          (define (make-request return requested-length buffer buffer-length)
+            (lambda (message)
+              (cond ((eq? message 'return) return)
+                    ((eq? message 'requested-length) requested-length)
+                    ((eq? message 'buffer) buffer)
+                    ((eq? message 'buffer-length) buffer-length))))
+          (define (request-return request) (request 'return))
+          (define (requested-length request) (request 'requested-length))
+          (define (request-buffer request) (request 'buffer))
+          (define (request-buffer-length request) (request 'buffer-length))
+          (define (feed-requests)
+            (let ((request (and (not (null? requests)) (car requests))))
+              (cond ((and request (< (requested-length request) 0))
+                     (let ((string (read-string -1 buffer)))
+                       (cond ((> (string-length string) 0)
+                              (write-string
+                                string
+                                (request-buffer request))
+                              (set! request
+                                (make-request
+                                  (request-return request)
+                                  -1
+                                  (request-buffer request)
+                                  (+ (request-buffer-length request)
+                                     (string-length string))))
+                              (set! requests
+                                (cons request (cdr requests)))))
+                       (cond (eof
+                               (set! requests (cdr requests))
+                               ((request-return request)
+                                (if (eq? (request-buffer-length request) 0)
+                                  ""
+                                  (read-string
+                                    -1
+                                    (request-buffer request))))
+                               (feed-requests)))))
+                    (request
+                      (let ((string
+                              (read-string
+                                (- (requested-length request)
+                                   (request-buffer-length request))
+                                buffer)))
+                        (cond ((> (string-length string) 0)
+                               (write-string
+                                 string
+                                 (request-buffer request))
+                               (set! request 
+                                 (make-request
+                                   (request-return request)
+                                   (requested-length request)
+                                   (request-buffer request)
+                                   (+ (request-buffer-length request)
+                                      (string-length string))))
+                               (set! requests
+                                 (cons request (cdr requests)))))
+                        (cond ((or eof
+                                   (eq? (- (requested-length request)
+                                           (request-buffer-length request))
+                                        0))
+                               (set! requests (cdr requests))
+                               ((request-return request)
+                                (if (eq? (request-buffer-length request) 0)
+                                  ""
+                                  (read-string
+                                    -1
+                                    (request-buffer request))))
+                               (feed-requests))))))))
+          (define (close)
+            (cond ((not eof)
+                   (close-port buffer)
+                   (set! eof true)
+                   (feed-requests))))
+          (define (read length)
+            (call/cc
+              (lambda (return)
+                (set! requests
+                  (append
+                    requests
+                    (list (make-request
+                            return
+                            length
+                            (open-string-port)
+                            0))))
+                (feed-requests)
+                (break-execution))))
+          (define (write string)
+            (write-string string buffer)
+            (feed-requests))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) true)
+                    ((eq? message 'output-port?) true)
+                    ((eq? message 'data-port?) false)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'read-string) (read (car args)))
+                    ((eq? message 'write-string) (write (car args)))
+                    (else (error "invalid message" message)))))))
+
+      (define (open-stdin)
+        (let ((buffer (open-sync-string-port))
+              (decoder (js-make-decoder enc-utf-8)))
+          (define (close)
+            (close-port buffer)
+            (js-close-stdin))
+          (define (read length)
+            (read-string length buffer))
+          (js-open-stdin
+            (lambda (response-type data)
+              (cond ((eq? response-type io-data)
+                     (write-string (js-decode decoder data) buffer))
+                    ((eq? response-type io-eof)
+                     (close-port buffer))
+                    ((eq? response-type io-error)
+                     (error data)))))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) true)
+                    ((eq? message 'output-port?) false)
+                    ((eq? message 'data-port?) false)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'read-string) (read (car args)))
+                    (else (error "invalid message" message)))))))
+
+      (define (open-out open close)
+        (let ((out (open
+                     (lambda (response-type data)
+                       (cond ((eq? response-type io-error)
+                              (error data)))))))
+          (define (write string)
+            (out (js-encode string enc-utf-8)))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) false)
+                    ((eq? message 'output-port?) true)
+                    ((eq? message 'data-port?) false)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'write-string) (write (car args)))
+                    (else (error "invalid message" message)))))))
+
+      (define (open-stdout)
+        (open-out js-open-stdout js-close-stdout))
+
+      (define (open-stderr)
+        (open-out js-open-stderr js-close-stderr))
+
+      (define fs-read-only 0)
+      (define fs-write-only 1)
+      (define fs-read-write 2)
+      (define fs-create 64)
+      (define fs-trunc 512)
+      (define fs-append 1024)
+      (define fs-excl 128)
+      (define fs-sync 4096)
+
+      (define (flagged? flag value)
+        (eq? (& value flag) flag))
+
+      (define seek-set 0)
+      (define seek-cur 1)
+      (define seek-end 2)
+
+      (define (open-file-port name flags . args)
+        (let ((input-port? (not (flagged? fs-write-only flags)))
+              (output-port? (or (flagged? fs-write-only flags)
+                                (flagged? fs-read-write flags)))
+              (position 0)
+              (fd (call/cc
+                    (lambda (return)
+                      (js-open-file
+                        name flags (if (null? args) 438 (car args))
+                        (lambda (response-type data)
+                          (cond ((eq? response-type io-error)
+                                 (error data))
+                                (else (return data)))))
+                      (break-execution)))))
+          (define (close)
+            (call/cc
+              (lambda (return)
+                (js-close-file
+                  fd
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else (return data)))))
+                (break-execution))))
+          (define (size)
+            (call/cc
+              (lambda (return)
+                (js-file-size
+                  fd
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else (return data)))))
+                (break-execution))))
+          (define (seek offset . args)
+            (let ((reference (if (null? args) seek-set (car args))))
+              (cond ((eq? reference seek-set)
+                     (set! position offset))
+                    ((eq? reference seek-cur)
+                     (set! position (+ position offset)))
+                    ((eq? reference seek-end)
+                     (set! position (- (size) offset)))
+                    (else (error "invalid reference" reference)))))
+          (define (read-data length)
+            (call/cc
+              (lambda (return)
+                (js-read-file
+                  fd position length
+                  (lambda (response-type data)
+                    (cond ((eq? response-type io-error)
+                           (error data))
+                          (else
+                            (set! position (+ position (js-encoded-size data)))
+                            (return data)))))
+                (break-execution))))
+          (define (local-read-string length)
+            (let ((buffer (open-string-port))
+                  (buffer-length 0)
+                  (all? (< length 0))
+                  (original-position position))
+              (let ((data-length (if all? 8192
+                              (+ (floor (* length 1.2)) 1)))
+                    (decoder (js-make-decoder enc-utf-8)))
+                (define (read)
+                  (cond ((and (not all?)
+                              (>= buffer-length length))
+                         (let ((string (read-string length buffer)))
+                           (set! position
+                             (+ original-position
+                                (js-encoded-size (js-encode string))))
+                           string))
+                        (else
+                          (let ((data (read-data data-length)))
+                            (if (eq? (js-encoded-size data) 0)
+                              (read-string -1 buffer)
+                              (let ((string (js-decode decoder data)))
+                                (write-string string buffer)
+                                (set! buffer-length
+                                  (+ buffer-length (string-length string)))
+                                (read)))))))
+                (read))))
+          (define (write-data data)
+            (call/cc
+              (lambda (return)
+                (js-write-file
+                  fd position data
+                  (lambda (response-type result)
+                    (cond ((eq? response-type io-error)
+                           (error result))
+                          (else
+                            (set! position
+                              (+ position (js-encoded-size data)))
+                            (return false)))))
+                (break-execution))))
+          (define (local-write-string string)
+            (write-data (js-encode string enc-utf-8)))
+          (make-port
+            (lambda (message . args)
+              (cond ((eq? message 'input-port?) input-port?)
+                    ((eq? message 'output-port?) output-port?)
+                    ((eq? message 'data-port?) true)
+                    ((eq? message 'close) (close))
+                    ((eq? message 'size) (size))
+                    ((eq? message 'seek) (apply seek args))
+                    ((eq? message 'read-data) (read-data (car args)))
+                    ((eq? message 'read-string) (local-read-string (car args)))
+                    ((eq? message 'write-data) (write-data (car args)))
+                    ((eq? message 'write-string) (local-write-string (car args)))
+                    (else (error "invalid message" message)))))))
+
+      (define (read-data length port)
+        ((struct-lookup port 'port-object) 'read-data length))
+
+      (define (write-data data port)
+        ((struct-lookup port 'port-object) 'write-data data))
+
+      (define (file-size port)
+        ((struct-lookup port 'port-object) 'size))
+
+      (define (file-seek port . args)
+        (apply (struct-lookup port 'port-object)
+               (cons 'seek args)))
+
+      (define (data-port? port)
+        ((struct-lookup port 'port-object) 'data-port?))
+
+      (define test-data (js-encode "hello mikkamakka" enc-utf-8))
+      (define decoder (js-make-decoder enc-utf-8))
+      (assert (eq? (js-decode decoder test-data)
+                   "hello mikkamakka")
+              "encode/decode")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test"
+              (| fs-write-only fs-create fs-trunc)
+              438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-write-file
+                          fd 0 test-data
+                          (lambda (response-type data)
+                            (cond ((not (eq? response-type io-ok))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "create file")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test" fs-read-only 438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-file-size
+                          fd
+                          (lambda (response-type data)
+                            (cond ((or (not (eq? response-type io-data))
+                                       (not (eq? data (js-encoded-size test-data))))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "check file size")
+
+      (assert
+        (call/cc
+          (lambda (return)
+            (js-open-file
+              "some-test" fs-read-only 438
+              (lambda (response-type fd)
+                (cond ((not (eq? response-type io-data))
+                       (return false))
+                      (else
+                        (js-read-file
+                          fd 0 (string-length "hello mikkamakka")
+                          (lambda (response-type data)
+                            (cond ((or (not (eq? response-type io-data))
+                                       (not (eq? (js-decode decoder data)
+                                                 "hello mikkamakka")))
+                                   (return false))
+                                  (else
+                                    (js-close-file
+                                      fd
+                                      (lambda (response-type data)
+                                        (return (eq? response-type io-ok))))))))))))
+            (break-execution)))
+        "read file")
+
+      ((lambda ()
+         (define (open fn flags)
+           (call/cc
+             (lambda (return)
+               (js-open-file
+                 fn flags 438
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "open" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (get-size fd)
+           (call/cc
+             (lambda (return)
+               (js-file-size
+                 fd
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "get-size" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (read size fd)
+           (call/cc
+             (lambda (return)
+               (js-read-file
+                 fd 0 size
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "read" data))
+                         (else (return data)))))
+               (break-execution))))
+
+         (define (write data fd)
+           (call/cc
+             (lambda (return)
+               (js-write-file
+                 fd 0 data
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "write" data))
+                         (else (return false)))))
+               (break-execution))))
+
+         (define (close fd)
+           (call/cc
+             (lambda (return)
+               (js-close-file
+                 fd
+                 (lambda (response-type data)
+                   (cond ((eq? response-type io-error)
+                          (error "close" data))
+                         (else (return false)))))
+               (break-execution))))
+
+         (define fd (open "mm-rm.scm" fs-read-only))
+         (define size (get-size fd))
+         (define data (read size fd))
+         (close fd)
+         (define fd (open "copy-of-mm-rm.scm"
+                          (| fs-write-only fs-create fs-trunc)))
+         (write data fd)
+         (close fd)
+         (define fd (open "copy-of-mm-rm.scm" fs-read-only))
+         (define size-check (get-size fd))
+         (define data-check (read size-check fd))
+         (assert (eq? size size-check) "copied size")
+         (define decoder (js-make-decoder enc-utf-8))
+         (assert (eq? (js-decode decoder data)
+                      (js-decode decoder data-check))
+                 "copied data")))
+
+      (define (go p) (set-timeout p 0))
+
+      (define (go-write string port)
+        (go (lambda ()
+              (write-string string port))))
+
+      (let ((io-port (open-sync-string-port)))
+        (go-write "12" io-port)
+        (go-write "345" io-port)
+        (go-write "6789" io-port)
+        (let ((a (read-string 3 io-port))
+              (b (read-string 3 io-port))
+              (c (read-string 3 io-port)))
+          (assert (and (eq? (string-length a) 3)
+                       (eq? (string-length b) 3)
+                       (eq? (string-length c) 3))
+                  "read all from sync port")))
+
+      (let ((port (open-file-port
+                    "some"
+                    (| fs-write-only fs-create fs-trunc)
+                    438))
+            (chunk-0 (js-encode "some " enc-utf-8))
+            (chunk-1 (js-encode "data" enc-utf-8)))
+        (write-data chunk-0 port)
+        (write-data chunk-1 port)
+        (close-port port)
+        (let ((port (open-file-port
+                      "some" fs-read-only))
+              (decoder (js-make-decoder enc-utf-8)))
+          (assert (eq? (file-size port)
+                       (+ (js-encoded-size chunk-0)
+                          (js-encoded-size chunk-1)))
+                  "file size right")
+          (assert (eq? (read-string 4 port) "some")
+                  "read part of file 0")
+          (assert (eq? (read-string 5 port) " data")
+                  "read part of file 1")))
+
+      (assert (vector? (vector)) "empty vector")
+      (define v (vector 1 2 3 4 5))
+      (assert (vector? v) "not empty vector")
+      (assert (eq? (vector-ref v 0) 1) "vector-ref")
+      (assert (eq? (vector-length v) 5) "vector-length")
+      (assert (vector? (vector-slice (vector)))
+              "empty slice")
+      (assert (vector? (vector-slice v)) "full slice")
+      (assert (eq? (vector-length (vector-slice v))
+                   (vector-length v))
+              "full slice length")
+      (define s (vector-slice v 1 3))
+      (assert (vector? s) "slice")
+      (assert (eq? (vector-length s) 2) "slice length")
+      (assert (eq? (vector-ref s 0) 2) "slice ref")
+      (assert (vector? (vector-slice v 3))
+              "slice to end")
+      (assert (eq? (vector-length (vector-slice v 3)) 2)
+              "slice to end length")
+
+      (define (write . args)
+        (cond
+          ((null? args) noprint)
+          (else
+            (define (escape-char char)
+              (cond ((eq? char "\b") "\\b")
+                    ((eq? char "\t") "\\t")
+                    ((eq? char "\n") "\\n")
+                    ((eq? char "\v") "\\v")
+                    ((eq? char "\f") "\\f")
+                    ((eq? char "\r") "\\r")
+                    ((eq? char "\"") "\\\"")
+                    ((eq? char "\\") "\\\\")
+                    (else char)))
+            (define (escape-char? char)
+              (not (eq? char (escape-char char))))
+            (define (write-char-escaped char port)
+              (write-string (escape-char char) port))
+            (define (write-string-escaped string port)
+              (cond ((> (string-length string) 0)
+                     (write-char-escaped (string-copy string 0 1) port)
+                     (write-string-escaped (string-copy string 1) port))))
+            (define (write-symbol-escaped symbol port)
+              (define (find-escape-char string)
+                (cond ((eq? (string-length string) 0)
+                       (write-string (symbol->string symbol) port))
+                      ((escape-char? (string-copy string 0 1))
+                       (write-string "|" port)
+                       (write-string (symbol->string symbol) port)
+                       (write-string "|" port))
+                      (else
+                        (find-escape-char (string-copy string 1)))))
+              (find-escape-char (symbol->string symbol)))
+            (define (write-quote quote port)
+              (if (null? (cdr quote))
+                (write-string "#<???>" port)
+                (begin
+                  (write-string "(quote " port)
+                  (write (quote-text quote) port false)
+                  (write-string ")" port))))
+            (define (write-pair pair port in-list?)
+              (write-string (if in-list? " " "(") port)
+              (write (car pair) port false)
+              (cond ((null? (cdr pair))
+                     (write-string ")" port))
+                    ((and (pair? (cdr pair))
+                          (not (quote? (cdr pair))))
+                     (write (cdr pair) port true))
+                    (else
+                      (write-string " . " port)
+                      (write (cdr pair) port true)
+                      (write-string ")" port))))
+            (define (write-vector vector port)
+              (define (write-ref ref)
+                (cond ((< ref (vector-length vector))
+                       (cond ((> ref 0)
+                              (write-string " " port)))
+                       (write (vector-ref vector ref) port false)
+                       (write-ref (+ ref 1)))))
+              (write-string "#(" port)
+              (write-ref 0)
+              (write-string ")" port))
+            (define (write-struct struct port)
+              (define (struct-members->list names)
+                (cond ((null? names) '())
+                      (else
+                        (cons
+                          (list (car names)
+                                (struct-lookup struct (car names)))
+                          (struct-members->list (cdr names))))))
+              (write-string "#s" port)
+              (write
+                (struct-members->list (struct-names struct))
+                port false))
+            (define (write object port in-list?)
+              (cond
+                ((eq? object noprint) noprint)
+                ((eq? object false)
+                 (write-string "false" port))
+                ((eq? object true)
+                 (write-string "true" port))
+                ((number? object)
+                 (write-string (number->string object) port))
+                ((string? object)
+                 (write-string "\"" port)
+                 (write-string-escaped object port)
+                 (write-string "\"" port))
+                ((symbol? object)
+                 (write-symbol-escaped object port))
+                ((null? object)
+                 (write-string "()" port))
+                ((quote? object)
+                 (write-quote object port))
+                ((pair? object)
+                 (write-pair object port in-list?))
+                ((vector? object)
+                 (write-vector object port))
+                ((struct? object)
+                 (write-struct object port))
+                ((primitive-procedure? object)
+                 (write-string "#<primitive-procedure>" port))
+                ((compiled-procedure? object)
+                 (write-string "#<compiled-procedure>" port))
+                ((error? object)
+                 (write-string (error->string object) port))
+                (else
+                  (error "unknown type"))))
+            (write
+              (car args)
+              (if (null? (cdr args))
+                current-output-port
+                (car (cdr args)))
+              false))))
+
+      (define current-output-port (open-stdout))
+
+      (define (procedure? object)
+        (or (primitive-procedure? object)
+            (compiled-procedure? object)))
+
+      (define (test-write object test message)
+        (let ((port (open-string-port)))
+          (write object port)
+          (assert (if (procedure? test)
+                    (test (read-string -1 port))
+                    (eq? (read-string -1 port) test))
+                  message)))
+
+      (test-write noprint "" "no print")
+      (test-write false "false" "false")
+      (test-write true "true" "true")
+      (test-write 1.2 "1.2" "number")
+      (test-write "hello mikkamakka" "\"hello mikkamakka\"" "string")
+      (test-write 'symbol "symbol" "symbol")
+      (test-write '() "()" "null")
+      (test-write ''some-quote "(quote some-quote)" "quote")
+      (test-write '(1 . 2) "(1 . 2)" "pair")
+      (test-write '(1 2 3) "(1 2 3)" "list")
+
+      (test-write "\"" "\"\\\"\"" "escape string")
+
+      ; will work when reader is done
+      ; (test-write '|
+      ;        | "|        \n|" "escape symbol")
+
+      (test-write '(1 2 . 3) "(1 2 . 3)" "unclosed list")
+      (test-write
+        '(1 (2 3) 4 (''some-quote))
+        "(1 (2 3) 4 ((quote (quote some-quote))))"
+        "mixed list")
+
+      (test-write
+        number?
+        "#<primitive-procedure>"
+        "primitive procedure")
+      (test-write
+        write
+        "#<compiled-procedure>"
+        "compiled procedure")
+
+      (test-write (vector) "#()" "empty vector")
+      (test-write (vector 1 2 3) "#(1 2 3)" "vector")
+
+      (test-write
+        (struct '(some value) '(some-other other-value))
+        (lambda (value)
+          (or (eq? value "#s((some value) (some-other other-value))")
+              (eq? value "#s((some-other other-value) (some value))")))
+        "struct")
+
+      (js-import-code / "
+        var makeRegexp = function (expression, flags) {
+            if (typeof expression !== \"string\" ||
+                arguments.length > 1 &&
+                typeof flags !== \"string\") {
+                throw new Error(\"invalid argument\");
+            }
+
+            var regexp = new RegExp(expression, flags || \"\")
+            return function (string) {
+                return string.match(regexp) || [];
+            };
+        };
+
+        exports[\"js-make-regexp\"] = makeRegexp;
+        ")
+
+      (define rx-global 1)
+      (define rx-ignore-case 2)
+
+      (define (make-regexp expression . flags)
+        (js-make-regexp
+          expression
+          (apply
+            string-append
+            (map
+              (lambda (flag)
+                (cond ((eq? flag rx-global) "g")
+                      ((eq? flag rx-ignore-case) "i")
+                      (else (error "invalid regexp flag"))))
+              flags))))
+
+      (define (read port)
+        (define tokenizer-expression
+          '(";[^\\n]*\\n?|"                    ; comment
+            "\\(|\\)|"                         ; list open, list/vector/struct close
+            "#\\(|"                            ; vector open
+            "#s\\(|"                           ; struct open
+            "'|"                               ; quote
+            "\"(\\\\\\\\|\\\\\"|[^\"])*\"?|"   ; string
+            "(\\\\.|"                          ; symbol, single escape
+            "\\|(\\\\\\\\|\\\\\\||[^|])*\\|?|" ; symbol, range escape
+            "[^;()#'|\"\\s])+"))               ; symbol, no comment/list/type-escape/quote/string/whitespace
+        (define tokenizer-rx
+          (make-regexp
+            (apply string-append tokenizer-expression)
+            rx-global))
+        (define token-complete-expression
+          '("^(;[^\\n]*\\n|"                        ; comment
+            "\\(|"                                  ; list open
+            "\\)|"                                  ; list/vector/struct close
+            "#\\(|"                                 ; vector open
+            "#s\\(|"                                ; struct open
+            "'|"                                    ; quote
+            "\"(\\\\\"|\\\\[^\"]|[^\\\\\"])*\"|"    ; string
+            "(\\\\.|"                               ; symbol, single escape
+            "\\|(\\\\\\||\\\\[^\\|]|[^\\\\|])*\\||" ; symbol, range escape
+            "[^;()#'|\"\\s\\\\])+)$"))              ; symbol, no comment/list/type-escape/quote/string/whitespace/escape
+        (define token-complete?
+          ((lambda ()
+             (let ((rx (make-regexp
+                         (apply string-append
+                                token-complete-expression))))
+               (lambda (token) (not (null? (rx token))))))))
+        (define (make-token-reader)
+          (let ((buffer (open-string-port))
+                (read-chunk-length 8192)
+                (tokens '()))
+            (define (read-token)
+              (cond
+                ((null? tokens)
+                 (let ((string (read-string read-chunk-length port)))
+                   (if (or (eof-object? string)
+                           (eq? (string-length string) 0))
+                     end-of-file
+                     (begin
+                       (write-string string buffer)
+                       (set! tokens (tokenizer-rx (read-string -1 buffer)))
+                       (read-token)))))
+                ((not (token-complete? (car tokens)))
+                 ; depends on port specification
+                 ; for current use cases, error needs to be thrown here
+                 ; for future use cases, need to be able to tell if
+                 ; something is in the buffer
+                 (error "invalid end of input" (car tokens)))
+
+                 ; ; some safety
+                 ; (cond ((not (null? (cdr tokens)))
+                 ;        (error "tokenization error" tokens)))
+
+                 ; (write-string (car tokens) buffer)
+                 ; (set! tokens '())
+                 ; (read-token))
+                (else
+                  (let ((token (car tokens)))
+                    (set! tokens (cdr tokens))
+                    token))))
+            read-token))
+        (define read-token (make-token-reader))
+        (define (unescape string)
+          (define (unescape buffer s)
+            (let ((eref (string-index s "\\\\")))
+              (cond ((< eref 0)
+                     (write-string s buffer)
+                     buffer)
+                    ((eq? (string-length s) (+ eref 1))
+                     (error "invalid escape sequence" string))
+                    (else
+                      (write-string (string-copy s 0 eref) buffer)
+                      (write-string (unescape-char (string-copy s (+ eref 1) 1)) buffer)
+                      (unescape buffer (string-copy (+ eref 2)))))))
+          (read-string -1 (unescape (open-string-port) string)))
+        (define (unescape-symbol string)
+          (define (unescape buffer escaped? s)
+            (let ((eref (string-index s "\\\\|\\|")))
+              (cond ((< eref 0)
+                     (write-string s buffer)
+                     buffer)
+                    (else
+                      (write-string (string-copy s 0 eref) buffer)
+                      (let ((echar (string-copy s eref 1)))
+                        (cond ((eq? echar "|")
+                               (unescape
+                                 buffer
+                                 (not escaped?)
+                                 (string-copy s (+ eref 1) -1)))
+                              ((eq? (string-length s) 1)
+                               (write-string "\\" buffer)
+                               buffer)
+                              ((eq? (string-copy s (+ eref 1) 1) "|")
+                               (write-string "|" buffer)
+                               (unescape
+                                 buffer
+                                 escaped?
+                                 (string-copy s (+ eref 2))))
+                              (escpaed?
+                                (write-string (string-copy s eref (+ eref 2)) buffer)
+                                (unescape
+                                  buffer
+                                  true
+                                  (string-copy s (+ eref 2))))
+                              (else
+                                (write-string (string-copy s (+ eref 1) 1) buffer)
+                                (unescape buffer false (string-copy s (+ eref 2))))))))))
+          (string->symbol (read-string -1 (unescape (open-string-port) false string))))
+        (define (list-open? token) (eq? token "("))
+        (define (list-close? token) (eq? token ")"))
+        (define (token->string token)
+          (and (eq? (string-copy token 0 1) "\"")
+               (unescape (string-copy
+                           token 1 (- (string-length token) 1)))))
+        (define (token->symbol token) (unescape-symbol token))
+        (define (read-datum token)
+          (or (string->number token)
+              (token->string token)
+              (token->symbol token)))
+        (define (read-list l)
+          (let ((object (read l)))
+            (cond ((eof-object? object)
+                   (error "unclosed list" l))
+                  ((eq? object l) (reverse l))
+                  (else (read-list (cons object l))))))
+        (define (read l)
+          (let ((token (read-token)))
+            (cond ((eof-object? token) end-of-file)
+                  ((list-open? token) (read-list '()))
+                  ((list-close? token) l)
+                  (else (read-datum token)))))
+        (read '()))
+
+      (define port (open-string-port))
+      ; (write-string "(1 2 3 (4 5 6) 7) 8" port)
+      (write-string "(define false #f)" port)
       ; (define port (open-file-port "mm-rm-self.scm" fs-read-only))
-      ; (write (read port))
-      ; (close-port port)
+      (write (read port))
+      (close-port port)
 
       (assert false "write circular")
 
