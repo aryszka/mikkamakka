@@ -391,6 +391,7 @@
                 };
 
                 regs.proc = car(regs.args);
+                var originalProc = regs.proc;
                 var continuation = importPrimitive(function (args) {
                     if (isNull(args) ||
                         !isNull(cdr(args))) {
@@ -403,18 +404,42 @@
                     regs.cont = contSave.cont;
                     stack = contSave.stack.slice();
                     return car(args);
+                }, function () {
+                    var regsSave = {
+                        env: regs.env,
+                        proc: regs.proc,
+                        args: regs.args,
+                        cont: regs.cont,
+                        stack: stack.slice()
+                    };
+                    regs.args = importArray(Array.prototype.slice.call(arguments));
+                    regs.proc = continuation;
+                    callOp(regs, false);
+                    control();
+                    originalProc.continuedExternally = true;
+                    var result = regs.val;
+                    regs.env = regsSave.env;
+                    regs.proc = regsSave.proc;
+                    regs.args = regsSave.arsg;
+                    regs.cont = regsSave.cont;
+                    stack = regsSave.stack.slice();
+                    return result;
                 });
                 continuation.cc = cont || regs.cont;
                 regs.args = ops.list(continuation);
+            } else if (isPrimitiveProcedure(regs.proc) &&
+                regs.proc.primitive === breakExecution) {
+                regs.proc.continuedExternally = true;
+                break;
             } else {
                 break;
             }
         }
 
         if (isPrimitiveProcedure(regs.proc)) {
-            var cc = regs.proc.cc;
+            var proc = regs.proc;
             regs.val = applyPrimitive(regs.proc, regs.args);
-            index = cc || cont || regs.cont;
+            index = proc.continuedExternally && (program.length - 1) || proc.cc || cont || regs.cont;
             return;
         };
 
@@ -447,12 +472,12 @@
             var regsSave = regs;
             regs.args = importArray(Array.prototype.slice.call(arguments));
             regs.proc = p;
-            regs.next = compiledEntry(p);
-            regs.cont = false;
+            index = compiledEntry(p);
+            regs.cont = program.length - 1;
             control();
             var val = regs.val;
             regs = regsSave;
-            regs.cont = false;
+            regs.cont = program.length - 1;
             return exportVal(val);
         };
         f.__exported = p;
@@ -566,6 +591,8 @@
             defineVar(regs.env, stringToSymbol(key), importVal(module[key], module));
         }
     };
+
+    var jsImportCode = importModule;
 
     // primitive procedures
     var numberEqual = function (args) {
@@ -886,7 +913,7 @@
         importPrimitive(callCc));
 
     defineVar(regs.env, stringToSymbol("break-execution"),
-        makeProcedure(breakExecution, regs.env));
+        importPrimitive(breakExecution));
 
     defineVar(regs.env, stringToSymbol("="),
         importPrimitive(numberEqual));
@@ -1032,6 +1059,7 @@
     var isPerformContinue = makeInstructionQuery("perform-continue");
     var isTest = makeInstructionQuery("test");
     var isBranch = makeInstructionQuery("branch");
+    var isJsImportCode = makeInstructionQuery("js-import-code");
 
     var labelValue = function (label) {
         return car(cdr(label));
@@ -1185,6 +1213,10 @@
         index = isFalse(regs.flag) ? index : labelValue(car(cdr(instruction)));
     });
 
+    var instJsImportCode = makeInstruction(isJsImportCode, function () {
+        jsImportCode(car(cdr(car(cdr(instruction)))), car(cdr(cdr(instruction))));
+    });
+
     var isEnd = function () {
         return isSymbol(instruction) && symbolNameEq(instruction, "end");
     };
@@ -1261,21 +1293,31 @@
     // control
     var index = 0;
     var instruction;
-    for (;;) {
-        instruction = program[index++];
-        switch (true) {
-        case instGoto(): break;
-        case instSave(): break;
-        case instRestore(): break;
-        case instAssign(): break;
-        case instPerform(): break;
-        case instPerformContinue(): break;
-        case instTest(): break;
-        case instBranch(): break;
-        case isEnd(): return;
-        default:
-            error("invalid instruction", instruction);
+    var control = function () {
+        for (;;) {
+            try {
+                instruction = program[index++];
+                switch (true) {
+                case instGoto(): break;
+                case instSave(): break;
+                case instRestore(): break;
+                case instAssign(): break;
+                case instPerform(): break;
+                case instPerformContinue(): break;
+                case instTest(): break;
+                case instBranch(): break;
+                case instJsImportCode(): break;
+                case isEnd(): return;
+                default:
+                    error("invalid instruction", instruction);
+                }
+            } catch (error) {
+                // flushState((index - 1) + ": " + flushVal(instruction, []) + " - ");
+                throw error;
+            } finally {
+                // flushState((index - 1) + ": " + flushVal(instruction, []) + " - ");
+            }
         }
-        // flushState((index - 1) + ": " + flushVal(instruction, []) + " - ");
-    }
+    };
+    control();
 })();

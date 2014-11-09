@@ -951,6 +951,24 @@
       (write-string "[" port)
       (write-all asm)
       (write-string "]" port))
+    (define (js-import-code? asm)
+      (tagged-list? asm 'js-import-code))
+    (define (write-js-import-code asm)
+      (write-string "[" port)
+      (write-symbol 'js-import-code)
+      (write-string ",[[" port)
+      (write-symbol 'const)
+      (write-string ",[" port)
+      (write-symbol (cadadr asm))
+      (write-string ",[]]],[(function () {
+            var module = {exports: {}};
+            var exports = module.exports;
+            " port)
+      (write-string (cadr (caddr asm)) port)
+      (write-string "
+            ;
+            return exports;
+        })(),[]]]]" port))
     (define (write-null)
       (write-string "[]" port))
     (define (write-pair asm)
@@ -970,6 +988,8 @@
              (write-boolean instruction))
             ((symbol? instruction)
              (write-symbol instruction))
+            ((js-import-code? instruction)
+             (write-js-import-code instruction))
             ((null? instruction)
              (write-null))
             ((pair? instruction)
@@ -1333,68 +1353,68 @@
              (set! continued true)
              (cont 15)))
 
-      ; (js-import-code / "exports.a = 1;
-      ;                 exports.b = true;
-      ;                 exports.c = \"some\";")
-      ; (assert (eq? a 1) "import number")
-      ; (assert (eq? b true) "import boolean")
-      ; (assert (eq? c "some") "import string")
+      (js-import-code / "exports.a = 1;
+                      exports.b = true;
+                      exports.c = \"some\";")
+      (assert (eq? a 1) "import number")
+      (assert (eq? b true) "import boolean")
+      (assert (eq? c "some") "import string")
 
-      ; (js-import-code / "exports.join = function () {
-      ;                 return Array.prototype.slice.call(arguments).join(\" \");
-      ;                 };")
-      ; (assert (eq? (join "some log") "some log") "import function")
-      ; (assert (eq? (join "some log" "with" "multiple args") "some log with multiple args")
-      ;         "import function, pass multiple args")
-      ; (assert (eq? (call join "some log" "with" "call") "some log with call")
-      ;         "import function, call with call")
-      ; (assert (eq? (apply join '("some log" "with" "apply")) "some log with apply")
-      ;         "import function, call with apply")
-      ; 
-      ; (js-import-code / "exports.func = function (a, b) { return a + b }")
-      ; (assert (eq? (apply call/cc (list (lambda (return) (return (func 1 2)))))
-      ;              3)
-      ;         "call imported from inside applied call/cc")
+      (js-import-code / "exports.join = function () {
+                      return Array.prototype.slice.call(arguments).join(\" \");
+                      };")
+      (assert (eq? (join "some log") "some log") "import function")
+      (assert (eq? (join "some log" "with" "multiple args") "some log with multiple args")
+              "import function, pass multiple args")
+      (assert (eq? (call join "some log" "with" "call") "some log with call")
+              "import function, call with call")
+      (assert (eq? (apply join '("some log" "with" "apply")) "some log with apply")
+              "import function, call with apply")
+      
+      (js-import-code / "exports.func = function (a, b) { return a + b }")
+      (assert (eq? (apply call/cc (list (lambda (return) (return (func 1 2)))))
+                   3)
+              "call imported from inside applied call/cc")
 
-      ; (js-import-code / "exports.makeFunc = function () {
-      ;                 return function () {
-      ;                   return Array.prototype.slice.call(arguments).join(\" \");
-      ;                 };
-      ;                 }")
-      ; (define func (makeFunc))
-      ; (assert (eq? (func "some" "log" "from" "converted" "function")
-      ;              "some log from converted function")
-      ;         "receive a function from imported and call")
+      (js-import-code / "exports.makeFunc = function () {
+                      return function () {
+                        return Array.prototype.slice.call(arguments).join(\" \");
+                      };
+                      }")
+      (define func (makeFunc))
+      (assert (eq? (func "some" "log" "from" "converted" "function")
+                   "some log from converted function")
+              "receive a function from imported and call")
 
-      ; (js-import-code / "exports.op = function (f, a, b) { return f(a, b); }")
-      ; (assert (eq? (op + 1 2) 3) "pass a primitive function to be called")
-      ; (assert (eq? (op (lambda (a b) (+ a b)) 1 2) 3) "pass a compiled function to be called")
+      (js-import-code / "exports.op = function (f, a, b) { return f(a, b); }")
+      (assert (eq? (op + 1 2) 3) "pass a primitive function to be called")
+      (assert (eq? (op (lambda (a b) (+ a b)) 1 2) 3) "pass a compiled function to be called")
 
-      ; ; the js ret tries to export whatever the last content of the value register is
-      ; ; considered not a bug
-      ; (js-import-code / "exports.call = function (ret) {
-      ;                 ret(1);
-      ;                 }")
-      ; (assert (eq? (call/cc call) 1) "call/cc imported function")
+      ; the js ret tries to export whatever the last content of the value register is
+      ; considered not a bug
+      (js-import-code / "exports.jsCall = function (ret) {
+                      ret(1);
+                      }")
+      (assert (eq? (call/cc jsCall) 1) "call/cc imported function")
 
-      ; (js-import-code / "
-      ;   exports[\"date-time\"] = function () { return new Date().valueOf(); };
-      ;   exports[\"set-timeout\"] = function (callback, ms) {
-      ;       setTimeout(callback, ms);
-      ;   };
-      ;   ")
-      ; (define (sleep ms)
-      ;   (call/cc
-      ;     (lambda (return)
-      ;       (set-timeout
-      ;         (lambda () (return ms))
-      ;         ms)
-      ;       (break-execution))))
-      ; (define time-before (date-time))
-      ; (define delay 120)
-      ; (sleep delay)
-      ; (assert (>= (date-time) (+ time-before delay))
-      ;         "sleep")
+      (js-import-code / "
+        exports[\"date-time\"] = function () { return new Date().valueOf(); };
+        exports[\"set-timeout\"] = function (callback, ms) {
+            setTimeout(callback, ms);
+        };
+        ")
+      (define (sleep ms)
+        (call/cc
+          (lambda (return)
+            (set-timeout
+              (lambda () (return ms))
+              ms)
+            (break-execution))))
+      (define time-before (date-time))
+      (define delay 120)
+      (sleep delay)
+      (assert (>= (date-time) (+ time-before delay))
+              "sleep")
 
       ; ; open stdin/stdout/stderr
       ; (js-import-code / "
@@ -2512,6 +2532,8 @@
       ; (define port (open-file-port "mm-rm-self.scm" fs-read-only))
       ; (write (read port))
       ; (close-port port)
+
+      (assert false "write circular")
 
       noprint)))
 
