@@ -161,7 +161,7 @@
     };
 
     var makeProcedure = function (entry, env) {
-        return {entry: entry, env: env};
+        return {entry: entry, env: env, id: entry};
     };
 
     var compiledEntry = function (p) {
@@ -298,7 +298,7 @@
 
     var isEnv = function (env) {
         return isStruct(env) &&
-            structDefined(env, stringToSymbol("env")),
+            structDefined(env, stringToSymbol("env")) &&
             structDefined(env, stringToSymbol("parent"));
     };
 
@@ -322,12 +322,22 @@
         });
     };
 
+    var procIds = 0;
+
     var defineVar = function (env, name, value) {
+        if ((isPrimitiveProcedure(value) ||
+            isCompiledProcedure(value)) &&
+            !value.id) {
+            value.id = name + ":" + (procIds++);
+        }
         structDefine(env, name, value);
     };
 
+    var envIds = 0;
+
     var extendEnv = function (env, names, values) {
         env = makeEnv(env);
+        env.id = (envIds++);
         for (;;) {
             if (isNull(names) && !isNull(values) ||
                 !isNull(names) && !isSymbol(names) && isNull(values)) {
@@ -361,15 +371,58 @@
     };
 
     var callOp = function (regs, cont) {
+        for (;;) {
+            if (isPrimitiveProcedure(regs.proc) &&
+                regs.proc.primitive === apply) {
+                regs.proc = car(regs.args);
+                regs.args = car(cdr(regs.args));
+            } else if (isPrimitiveProcedure(regs.proc) &&
+                regs.proc.primitive === call) {
+                regs.proc = car(regs.args);
+                regs.args = cdr(regs.args);
+            } else if (isPrimitiveProcedure(regs.proc) &&
+                regs.proc.primitive === callCc) {
+                var contSave = {
+                    env: regs.env,
+                    proc: regs.proc,
+                    args: regs.args,
+                    cont: cont || regs.cont,
+                    stack: stack.slice()
+                };
+
+                regs.proc = car(regs.args);
+                var continuation = importPrimitive(function (args) {
+                    if (isNull(args) ||
+                        !isNull(cdr(args))) {
+                        return error("invalid arity");
+                    }
+
+                    regs.env = contSave.env;
+                    regs.proc = contSave.proc;
+                    regs.args = contSave.args;
+                    regs.cont = contSave.cont;
+                    stack = contSave.stack.slice();
+                    return car(args);
+                });
+                continuation.cc = cont || regs.cont;
+                regs.args = ops.list(continuation);
+            } else {
+                break;
+            }
+        }
+
         if (isPrimitiveProcedure(regs.proc)) {
+            var cc = regs.proc.cc;
             regs.val = applyPrimitive(regs.proc, regs.args);
-            return cont || regs.cont;
+            index = cc || cont || regs.cont;
+            return;
         };
 
         if (cont) {
             regs.cont = cont;
         }
-        return compiledEntry(regs.proc);
+
+        index = compiledEntry(regs.proc);
     };
 
     // import/export
@@ -712,7 +765,7 @@
         extendEnv: func(3, false, isEnv, extendEnv),
         isFalse: func(1, false, false, isFalse),
         makeProcedure: func(2, false, function (entry, env) {
-            return isFunction(entry) && isEnv(env);
+            return isNumber(entry) && isEnv(env);
         }, makeProcedure),
         compiledEntry: func(1, false, isCompiledProcedure, compiledEntry),
         compiledProcedureEnv: func(1, false, isCompiledProcedure, compiledProcedureEnv),
@@ -723,6 +776,7 @@
 
     // registers
     var regs = {
+        flag: false,
         env: makeEnv(false),
         proc: false,
         val: false,
@@ -741,26 +795,8 @@
         return stack.pop();
     };
 
-    var apply = function () {
-        if (isNull(regs.args) ||
-            isNull(cdr(regs.args)) ||
-            !isNull(cdr(cdr(regs.args)))) {
-            return error("invalid arity");
-        }
-
-        regs.proc = car(regs.args);
-        regs.args = car(cdr(regs.args));
-        return ops.call(regs, false);
-    };
-
-    var call = function () {
-        if (isNull(regs.args)) {
-            return error("invalid arity");
-        }
-
-        regs.args = [car(regs.args), [cdr(regs.args), []]];
-        return apply;
-    };
+    var apply = function () {};
+    var call = function () {};
 
     var callCc = function () {
         if (isNull(regs.args) ||
@@ -841,16 +877,16 @@
         importFunction(func(1, false, false, isPrimitiveProcedure)));
 
     defineVar(regs.env, stringToSymbol("apply"),
-        makeProcedure(apply, regs.env));
+        importPrimitive(apply));
+
+    defineVar(regs.env, stringToSymbol("call"),
+        importPrimitive(call));
 
     defineVar(regs.env, stringToSymbol("call/cc"),
-        makeProcedure(callCc, regs.env));
+        importPrimitive(callCc));
 
     defineVar(regs.env, stringToSymbol("break-execution"),
         makeProcedure(breakExecution, regs.env));
-
-    defineVar(regs.env, stringToSymbol("call"),
-        makeProcedure(call, regs.env));
 
     defineVar(regs.env, stringToSymbol("="),
         importPrimitive(numberEqual));
@@ -963,12 +999,283 @@
     defineVar(regs.env, stringToSymbol("string->symbol"),
         importFunction(func(1, false, isString, stringToSymbol)));
 
+    var symbolNameEq = function (symbol, name) {
+        return symbolToString(symbol) === name;
+    }
+
+    var makeInstructionQuery = function (name) {
+        return function (inst) {
+            return symbolNameEq(car(inst), name);
+        };
+    };
+
+    var makeInstruction = function (query, ops) {
+        return function () {
+            if (!query(instruction)) {
+                return false;
+            }
+
+            ops();
+            return true;
+        };
+    };
+
+    var isLabel = makeInstructionQuery("label");
+    var isReg = makeInstructionQuery("reg");
+    var isConst = makeInstructionQuery("const");
+    var isOp = makeInstructionQuery("op");
+    var isGoto = makeInstructionQuery("goto");
+    var isSave = makeInstructionQuery("save");
+    var isRestore = makeInstructionQuery("restore");
+    var isAssign = makeInstructionQuery("assign");
+    var isPerform = makeInstructionQuery("perform");
+    var isPerformContinue = makeInstructionQuery("perform-continue");
+    var isTest = makeInstructionQuery("test");
+    var isBranch = makeInstructionQuery("branch");
+
+    var labelValue = function (label) {
+        return car(cdr(label));
+    };
+
+    var constValue = function (c) {
+        return car(cdr(c));
+    };
+
+    var regValue = function (reg) {
+        return regs[symbolToString(car(cdr(reg)))];
+    };
+
+    var setRegValue = function (reg, value) {
+        regs[symbolToString(car(cdr(reg)))] = value;
+    };
+
+    var gotoIndex = function () {
+        var arg = car(cdr(instruction));
+        switch (true) {
+        case isLabel(arg):
+            return labelValue(arg);
+        case isReg(arg):
+            return regValue(arg);
+        default:
+            return error("invalid goto instruction", arg);
+        }
+    };
+
+    var instGoto = makeInstruction(isGoto, function () {
+        index = gotoIndex();
+    });
+
+    var instSave = makeInstruction(isSave, function () {
+        save(regValue(instruction));
+    });
+
+    var instRestore = makeInstruction(isRestore, function () {
+        setRegValue(instruction, restore());
+    });
+
+    var opName = function (op) {
+        switch (symbolToString(car(cdr(op)))) {
+        case "lookup-variable-value":
+            return "lookupVar";
+        case "set-variable-value!":
+            return "setVar";
+        case "define-variable!":
+            return "defineVar";
+        case "false?":
+            return "isFalse";
+        case "compiled-procedure-env":
+            return "compiledProcedureEnv";
+        case "extend-environment":
+            return "extendEnv";
+        case "make-compiled-procedure":
+            return "makeProcedure";
+        case "cons":
+            return "cons";
+        case "list":
+            return "list";
+        case "compiled-procedure-entry":
+            return "compiledEntry";
+        case "procedure-call":
+            return "call";
+        default:
+            return error("invalid operation", op);
+        }
+    };
+
+    var getArgValue = function (arg) {
+        switch (true) {
+        case isReg(arg):
+            return regValue(arg);
+        case isLabel(arg):
+            return labelValue(arg);
+        case isConst(arg):
+            return constValue(arg);
+        case isSymbol(arg) && symbolNameEq(arg, "regs"):
+            return regs;
+        case isSymbol(arg) && symbolNameEq(arg, "false"):
+            return false;
+        default:
+            return error("invalid op argument", arg);
+        }
+    };
+
+    var opArgs = function (argList) {
+        if (isNull(argList)) {
+            return [];
+        }
+
+        var args = opArgs(cdr(argList));
+        args.unshift(getArgValue(car(argList)));
+        return args;
+    };
+
+    var instOpCall = function (opInst) {
+        return ops[opName(car(opInst))].apply(this, opArgs(cdr(opInst)));
+    };
+
+    var assignValue = function () {
+        var valueInst = car(cdr(cdr(instruction)));
+        switch (true) {
+        case isReg(valueInst):
+            return regValue(valueInst);
+        case isLabel(valueInst):
+            return labelValue(valueInst);
+        case isConst(valueInst):
+            return constValue(valueInst);
+        case isOp(valueInst):
+            return instOpCall(cdr(cdr(instruction)));
+        default:
+            return error("invalid assignment", instruction);
+        }
+    };
+
+    var instAssign = makeInstruction(isAssign, function () {
+        setRegValue(instruction, assignValue());
+    });
+
+    var instPerform = makeInstruction(isPerform, function () {
+        instOpCall(cdr(instruction));
+    });
+
+    var instPerformContinue = makeInstruction(isPerformContinue, function () {
+        instOpCall(cdr(instruction));
+        // index = regs.cont;
+    });
+
+    var testValue = function () {
+        var arg = car(cdr(instruction));
+        switch (true) {
+        case isReg(arg):
+            return regValue(arg);
+        case isOp(arg):
+            return instOpCall(cdr(instruction));
+        default:
+            return error("invalid test", instruction);
+        }
+    };
+
+    var instTest = makeInstruction(isTest, function () {
+        regs.flag = testValue();
+    });
+
+    var instBranch = makeInstruction(isBranch, function () {
+        if (isFalse(regs.flag)) {
+            return;
+        }
+        index = isFalse(regs.flag) ? index : labelValue(car(cdr(instruction)));
+    });
+
+    var isEnd = function () {
+        return isSymbol(instruction) && symbolNameEq(instruction, "end");
+    };
+
+    var flushVal = function (val, flushed) {
+        if ((isPair(val) ||
+            typeof val === "object") &&
+            flushed.indexOf(val) >= 0) {
+            return "circular";
+        }
+        flushed.push(val);
+        var s = "";
+        if (isPair(val)) {
+            s += "[";
+            s += flushVal(car(val), flushed);
+            s += ", ";
+            s += flushVal(cdr(val), flushed);
+            s += "]";
+        } else if (isSymbol(val)) {
+            s += val[0];
+        } else if (isNull(val)) {
+            s += "[]";
+        } else if (isEnv(val)) {
+            s += "env-" + val.id;
+        } else if (isPrimitiveProcedure(val)) {
+            s += "primitive-" + val.id;
+        } else if (typeof val === "object") {
+            s += "{";
+            for (var key in val) {
+                s += key;
+                s += ": ";
+                s += flushVal(val[key], flushed);
+                s += ", ";
+            }
+            s += "}";
+        } else {
+            s += String(val);
+        }
+        return s;
+    };
+
+    var flushStack = function () {
+        var s = "[";
+        for (var i = 0; i < stack.length; i++) {
+            s += flushVal(stack[i], []);
+            s += ", ";
+        }
+        s += "]";
+        return s;
+    };
+
+    var flushState = function (s) {
+        s += "{env: ";
+        s += regs.env.id;
+        s += ", proc: ";
+        s += regs.proc.id;
+        s += ", val: ";
+        s += flushVal(regs.val, []);
+        s += ", args: ";
+        s += flushVal(regs.args, []);
+        s += ", cont: ";
+        s += String(regs.cont);
+        s += ", stack: ";
+        s += flushStack();
+        s += "}";
+
+        console.error(s);
+    };
+
+    var program = [
     /* [program] */
+    ];
 
     // control
-    regs.next = start;
-    var control = function () {
-        for (; regs.next; regs.next = regs.next());
-    };
-    control();
+    var index = 0;
+    var instruction;
+    for (;;) {
+        instruction = program[index++];
+        switch (true) {
+        case instGoto(): break;
+        case instSave(): break;
+        case instRestore(): break;
+        case instAssign(): break;
+        case instPerform(): break;
+        case instPerformContinue(): break;
+        case instTest(): break;
+        case instBranch(): break;
+        case isEnd(): return;
+        default:
+            error("invalid instruction", instruction);
+        }
+        // flushState((index - 1) + ": " + flushVal(instruction, []) + " - ");
+    }
 })();
