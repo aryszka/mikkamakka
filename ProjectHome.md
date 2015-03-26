@@ -1,0 +1,1 @@
+Mikkamakka is an basic, extendable scheme implementation, supporting the most crucial scheme features by default. It is written in itself, and compiles into JavaScript[sic](sic.md) and go, hijacking the underlying runtime of these two languages.
