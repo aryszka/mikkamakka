@@ -1,4 +1,3 @@
-# mikkamakka
-Automatically exported from code.google.com/p/mikkamakka
+# Mikkamakka Functional Calculator
 
-storing it here temporarily until finding a way to store it with mercurial
+WIP Scheme implementation with double output to native and to JavaScript.
