@@ -1,5 +1,0 @@
-(define (make-object)
-  (define (internal-method) 'object-ok)
-  (lambda () (internal-method)))
-(define object (make-object))
-(display (object))
