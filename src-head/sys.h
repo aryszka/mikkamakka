@@ -1,2 +1,0 @@
-char getdecchar();
-void initsys();

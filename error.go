@@ -7,6 +7,7 @@ import (
 
 func mpanic(a *val) *val {
 	panic(fmt.Errorf("%v", a.value))
+	return a
 }
 
 func isError(a *val) *val {
@@ -14,7 +15,14 @@ func isError(a *val) *val {
 }
 
 func errorString(a *val) *val {
-	return fromString(a.value.(error).Error())
+	switch v := a.value.(type) {
+	case error:
+		return fromString(v.Error())
+	case string:
+		return fromString(v)
+	default:
+		return mpanic(a)
+	}
 }
 
 func fatal(a *val) {

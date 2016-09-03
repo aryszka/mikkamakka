@@ -1,5 +1,7 @@
 package main
 
+import "strconv"
+
 func intVal(n *val) int {
 	return n.value.(int)
 }
@@ -16,4 +18,18 @@ func greater(left, right *val) *val {
 	}
 
 	return vfalse
+}
+
+func nfromString(s string) *val {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+
+	return fromInt(n)
+}
+
+func numberToString(n *val) *val {
+	checkType(n, number)
+	return fromString(strconv.Itoa(n.value.(int)))
 }
