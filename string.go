@@ -20,13 +20,21 @@ func byteVal(s *val) []byte {
 	return []byte(s.value.(*str).sys)
 }
 
-func appendString(left, right *val) *val {
-	checkType(left, mstring)
-	checkType(right, mstring)
-	return &val{mstring, &str{left.value.(*str).sys + right.value.(*str).sys}}
+func appendString(a ...*val) *val {
+	var b []byte
+	for _, ai := range a {
+		checkType(ai, mstring)
+		b = append(b, byteVal(ai)...)
+	}
+
+	return fromBytes(b)
 }
 
 func stringLength(s *val) *val {
 	checkType(s, mstring)
 	return fromInt(len(s.value.(*str).sys))
+}
+
+func isString(a *val) *val {
+	return is(a, mstring)
 }

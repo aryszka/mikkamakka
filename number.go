@@ -33,3 +33,7 @@ func numberToString(n *val) *val {
 	checkType(n, number)
 	return fromString(strconv.Itoa(n.value.(int)))
 }
+
+func isNumber(a *val) *val {
+	return is(a, number)
+}

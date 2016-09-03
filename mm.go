@@ -8,6 +8,10 @@ import "strings"
 var (
 	voidError = &val{merror, "void error"}
 	invalidToken = &val{merror, "invalid token"}
+	notImplemented = &val{merror, "not implemented"}
+	psempty = &val{number, 0}
+	pssymbol = &val{number, 1}
+	psstring = &val{number, 2}
 )
 
 func writeln(f *val, s *val) *val {
@@ -25,6 +29,7 @@ func reader(in *val) *val {
 	return fromMap(map[string]*val{
 		"in": in,
 		"state": voidError,
+		"parseState": psempty,
 	})
 }
 
@@ -45,6 +50,14 @@ func isDigit(s *val) *val {
 	return vfalse
 }
 
+func isStringDelimiter(s *val) *val {
+	if stringVal(s) == `"` {
+		return vtrue
+	}
+
+	return vfalse
+}
+
 func read(r *val) *val {
 	in := field(r, sfromString("in"))
 
@@ -53,31 +66,91 @@ func read(r *val) *val {
 		in = fread(in, fromInt(1))
 		st := fstate(in)
 
+		ps := field(r, sfromString("parseState"))
 		if isError(st) != vfalse {
 			return fromMap(map[string]*val{
 				"in": in,
 				"state": st,
+				"parseState": ps,
 			})
 		}
 
-		if isWhiteSpace(st) != vfalse {
-			if greater(stringLength(token), fromInt(0)) != vfalse {
-				return fromMap(map[string]*val{
-					"in": in,
-					"state": nfromString(stringVal(token)),
-				})
+		switch ps {
+		case psempty:
+			if isWhiteSpace(st) != vfalse {
+				return loop(fromString(""))
 			}
 
-			return loop(token)
-		}
+			if isDigit(st) != vfalse {
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": st,
+					"parseState": pssymbol,
+				})
 
-		if isDigit(st) != vfalse {
+				return loop(st)
+			}
+
+			if isStringDelimiter(st) != vfalse {
+				st = fromString("")
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": st,
+					"parseState": psstring,
+				})
+
+				return loop(st)
+			}
+		case pssymbol:
+			if isWhiteSpace(st) != vfalse {
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": nfromString(stringVal(token)),
+					"parseState": psempty,
+				})
+
+				if greater(stringLength(token), fromInt(0)) != vfalse {
+					return  r
+				}
+
+				return loop(fromString(""))
+			}
+
+			if isDigit(st) != vfalse {
+				return loop(appendString(token, st))
+			}
+
+			if isStringDelimiter(st) != vfalse {
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": nfromString(stringVal(token)),
+					"parseState": psstring,
+				})
+
+				if greater(stringLength(token), fromInt(0)) != vfalse {
+					return  r
+				}
+
+				return loop(fromString(""))
+			}
+		case psstring:
+			if isStringDelimiter(st) != vfalse {
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": token,
+					"parseState": psempty,
+				})
+
+				return r
+			}
+
 			return loop(appendString(token, st))
 		}
 
 		return fromMap(map[string]*val{
 			"in": in,
 			"state": invalidToken,
+			"parseState": field(r, sfromString("parseState")),
 		})
 	}
 
@@ -92,7 +165,20 @@ func printer(out *val) *val {
 }
 
 func mprint(p, v *val) *val {
-	f := writeln(field(p, sfromString("out")), numberToString(v))
+	f := field(p, sfromString("out"))
+
+	if isNumber(v) != vfalse {
+		v = numberToString(v)
+	} else if isString(v) != vfalse {
+		v = appendString(fromString(`"`), v, fromString(`"`))
+	} else {
+		return fromMap(map[string]*val{
+			"out": f,
+			"state": notImplemented,
+		})
+	}
+
+	f = writeln(f, v)
 	if st := fstate(f); isError(st) != vfalse {
 		return fromMap(map[string]*val{
 			"out": p,
@@ -107,7 +193,9 @@ func mprint(p, v *val) *val {
 }
 
 func loop(in, out *val) {
-	// TODO: need to drain input for OSX terminal
+	// TODO:
+	// - need to drain input for OSX terminal
+	// - fix ctl-d behavior
 
 	in = read(in)
 	v := field(in, sfromString("state"))
