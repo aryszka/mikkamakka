@@ -12,6 +12,7 @@ var (
 	psempty        = &val{number, 0}
 	pssymbol       = &val{number, 1}
 	psstring       = &val{number, 2}
+	pscomment = &val{number, 3}
 )
 
 func writeln(f *val, s *val) *val {
@@ -33,9 +34,16 @@ func reader(in *val) *val {
 	})
 }
 
+func isNewline(s *val) *val {
+	if stringVal(s) == "\n" {
+		return vtrue
+	}
+
+	return vfalse
+}
+
 func isWhiteSpace(s *val) *val {
-	switch stringVal(s) {
-	case " ", "\n":
+	if isNewline(s) != vfalse || stringVal(s) == " " {
 		return vtrue
 	}
 
@@ -52,6 +60,14 @@ func isDigit(s *val) *val {
 
 func isStringDelimiter(s *val) *val {
 	if stringVal(s) == `"` {
+		return vtrue
+	}
+
+	return vfalse
+}
+
+func isComment(s *val) *val {
+	if stringVal(s) == ";" {
 		return vtrue
 	}
 
@@ -78,7 +94,7 @@ func read(r *val) *val {
 		switch ps {
 		case psempty:
 			if isWhiteSpace(st) != vfalse {
-				return loop(fromString(""))
+				return loop(token)
 			}
 
 			if isStringDelimiter(st) != vfalse {
@@ -92,6 +108,17 @@ func read(r *val) *val {
 				return loop(st)
 			}
 
+			if isComment(st) != vfalse {
+				st = fromString("")
+				r = fromMap(map[string]*val{
+					"in":         in,
+					"state":      st,
+					"parseState": pscomment,
+				})
+
+				return loop(st)
+			}
+
 			r = fromMap(map[string]*val{
 				"in":         in,
 				"state":      st,
@@ -99,14 +126,30 @@ func read(r *val) *val {
 			})
 
 			return loop(st)
+		case pscomment:
+			if isNewline(st) != vfalse {
+				st = fromString("")
+				r = fromMap(map[string]*val{
+					"in": in,
+					"state": st,
+					"parseState": psempty,
+				})
+			}
+
+			return loop(st)
 		case pssymbol:
-			if isWhiteSpace(st) != vfalse {
+			if isWhiteSpace(st) != vfalse || isComment(st) != vfalse {
+				pst := psempty
+				if isComment(st) != vfalse {
+					pst = pscomment
+				}
+
 				st = nfromString(stringVal(token))
 				if isError(st) == vfalse {
 					return fromMap(map[string]*val{
 						"in":         in,
 						"state":      st,
-						"parseState": psempty,
+						"parseState": pst,
 					})
 				}
 
@@ -115,14 +158,14 @@ func read(r *val) *val {
 					return fromMap(map[string]*val{
 						"in":         in,
 						"state":      st,
-						"parseState": psempty,
+						"parseState": pst,
 					})
 				}
 
 				return fromMap(map[string]*val{
 					"in":         in,
 					"state":      sfromString(stringVal(token)),
-					"parseState": psempty,
+					"parseState": pst,
 				})
 			}
 
@@ -177,6 +220,8 @@ func mprint(p, v *val) *val {
 		v = numberToString(v)
 	} else if isString(v) != vfalse {
 		v = appendString(fromString(`"`), v, fromString(`"`))
+	} else if isBool(v) != vfalse {
+		v = boolToString(v)
 	} else {
 		return fromMap(map[string]*val{
 			"out":   f,

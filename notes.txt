@@ -21,7 +21,6 @@
 (define s (last-read f))
 (define f (write f s))
 
-
 #lit
 
 The below code implements the traditional map:

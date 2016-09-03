@@ -15,3 +15,19 @@ func bfromString(s string) *val {
 		return invalidToken
 	}
 }
+
+func boolToString(b *val) *val {
+	if b == vtrue {
+		return fromString("true")
+	}
+
+	return fromString("false")
+}
+
+func isBool(a *val) *val {
+	if a.mtype == mbool {
+		return vtrue
+	}
+
+	return vfalse
+}
