@@ -1,0 +1,57 @@
+(define s {
+	a 1
+	b 2
+	c 3})
+(define s (struct
+	a 1
+	b 2
+	c 3
+))
+(s 'a)
+
+(define v [1 2 3])
+(define v (vector 1 2 3))
+(v 1)
+
+; how to return multiple values
+; how to return monads and values
+
+(define f (fopen "/some/file"))
+(define f (read f 512))
+(define s (last-read f))
+(define f (write f s))
+
+
+#lit
+
+The below code implements the traditional map:
+
+(code
+
+	(define (map f l)
+	  (if (nil? l)
+	    '()
+		(cons (f (car l)) (map (cdr l)))))
+	
+	; how to make this support subtests? one symbol one test?
+	(test
+		(test "nil" (= (map (+ 1) '()) '()))
+		(test "some other test" (=== (map (+ 1) '(1 2 3)) '(2 3 4)))
+
+'end-code)
+
+The above code is the map, tested.
+
+#lit
+
+(map (+ 1) '(1 2 3))
+
+#ini
+
+[a.b]
+c.d = 1
+
+#ini#lit
+#lit
+
+(((a 'b) 'c) 'd)
