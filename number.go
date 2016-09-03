@@ -23,7 +23,7 @@ func greater(left, right *val) *val {
 func nfromString(s string) *val {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		panic(err)
+		return invalidToken
 	}
 
 	return fromInt(n)

@@ -11,3 +11,15 @@ func sfromString(s string) *val {
 func sstringVal(s *val) string {
 	return s.value.(*sym).val
 }
+
+func symbolToString(s *val) *val {
+	return fromString(sstringVal(s))
+}
+
+func isSymbol(a *val) *val {
+	if a.mtype == symbol {
+		return vtrue
+	}
+
+	return vfalse
+}
