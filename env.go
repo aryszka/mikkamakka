@@ -6,9 +6,9 @@ type env struct {
 }
 
 var (
-	undefinedVariable = &val{merror, "undefined variable"}
-	notAnEnvironment  = &val{merror, "not an environment"}
-	variableExists    = &val{merror, "variable exists"}
+	undefined        = &val{merror, "undefined"}
+	notAnEnvironment = &val{merror, "not an environment"}
+	definitionExists = &val{merror, "definition exists"}
 )
 
 func newEnv() *val {
@@ -21,7 +21,7 @@ func newEnv() *val {
 	}
 }
 
-func lookupVar(e, n *val) *val {
+func lookupDef(e, n *val) *val {
 	checkType(e, environment)
 	checkType(n, symbol)
 	et, ok := e.value.(*env)
@@ -35,13 +35,13 @@ func lookupVar(e, n *val) *val {
 	}
 
 	if et.parent == nil {
-		return fatal(undefinedVariable)
+		return fatal(undefined)
 	}
 
-	return lookupVar(et.parent, n)
+	return lookupDef(et.parent, n)
 }
 
-func defVar(e, n, v *val) *val {
+func define(e, n, v *val) *val {
 	checkType(e, environment)
 	checkType(n, symbol)
 	et, ok := e.value.(*env)
@@ -51,14 +51,46 @@ func defVar(e, n, v *val) *val {
 
 	ns := sstringVal(n)
 	if _, has := et.current[ns]; has {
-		return fatal(variableExists)
+		return fatal(definitionExists)
 	}
 
 	et.current[ns] = v
 	return v
 }
 
+func extendEnv(e, n, a *val) *val {
+	m := make(map[string]*val)
+	for {
+		if isNil(n) != vfalse && isNil(a) != vfalse {
+			break
+		}
+
+		if isPair(n) == vfalse || isPair(a) == vfalse {
+			return fatal(invalidArguments)
+		}
+
+		m[sstringVal(car(n))] = car(a)
+		n, a = cdr(n), cdr(a)
+	}
+
+	return &val{
+		environment,
+		&env{
+			current: m,
+			parent:  e,
+		},
+	}
+}
+
 func envString(e *val) *val {
 	checkType(e, environment)
 	return fromString("<environment>")
+}
+
+func isEnv(e *val) *val {
+	if e.mtype == environment {
+		return vtrue
+	}
+
+	return vfalse
 }

@@ -5,14 +5,14 @@ when panic, when error?
 */
 
 var (
-	invalidQuote      = &val{merror, "invalid quote"}
-	invalidDef        = &val{merror, "invalid definition"}
-	invalidIf         = &val{merror, "invalid if expression"}
-	invalidFn         = &val{merror, "invalid function expression"}
-	invalidSequence   = &val{merror, "invalid sequence"}
-	invalidCond       = &val{merror, "invalid cond expression"}
-	invalidExpression = &val{merror, "invalid expression"}
-	isVariable        = isSymbol
+	invalidQuote       = &val{merror, "invalid quote"}
+	invalidDef         = &val{merror, "invalid definition"}
+	invalidIf          = &val{merror, "invalid if expression"}
+	invalidFn          = &val{merror, "invalid function expression"}
+	invalidSequence    = &val{merror, "invalid sequence"}
+	invalidCond        = &val{merror, "invalid cond expression"}
+	invalidApplication = &val{merror, "invalid application"}
+	invalidExpression  = &val{merror, "invalid expression"}
 )
 
 func isTaggedBy(v, s *val) *val {
@@ -43,11 +43,11 @@ func isDef(v *val) *val {
 	return isTaggedBy(v, sfromString("def"))
 }
 
-func varOfVarDef(v *val) *val {
+func nameOfDef(v *val) *val {
 	return car(cdr(v))
 }
 
-func varOfFunctionDef(v *val) *val {
+func nameOfFunctionDef(v *val) *val {
 	if isPair(car(cdr(v))) == vfalse || isSymbol(car(car(cdr(v)))) == vfalse {
 		return fatal(invalidDef)
 	}
@@ -55,19 +55,19 @@ func varOfFunctionDef(v *val) *val {
 	return car(car(cdr(v)))
 }
 
-func varOfDef(v *val) *val {
+func defName(v *val) *val {
 	if isPair(cdr(v)) == vfalse {
 		return fatal(invalidDef)
 	}
 
 	if isSymbol(car(cdr(v))) != vfalse {
-		return varOfVarDef(v)
+		return nameOfDef(v)
 	}
 
-	return varOfFunctionDef(v)
+	return nameOfFunctionDef(v)
 }
 
-func valOfVarDef(v *val) *val {
+func valueOfDef(v *val) *val {
 	if isPair(cdr(cdr(v))) == vfalse || cdr(cdr(cdr(v))) != vnil {
 		return fatal(invalidDef)
 	}
@@ -75,13 +75,13 @@ func valOfVarDef(v *val) *val {
 	return car(cdr(cdr(v)))
 }
 
-func valOfDef(v *val) *val {
+func defValue(v *val) *val {
 	if isPair(cdr(v)) == vfalse {
 		return fatal(invalidDef)
 	}
 
 	if isSymbol(car(cdr(v))) != vfalse {
-		return valOfVarDef(v)
+		return valueOfDef(v)
 	}
 
 	if isPair(car(cdr(v))) == vfalse {
@@ -92,7 +92,7 @@ func valOfDef(v *val) *val {
 }
 
 func evalDef(e, v *val) *val {
-	return defVar(e, varOfDef(v), eval(e, valOfDef(v)))
+	return define(e, defName(v), eval(e, defValue(v)))
 }
 
 func isIf(v *val) *val {
@@ -147,11 +147,11 @@ func procParams(v *val) *val {
 }
 
 func procBody(v *val) *val {
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse {
+	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse || isPair(cdr(cdr(v))) == vfalse {
 		return fatal(invalidFn)
 	}
 
-	return cdr(cdr(v))
+	return car(cdr(cdr(v)))
 }
 
 func fnToProc(e, v *val) *val {
@@ -236,6 +236,30 @@ func condToIf(v *val) *val {
 	return expandCond(cdr(v))
 }
 
+func isApplication(v *val) *val {
+	return isPair(v)
+}
+
+func valueList(e, v *val) *val {
+	if isNil(v) != vfalse {
+		return vnil
+	}
+
+	if isPair(v) == vfalse {
+		return fatal(invalidApplication)
+	}
+
+	return cons(eval(e, car(v)), valueList(e, cdr(v)))
+}
+
+func evalApply(e, v *val) *val {
+	if isPair(v) == vfalse {
+		return fatal(invalidApplication)
+	}
+
+	return apply(eval(e, car(v)), valueList(e, cdr(v)))
+}
+
 func eval(e, v *val) *val {
 	switch {
 	case isNumber(v) != vfalse:
@@ -246,8 +270,8 @@ func eval(e, v *val) *val {
 		return v
 	case isQuote(v) != vfalse:
 		return evalQuote(e, v)
-	case isVariable(v) != vfalse:
-		return lookupVar(e, v)
+	case isSymbol(v) != vfalse:
+		return lookupDef(e, v)
 	case isDef(v) != vfalse:
 		return evalDef(e, v)
 	case isIf(v) != vfalse:
@@ -258,6 +282,8 @@ func eval(e, v *val) *val {
 		return evalSeq(e, beginSeq(v))
 	case isCond(v) != vfalse:
 		return eval(e, condToIf(v))
+	case isApplication(v) != vfalse:
+		return evalApply(e, v)
 	default:
 		return fatal(invalidExpression)
 	}

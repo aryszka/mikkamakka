@@ -182,6 +182,10 @@ func mprintq(p, v, q *val) *val {
 		return printVector(p, v)
 	} else if isStruct(v) != vfalse {
 		return printStruct(p, v)
+	} else if isEnv(v) != vfalse {
+		v = envString(v)
+	} else if isProc(v) != vfalse {
+		v = procString(v)
 	} else {
 		return assign(p, fromMap(map[string]*val{
 			"state": notImplemented,
