@@ -9,6 +9,7 @@ var (
 	invalidToken    = &val{merror, "invalid token"}
 	notImplemented  = &val{merror, "not implemented"}
 	unexpectedClose = &val{merror, "unexpected close"}
+	irregularCons   = &val{merror, "irregular cons"}
 	voidError       = &val{merror, "void error"}
 	ttnone          = &val{number, 0}
 	ttcomment       = &val{number, 1}
@@ -34,7 +35,10 @@ func reader(in *val) *val {
 		"token-type":    ttnone,
 		"value":         voidError,
 		"current-token": fromString(""),
+		"in-list":       vfalse,
 		"close-list":    vfalse,
+		"cons":          vfalse,
+		"cons-items":    fromInt(0),
 	})
 }
 
@@ -80,6 +84,14 @@ func isListOpen(s *val) *val {
 
 func isListClose(s *val) *val {
 	if stringVal(s) == ")" {
+		return vtrue
+	}
+
+	return vfalse
+}
+
+func isCons(s *val) *val {
+	if stringVal(s) == "." {
 		return vtrue
 	}
 
@@ -191,9 +203,43 @@ func processString(r *val) *val {
 	}))
 }
 
+func inList(r *val) bool {
+	return field(r, sfromString("in-list")) != vfalse
+}
+
 func setClose(r *val) *val {
 	return assign(r, fromMap(map[string]*val{
 		"close-list": vtrue,
+	}))
+}
+
+func hasCons(r *val) bool {
+	return greater(field(r, sfromString("cons-items")), fromInt(0)) != vfalse
+}
+
+func consSet(r *val) bool {
+	return field(r, sfromString("cons")) != vfalse
+}
+
+func setCons(r *val) *val {
+	if hasCons(r) {
+		return setIrregularCons(r)
+	}
+
+	return assign(r, fromMap(map[string]*val{
+		"cons": vtrue,
+	}))
+}
+
+func setUnexpectedClose(r *val) *val {
+	return assign(r, fromMap(map[string]*val{
+		"value": unexpectedClose,
+	}))
+}
+
+func setIrregularCons(r *val) *val {
+	return assign(r, fromMap(map[string]*val{
+		"value": irregularCons,
 	}))
 }
 
@@ -201,22 +247,21 @@ func readList(r *val) *val {
 	lr := reader(field(r, sfromString("in")))
 	lr = assign(lr, fromMap(map[string]*val{
 		"list-items": vnil,
+		"in-list":    vtrue,
 	}))
 
 	var loop func(*val) *val
 	loop = func(lr *val) *val {
 		lr = read(lr)
 		if readError(lr) {
-			return lr
+			return assign(r, fromMap(map[string]*val{
+				"in":    field(lr, sfromString("in")),
+				"value": field(lr, sfromString("value")),
+			}))
 		}
 
 		v := field(lr, sfromString("value"))
-		println("something returned", isPair(v) != vfalse)
 		if v != voidError {
-			if isPair(v) == vfalse {
-				println("assigning", sstringVal(v))
-			}
-
 			lr = assign(lr, fromMap(map[string]*val{
 				"list-items": cons(
 					v,
@@ -224,10 +269,42 @@ func readList(r *val) *val {
 				),
 				"value": voidError,
 			}))
+
+			if hasCons(lr) {
+				lr = assign(lr, fromMap(map[string]*val{
+					"cons-items": add(field(lr, sfromString("cons-items")), fromInt(1)),
+				}))
+			}
+		}
+
+		if consSet(lr) {
+			if field(lr, sfromString("list-items")) == vnil ||
+				!neq(field(lr, sfromString("cons-items")), fromInt(0)) {
+				return setIrregularCons(assign(r, fromMap(map[string]*val{
+					"in": field(lr, sfromString("in")),
+				})))
+			}
+
+			lr = assign(lr, fromMap(map[string]*val{
+				"cons-items": fromInt(1),
+				"cons":       vfalse,
+			}))
 		}
 
 		if field(lr, sfromString("close-list")) != vfalse {
-			println("returning list")
+			if hasCons(lr) {
+				if !neq(field(lr, sfromString("cons-items")), fromInt(2)) {
+					return setIrregularCons(assign(r, fromMap(map[string]*val{
+						"in": field(lr, sfromString("in")),
+					})))
+				}
+
+				return assign(r, fromMap(map[string]*val{
+					"in":    field(lr, sfromString("in")),
+					"value": reverseIrregular(field(lr, sfromString("list-items"))),
+				}))
+			}
+
 			return assign(r, fromMap(map[string]*val{
 				"in":    field(lr, sfromString("in")),
 				"value": reverse(field(lr, sfromString("list-items"))),
@@ -265,7 +342,17 @@ func read(r *val) *val {
 		case isListOpen(c) != vfalse:
 			return read(setList(r))
 		case isListClose(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
 			return setClose(r)
+		case isCons(c) != vfalse:
+			if !inList(r) {
+				return setIrregularCons(r)
+			}
+
+			return setCons(r)
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
@@ -287,7 +374,17 @@ func read(r *val) *val {
 		case isListOpen(c) != vfalse:
 			return setList(closeSymbol(r))
 		case isListClose(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
 			return setClose(closeSymbol(r))
+		case isCons(c) != vfalse:
+			if !inList(r) {
+				return setIrregularCons(r)
+			}
+
+			return setCons(closeSymbol(r))
 		default:
 			return read(appendToken(r))
 		}
@@ -343,6 +440,34 @@ func printPair(p, v *val) *val {
 					"state": st,
 				}))
 			}
+		}
+
+		if isPair(cdr(v)) == vfalse && isNil(cdr(v)) == vfalse {
+			p = mprint(p, car(v))
+			if st := field(p, sfromString("state")); isError(st) != vfalse {
+				return p
+			}
+
+			f = fwrite(field(p, sfromString("out")), fromString(" . "))
+			p = assign(p, fromMap(map[string]*val{
+				"out": f,
+			}))
+			if st := fstate(f); isError(st) != vfalse {
+				return assign(p, fromMap(map[string]*val{
+					"state": st,
+				}))
+			}
+
+			p = mprint(p, cdr(v))
+			if st := field(p, sfromString("state")); isError(st) != vfalse {
+				return p
+			}
+
+			f = fwrite(field(p, sfromString("out")), fromString(")"))
+			return assign(p, fromMap(map[string]*val{
+				"out":   f,
+				"state": fstate(f),
+			}))
 		}
 
 		p = mprint(p, car(v))
@@ -406,8 +531,6 @@ func loop(in, out *val) {
 
 		fatal(v)
 	}
-
-	println("returned")
 
 	out = mprint(out, v)
 	v = field(out, sfromString("state"))

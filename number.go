@@ -49,3 +49,7 @@ func add(left, right *val) *val {
 	checkType(right, number)
 	return fromInt(left.value.(int) + right.value.(int))
 }
+
+func neq(left, right *val) bool {
+	return left.value.(int) == right.value.(int)
+}
