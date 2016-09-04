@@ -16,6 +16,7 @@ var (
 	ttsymbol        = &val{number, 2}
 	ttstring        = &val{number, 3}
 	ttlist          = &val{number, 4}
+	ttquote         = &val{number, 5}
 )
 
 func writeln(f *val, s *val) *val {
@@ -98,6 +99,14 @@ func isCons(s *val) *val {
 	return vfalse
 }
 
+func isQuote(s *val) *val {
+	if stringVal(s) == "'" {
+		return vtrue
+	}
+
+	return vfalse
+}
+
 func symbolToken(t *val) *val {
 	v := nfromString(stringVal(t))
 	if isError(v) == vfalse {
@@ -154,12 +163,14 @@ func isTComment(t *val) bool { return t == ttcomment }
 func isTSymbol(t *val) bool  { return t == ttsymbol }
 func isTString(t *val) bool  { return t == ttstring }
 func isTList(t *val) bool    { return t == ttlist }
+func isTQuote(t *val) bool   { return t == ttquote }
 
 func setNone(r *val) *val    { return setTokenType(r, ttnone) }
 func setString(r *val) *val  { return setTokenType(r, ttstring) }
 func setComment(r *val) *val { return setTokenType(r, ttcomment) }
 func setSymbol(r *val) *val  { return setTokenType(r, ttsymbol) }
 func setList(r *val) *val    { return setTokenType(r, ttlist) }
+func setQuote(r *val) *val   { return setTokenType(r, ttquote) }
 
 func clearToken(r *val) *val {
 	return assign(r, fromMap(map[string]*val{
@@ -317,10 +328,30 @@ func readList(r *val) *val {
 	return loop(lr)
 }
 
+func readQuote(r *val) *val {
+	lr := reader(field(r, sfromString("in")))
+	lr = read(lr)
+	if readError(lr) {
+		return assign(r, fromMap(map[string]*val{
+			"in":    field(lr, sfromString("in")),
+			"value": field(lr, sfromString("value")),
+		}))
+	}
+
+	return assign(r, fromMap(map[string]*val{
+		"in":    field(lr, sfromString("in")),
+		"value": list(sfromString("quote"), field(lr, sfromString("value"))),
+	}))
+}
+
 func read(r *val) *val {
 	t := currentTokenType(r)
 	if isTList(t) {
 		return setNone(readList(r))
+	}
+
+	if isTQuote(t) {
+		return setNone(readQuote(r))
 	}
 
 	r = readChar(r)
@@ -353,6 +384,8 @@ func read(r *val) *val {
 			}
 
 			return setCons(r)
+		case isQuote(c) != vfalse:
+			return read(setQuote(r))
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
@@ -407,70 +440,78 @@ func printer(out *val) *val {
 	})
 }
 
-func printPair(p, v *val) *val {
-	f := fwrite(field(p, sfromString("out")), fromString("("))
-	if st := fstate(f); isError(st) != vfalse {
-		return assign(p, fromMap(map[string]*val{
-			"out":   f,
-			"state": st,
-		}))
+func printState(p *val) *val {
+	return field(p, sfromString("state"))
+}
+
+func printRaw(p *val, r *val) *val {
+	f := fwrite(field(p, sfromString("out")), r)
+	return assign(p, fromMap(map[string]*val{
+		"out":   f,
+		"state": fstate(f),
+	}))
+}
+
+func printQuoteSign(p *val) *val {
+	return printRaw(p, fromString("'"))
+}
+
+func printSymbol(p, v, q *val) *val {
+	if q == vfalse {
+		p = printQuoteSign(p)
 	}
 
-	p = assign(p, fromMap(map[string]*val{
-		"out": f,
-	}))
+	return printRaw(p, symbolToString(v))
+}
+
+func printQuote(p, v *val) *val {
+	p = printQuoteSign(p)
+	return mprintq(p, car(cdr(v)), vfalse)
+}
+
+func printPair(p, v, q *val) *val {
+	if q == vfalse {
+		p = printQuoteSign(p)
+	}
+
+	p = printRaw(p, fromString("("))
+	if st := printState(p); isError(st) != vfalse {
+		return p
+	}
 
 	var loop func(*val, *val, *val) *val
 	loop = func(p *val, v *val, first *val) *val {
 		if isNil(v) != vfalse {
-			f = fwrite(field(p, sfromString("out")), fromString(")"))
-			return assign(p, fromMap(map[string]*val{
-				"out":   f,
-				"state": fstate(f),
-			}))
+			return printRaw(p, fromString(")"))
 		}
 
 		if first == vfalse {
-			f = fwrite(field(p, sfromString("out")), fromString(" "))
-			p = assign(p, fromMap(map[string]*val{
-				"out": f,
-			}))
-			if st := fstate(f); isError(st) != vfalse {
-				return assign(p, fromMap(map[string]*val{
-					"state": st,
-				}))
+			p = printRaw(p, fromString(" "))
+			if st := printState(p); isError(st) != vfalse {
+				return p
 			}
 		}
 
 		if isPair(cdr(v)) == vfalse && isNil(cdr(v)) == vfalse {
-			p = mprint(p, car(v))
+			p = mprintq(p, car(v), vtrue)
 			if st := field(p, sfromString("state")); isError(st) != vfalse {
 				return p
 			}
 
-			f = fwrite(field(p, sfromString("out")), fromString(" . "))
-			p = assign(p, fromMap(map[string]*val{
-				"out": f,
-			}))
-			if st := fstate(f); isError(st) != vfalse {
-				return assign(p, fromMap(map[string]*val{
-					"state": st,
-				}))
+			p = printRaw(p, fromString(" . "))
+			if st := printState(p); isError(st) != vfalse {
+				return p
 			}
 
-			p = mprint(p, cdr(v))
+			p = mprintq(p, cdr(v), vtrue)
 			if st := field(p, sfromString("state")); isError(st) != vfalse {
 				return p
 			}
 
-			f = fwrite(field(p, sfromString("out")), fromString(")"))
-			return assign(p, fromMap(map[string]*val{
-				"out":   f,
-				"state": fstate(f),
-			}))
+			return printRaw(p, fromString(")"))
 		}
 
-		p = mprint(p, car(v))
+		p = mprintq(p, car(v), vtrue)
 		if st := field(p, sfromString("state")); isError(st) != vfalse {
 			return p
 		}
@@ -481,17 +522,19 @@ func printPair(p, v *val) *val {
 	return loop(p, v, vtrue)
 }
 
-func mprint(p, v *val) *val {
+func mprintq(p, v, q *val) *val {
 	if isSymbol(v) != vfalse {
-		v = symbolToString(v)
+		return printSymbol(p, v, q)
 	} else if isNumber(v) != vfalse {
 		v = numberToString(v)
 	} else if isString(v) != vfalse {
 		v = appendString(fromString(`"`), v, fromString(`"`))
 	} else if isBool(v) != vfalse {
 		v = boolToString(v)
+	} else if isPair(v) != vfalse && isSymbol(car(v)) != vfalse && smeq(car(v), sfromString("quote")) != vfalse {
+		return printQuote(p, v)
 	} else if isPair(v) != vfalse || isNil(v) != vfalse {
-		return printPair(p, v)
+		return printPair(p, v, q)
 	} else {
 		return assign(p, fromMap(map[string]*val{
 			"state": notImplemented,
@@ -510,6 +553,10 @@ func mprint(p, v *val) *val {
 		"out":   f,
 		"state": v,
 	}))
+}
+
+func mprint(p, v *val) *val {
+	return mprintq(p, v, vfalse)
 }
 
 func loop(in, out *val) {

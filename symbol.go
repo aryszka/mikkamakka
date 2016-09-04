@@ -23,3 +23,13 @@ func isSymbol(a *val) *val {
 
 	return vfalse
 }
+
+func smeq(left, right *val) *val {
+	checkType(left, symbol)
+	checkType(right, symbol)
+	if sstringVal(left) == sstringVal(right) {
+		return vtrue
+	}
+
+	return vfalse
+}

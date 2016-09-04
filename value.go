@@ -10,7 +10,6 @@ type mtype int
 const (
 	notype mtype = iota
 	symbol
-	quote
 	number
 	mstring
 	mbool // sure that needed? better needed
@@ -31,8 +30,6 @@ func typeString(t mtype) string {
 	switch t {
 	case symbol:
 		return "symbol"
-	case quote:
-		return "quote"
 	case number:
 		return "number"
 	case mstring:
