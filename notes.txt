@@ -1,25 +1,27 @@
-(define s {
+(def s {
 	a 1
 	b 2
 	c 3})
-(define s (struct
+(def s (struct
 	a 1
 	b 2
 	c 3
 ))
 (s 'a)
 
-(define v [1 2 3])
-(define v (vector 1 2 3))
+(def v [1 2 3])
+(def v (vector 1 2 3))
 (v 1)
 
 ; how to return multiple values
 ; how to return monads and values
 
-(define f (fopen "/some/file"))
-(define f (read f 512))
-(define s (last-read f))
-(define f (write f s))
+(def f (fopen "/some/file"))
+(def f (read f 512))
+(def s (last-read f))
+(def f (write f s))
+
+(def l (fn () 42))
 
 #lit
 
@@ -27,7 +29,7 @@ The below code implements the traditional map:
 
 (code
 
-	(define (map f l)
+	(def (map f l)
 	  (if (nil? l)
 	    '()
 		(cons (f (car l)) (map (cdr l)))))

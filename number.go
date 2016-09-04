@@ -37,3 +37,15 @@ func numberToString(n *val) *val {
 func isNumber(a *val) *val {
 	return is(a, number)
 }
+
+func sub(left, right *val) *val {
+	checkType(left, number)
+	checkType(right, number)
+	return fromInt(left.value.(int) - right.value.(int))
+}
+
+func add(left, right *val) *val {
+	checkType(left, number)
+	checkType(right, number)
+	return fromInt(left.value.(int) + right.value.(int))
+}
