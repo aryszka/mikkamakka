@@ -17,6 +17,7 @@ var (
 	ttstring        = &val{number, 3}
 	ttlist          = &val{number, 4}
 	ttquote         = &val{number, 5}
+	ttvector        = &val{number, 7}
 )
 
 func writeln(f *val, s *val) *val {
@@ -107,6 +108,22 @@ func isQuote(s *val) *val {
 	return vfalse
 }
 
+func isOpenVector(s *val) *val {
+	if stringVal(s) == "[" {
+		return vtrue
+	}
+
+	return vfalse
+}
+
+func isCloseVector(s *val) *val {
+	if stringVal(s) == "]" {
+		return vtrue
+	}
+
+	return vfalse
+}
+
 func symbolToken(t *val) *val {
 	v := nfromString(stringVal(t))
 	if isError(v) == vfalse {
@@ -164,6 +181,7 @@ func isTSymbol(t *val) bool  { return t == ttsymbol }
 func isTString(t *val) bool  { return t == ttstring }
 func isTList(t *val) bool    { return t == ttlist }
 func isTQuote(t *val) bool   { return t == ttquote }
+func isTVector(t *val) bool  { return t == ttvector }
 
 func setNone(r *val) *val    { return setTokenType(r, ttnone) }
 func setString(r *val) *val  { return setTokenType(r, ttstring) }
@@ -171,6 +189,7 @@ func setComment(r *val) *val { return setTokenType(r, ttcomment) }
 func setSymbol(r *val) *val  { return setTokenType(r, ttsymbol) }
 func setList(r *val) *val    { return setTokenType(r, ttlist) }
 func setQuote(r *val) *val   { return setTokenType(r, ttquote) }
+func setVector(r *val) *val  { return setTokenType(r, ttvector) }
 
 func clearToken(r *val) *val {
 	return assign(r, fromMap(map[string]*val{
@@ -344,6 +363,13 @@ func readQuote(r *val) *val {
 	}))
 }
 
+func readVector(r *val) *val {
+	r = readList(r)
+	return assign(r, fromMap(map[string]*val{
+		"value": vectorFromList(field(r, sfromString("value"))),
+	}))
+}
+
 func read(r *val) *val {
 	t := currentTokenType(r)
 	if isTList(t) {
@@ -352,6 +378,10 @@ func read(r *val) *val {
 
 	if isTQuote(t) {
 		return setNone(readQuote(r))
+	}
+
+	if isTVector(t) {
+		return setNone(readVector(r))
 	}
 
 	r = readChar(r)
@@ -386,6 +416,14 @@ func read(r *val) *val {
 			return setCons(r)
 		case isQuote(c) != vfalse:
 			return read(setQuote(r))
+		case isOpenVector(c) != vfalse:
+			return read(setVector(r))
+		case isCloseVector(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
+			return setClose(r)
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
@@ -418,6 +456,14 @@ func read(r *val) *val {
 			}
 
 			return setCons(closeSymbol(r))
+		case isOpenVector(c) != vfalse:
+			return setVector(closeSymbol(r))
+		case isCloseVector(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
+			return setClose(closeSymbol(r))
 		default:
 			return read(appendToken(r))
 		}
@@ -522,6 +568,37 @@ func printPair(p, v, q *val) *val {
 	return loop(p, v, vtrue)
 }
 
+func printVector(p, v *val) *val {
+	p = printRaw(p, fromString("["))
+	if st := field(p, sfromString("state")); isError(st) != vfalse {
+		return p
+	}
+
+	var loop func(*val, *val, *val) *val
+	loop = func(p, i, f *val) *val {
+		if neq(i, vectorLength(v)) {
+			return p
+		}
+
+		if f == vfalse {
+			p = printRaw(p, fromString(" "))
+			if st := field(p, sfromString("state")); isError(st) != vfalse {
+				return p
+			}
+		}
+
+		p = mprintq(p, vectorRef(v, i), vtrue)
+		if st := field(p, sfromString("state")); isError(st) != vfalse {
+			return p
+		}
+
+		return loop(p, add(i, fromInt(1)), vfalse)
+	}
+
+	p = loop(p, fromInt(0), vtrue)
+	return printRaw(p, fromString("]"))
+}
+
 func mprintq(p, v, q *val) *val {
 	if isSymbol(v) != vfalse {
 		return printSymbol(p, v, q)
@@ -539,6 +616,8 @@ func mprintq(p, v, q *val) *val {
 		return printQuote(p, v)
 	} else if isPair(v) != vfalse || isNil(v) != vfalse {
 		return printPair(p, v, q)
+	} else if isVector(v) != vfalse {
+		return printVector(p, v)
 	} else {
 		return assign(p, fromMap(map[string]*val{
 			"state": notImplemented,
