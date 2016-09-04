@@ -19,6 +19,8 @@ const (
 	mstruct
 	sys
 	merror // true or false?
+	environment
+	procedure
 )
 
 type val struct {
@@ -48,6 +50,10 @@ func typeString(t mtype) string {
 		return "sys"
 	case merror:
 		return "error"
+	case environment:
+		return "environment"
+	case procedure:
+		return "procedure"
 	default:
 		panic("invalid type")
 	}

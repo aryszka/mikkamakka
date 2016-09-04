@@ -1,14 +1,6 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
-
-func mpanic(a *val) *val {
-	panic(fmt.Errorf("%v", a.value))
-	return a
-}
+import "os"
 
 func isError(a *val) *val {
 	return is(a, merror)
@@ -21,18 +13,20 @@ func errorString(a *val) *val {
 	case string:
 		return fromString(v)
 	default:
-		return mpanic(a)
+		return fromString("unknown error")
 	}
 }
 
-func fatal(a *val) {
+func fatal(a *val) *val {
 	switch a.mtype {
 	case mstring:
 		fwrite(stderr(), a)
 	case merror:
 		fwrite(stderr(), errorString(a))
 	}
+
 	os.Exit(-1)
+	return a
 }
 
 func estring(e *val) *val {
