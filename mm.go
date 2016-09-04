@@ -531,6 +531,10 @@ func mprintq(p, v, q *val) *val {
 		v = appendString(fromString(`"`), v, fromString(`"`))
 	} else if isBool(v) != vfalse {
 		v = boolToString(v)
+	} else if isSys(v) != vfalse {
+		v = sstring(v)
+	} else if isError(v) != vfalse {
+		v = estring(v)
 	} else if isPair(v) != vfalse && isSymbol(car(v)) != vfalse && smeq(car(v), sfromString("quote")) != vfalse {
 		return printQuote(p, v)
 	} else if isPair(v) != vfalse || isNil(v) != vfalse {

@@ -128,3 +128,8 @@ func fclose(f *val) *val {
 
 	return &val{sys, &file{sys: sysFile, err: sysFile.Close()}}
 }
+
+func sstring(f *val) *val {
+	checkType(f, sys)
+	return fromString("<file>")
+}

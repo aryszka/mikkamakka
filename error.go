@@ -34,3 +34,7 @@ func fatal(a *val) {
 	}
 	os.Exit(-1)
 }
+
+func estring(e *val) *val {
+	return fromString("<error>")
+}
