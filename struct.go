@@ -4,6 +4,8 @@ type tstruct struct {
 	sys map[string]*val
 }
 
+var invalidStruct = &val{merror, "invalid struct"}
+
 func fromMap(m map[string]*val) *val {
 	return &val{mstruct, &tstruct{m}}
 }
@@ -36,4 +38,40 @@ func assign(s *val, a ...*val) *val {
 	}
 
 	return fromMap(next)
+}
+
+func structFromList(l *val) *val {
+	sys := make(map[string]*val)
+	for {
+		if l == vnil {
+			break
+		}
+
+		if isPair(l) == vfalse || isPair(cdr(l)) == vfalse || isSymbol(car(l)) == vfalse {
+			return invalidStruct
+		}
+
+		sys[sstringVal(car(l))], l = car(cdr(l)), cdr(cdr(l))
+	}
+
+	return fromMap(sys)
+}
+
+func isStruct(a *val) *val {
+	if a.mtype == mstruct {
+		return vtrue
+	}
+
+	return vfalse
+}
+
+func structNames(s *val) *val {
+	checkType(s, mstruct)
+
+	n := vnil
+	for k, _ := range s.value.(*tstruct).sys {
+		n = cons(sfromString(k), n)
+	}
+
+	return reverse(n)
 }

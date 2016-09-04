@@ -18,6 +18,7 @@ var (
 	ttlist          = &val{number, 4}
 	ttquote         = &val{number, 5}
 	ttvector        = &val{number, 7}
+	ttstruct        = &val{number, 8}
 )
 
 func writeln(f *val, s *val) *val {
@@ -44,80 +45,32 @@ func reader(in *val) *val {
 	})
 }
 
-func isNewline(s *val) *val {
-	if stringVal(s) == "\n" {
-		return vtrue
-	}
+func charCheck(c string) func(*val) *val {
+	return func(s *val) *val {
+		if stringVal(s) == c {
+			return vtrue
+		}
 
-	return vfalse
+		return vfalse
+	}
 }
+
+var (
+	isNewline         = charCheck("\n")
+	isStringDelimiter = charCheck(`"`)
+	isComment         = charCheck(";")
+	isListOpen        = charCheck("(")
+	isListClose       = charCheck(")")
+	isCons            = charCheck(".")
+	isQuote           = charCheck("'")
+	isOpenVector      = charCheck("[")
+	isCloseVector     = charCheck("]")
+	isOpenStruct      = charCheck("{")
+	isCloseStruct     = charCheck("}")
+)
 
 func isWhitespace(s *val) *val {
 	if isNewline(s) != vfalse || stringVal(s) == " " {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isStringDelimiter(s *val) *val {
-	if stringVal(s) == `"` {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isComment(s *val) *val {
-	if stringVal(s) == ";" {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isListOpen(s *val) *val {
-	if stringVal(s) == "(" {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isListClose(s *val) *val {
-	if stringVal(s) == ")" {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isCons(s *val) *val {
-	if stringVal(s) == "." {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isQuote(s *val) *val {
-	if stringVal(s) == "'" {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isOpenVector(s *val) *val {
-	if stringVal(s) == "[" {
-		return vtrue
-	}
-
-	return vfalse
-}
-
-func isCloseVector(s *val) *val {
-	if stringVal(s) == "]" {
 		return vtrue
 	}
 
@@ -182,6 +135,7 @@ func isTString(t *val) bool  { return t == ttstring }
 func isTList(t *val) bool    { return t == ttlist }
 func isTQuote(t *val) bool   { return t == ttquote }
 func isTVector(t *val) bool  { return t == ttvector }
+func isTStruct(t *val) bool  { return t == ttstruct }
 
 func setNone(r *val) *val    { return setTokenType(r, ttnone) }
 func setString(r *val) *val  { return setTokenType(r, ttstring) }
@@ -190,6 +144,7 @@ func setSymbol(r *val) *val  { return setTokenType(r, ttsymbol) }
 func setList(r *val) *val    { return setTokenType(r, ttlist) }
 func setQuote(r *val) *val   { return setTokenType(r, ttquote) }
 func setVector(r *val) *val  { return setTokenType(r, ttvector) }
+func setStruct(r *val) *val  { return setTokenType(r, ttstruct) }
 
 func clearToken(r *val) *val {
 	return assign(r, fromMap(map[string]*val{
@@ -370,6 +325,13 @@ func readVector(r *val) *val {
 	}))
 }
 
+func readStruct(r *val) *val {
+	r = readList(r)
+	return assign(r, fromMap(map[string]*val{
+		"value": structFromList(field(r, sfromString("value"))),
+	}))
+}
+
 func read(r *val) *val {
 	t := currentTokenType(r)
 	if isTList(t) {
@@ -382,6 +344,10 @@ func read(r *val) *val {
 
 	if isTVector(t) {
 		return setNone(readVector(r))
+	}
+
+	if isTStruct(t) {
+		return setNone(readStruct(r))
 	}
 
 	r = readChar(r)
@@ -424,6 +390,14 @@ func read(r *val) *val {
 			}
 
 			return setClose(r)
+		case isOpenStruct(c) != vfalse:
+			return read(setStruct(r))
+		case isCloseStruct(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
+			return setClose(r)
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
@@ -459,6 +433,14 @@ func read(r *val) *val {
 		case isOpenVector(c) != vfalse:
 			return setVector(closeSymbol(r))
 		case isCloseVector(c) != vfalse:
+			if !inList(r) {
+				return setUnexpectedClose(r)
+			}
+
+			return setClose(closeSymbol(r))
+		case isOpenStruct(c) != vfalse:
+			return setStruct(closeSymbol(r))
+		case isCloseStruct(c) != vfalse:
 			if !inList(r) {
 				return setUnexpectedClose(r)
 			}
@@ -599,6 +581,47 @@ func printVector(p, v *val) *val {
 	return printRaw(p, fromString("]"))
 }
 
+func printStruct(p, v *val) *val {
+	p = printRaw(p, fromString("{"))
+	if st := field(p, sfromString("state")); isError(st) != vfalse {
+		return p
+	}
+
+	var loop func(*val, *val, *val) *val
+	loop = func(p, n, f *val) *val {
+		if n == vnil {
+			return p
+		}
+
+		if f == vfalse {
+			p = printRaw(p, fromString(" "))
+			if st := field(p, sfromString("state")); isError(st) != vfalse {
+				return p
+			}
+		}
+
+		p = mprintq(p, car(n), vtrue)
+		if st := field(p, sfromString("state")); isError(st) != vfalse {
+			return p
+		}
+
+		p = printRaw(p, fromString(" "))
+		if st := field(p, sfromString("state")); isError(st) != vfalse {
+			return p
+		}
+
+		p = mprintq(p, field(v, car(n)), vtrue)
+		if st := field(p, sfromString("state")); isError(st) != vfalse {
+			return p
+		}
+
+		return loop(p, cdr(n), vfalse)
+	}
+
+	p = loop(p, structNames(v), vtrue)
+	return printRaw(p, fromString("}"))
+}
+
 func mprintq(p, v, q *val) *val {
 	if isSymbol(v) != vfalse {
 		return printSymbol(p, v, q)
@@ -618,6 +641,8 @@ func mprintq(p, v, q *val) *val {
 		return printPair(p, v, q)
 	} else if isVector(v) != vfalse {
 		return printVector(p, v)
+	} else if isStruct(v) != vfalse {
+		return printStruct(p, v)
 	} else {
 		return assign(p, fromMap(map[string]*val{
 			"state": notImplemented,
