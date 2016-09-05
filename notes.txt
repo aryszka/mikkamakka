@@ -23,6 +23,16 @@
 
 (def l (fn () 42))
 
+(struct 'a 1 'b 2)
+(struct: a 1 b 2)
+{a 1 b 2}
+??? quoting ???
+
+(vector 1 2)
+(vector: 1 2)
+[1 2]
+??? quoting ???
+
 #lit
 
 The below code implements the traditional map:
@@ -42,6 +52,8 @@ The below code implements the traditional map:
 'end-code)
 
 The above code is the map, tested.
+
+Values with dimension?
 
 #lit
 

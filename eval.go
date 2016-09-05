@@ -275,6 +275,7 @@ func isTest(v *val) *val {
 	return isTaggedBy(v, sfromString("test"))
 }
 
+// TODO: should be and
 func evalTest(e, v *val) *val {
 	if isPair(v) == vfalse {
 		return fatal(invalidTest)

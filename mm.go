@@ -5,6 +5,7 @@ package main
 
 func initialEnv() *val {
 	env := newEnv()
+	define(env, sfromString("nil"), vnil)
 	return env
 }
 
