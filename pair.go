@@ -80,3 +80,14 @@ func reverseIrregular(l *val) *val {
 		l = cdr(l)
 	}
 }
+
+func mappend(left, right *val) *val {
+	checkType(left, pair, mnil)
+	checkType(right, pair, mnil)
+
+	if isNil(left) != vfalse {
+		return right
+	}
+
+	return cons(car(left), mappend(cdr(left), right))
+}

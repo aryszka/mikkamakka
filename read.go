@@ -288,6 +288,12 @@ func readList(r *val) *val {
 
 func readQuote(r *val) *val {
 	lr := reader(field(r, sfromString("in")))
+	if inList(r) {
+		lr = assign(lr, fromMap(map[string]*val{
+			"in-list": vtrue,
+		}))
+	}
+
 	lr = read(lr)
 	if readError(lr) {
 		return assign(r, fromMap(map[string]*val{
@@ -297,8 +303,9 @@ func readQuote(r *val) *val {
 	}
 
 	return assign(r, fromMap(map[string]*val{
-		"in":    field(lr, sfromString("in")),
-		"value": list(sfromString("quote"), field(lr, sfromString("value"))),
+		"in":         field(lr, sfromString("in")),
+		"value":      list(sfromString("quote"), field(lr, sfromString("value"))),
+		"close-list": field(lr, sfromString("close-list")),
 	}))
 }
 

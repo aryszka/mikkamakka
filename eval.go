@@ -5,14 +5,18 @@ when panic, when error?
 */
 
 var (
-	invalidQuote       = &val{merror, "invalid quote"}
-	invalidDef         = &val{merror, "invalid definition"}
-	invalidIf          = &val{merror, "invalid if expression"}
-	invalidFn          = &val{merror, "invalid function expression"}
-	invalidSequence    = &val{merror, "invalid sequence"}
-	invalidCond        = &val{merror, "invalid cond expression"}
-	invalidApplication = &val{merror, "invalid application"}
-	invalidExpression  = &val{merror, "invalid expression"}
+	invalidQuote         = &val{merror, "invalid quote"}
+	invalidDef           = &val{merror, "invalid definition"}
+	invalidIf            = &val{merror, "invalid if expression"}
+	invalidFn            = &val{merror, "invalid function expression"}
+	invalidSequence      = &val{merror, "invalid sequence"}
+	invalidCond          = &val{merror, "invalid cond expression"}
+	invalidLet           = &val{merror, "invalid let expression"}
+	invalidTest          = &val{merror, "invalid test"}
+	invalidApplication   = &val{merror, "invalid application"}
+	invalidExpression    = &val{merror, "invalid expression"}
+	definitionExpression = &val{merror, "definition in expression position"}
+	testFailed           = &val{merror, "test failed"}
 )
 
 func isTaggedBy(v, s *val) *val {
@@ -36,7 +40,7 @@ func evalQuote(e, v *val) *val {
 }
 
 func makeFn(a, b *val) *val {
-	return list(sfromString("fn"), a, b)
+	return cons(sfromString("fn"), cons(a, b))
 }
 
 func isDef(v *val) *val {
@@ -137,25 +141,25 @@ func isFn(v *val) *val {
 	return isTaggedBy(v, sfromString("fn"))
 }
 
-func procParams(v *val) *val {
+func fnParams(v *val) *val {
 	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse ||
-		isSymbol(car(cdr(v))) == vfalse && isPair(car(cdr(v))) == vfalse {
+		isSymbol(car(cdr(v))) == vfalse && isPair(car(cdr(v))) == vfalse && isNil(car(cdr(v))) == vfalse {
 		return fatal(invalidFn)
 	}
 
 	return car(cdr(v))
 }
 
-func procBody(v *val) *val {
+func fnBody(v *val) *val {
 	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse || isPair(cdr(cdr(v))) == vfalse {
 		return fatal(invalidFn)
 	}
 
-	return car(cdr(cdr(v)))
+	return cdr(cdr(v))
 }
 
 func fnToProc(e, v *val) *val {
-	return newProc(e, procParams(v), procBody(v))
+	return newProc(e, fnParams(v), fnBody(v))
 }
 
 func isBegin(v *val) *val {
@@ -236,6 +240,62 @@ func condToIf(v *val) *val {
 	return expandCond(cdr(v))
 }
 
+func isLet(v *val) *val {
+	return isTaggedBy(v, sfromString("let"))
+}
+
+func letDefs(v *val) *val {
+	if isNil(v) != vfalse {
+		return vnil
+	}
+
+	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse {
+		return fatal(invalidLet)
+	}
+
+	return cons(
+		list(sfromString("def"), car(v), car(cdr(v))),
+		letDefs(cdr(cdr(v))),
+	)
+}
+
+func letFnBody(v *val) *val {
+	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse || isNil(cdr(cdr(v))) != vfalse {
+		return fatal(invalidLet)
+	}
+
+	return mappend(letDefs(car(cdr(v))), cdr(cdr(v)))
+}
+
+func expandLet(v *val) *val {
+	return list(makeFn(vnil, letFnBody(v)))
+}
+
+func isTest(v *val) *val {
+	return isTaggedBy(v, sfromString("test"))
+}
+
+func evalTest(e, v *val) *val {
+	if isPair(v) == vfalse {
+		return fatal(invalidTest)
+	}
+
+	if isNil(cdr(v)) != vfalse {
+		return vtrue
+	}
+
+	result := evalSeq(e, cdr(v))
+	if result == vfalse {
+		return fatal(testFailed)
+	}
+
+	if isError(result) != vfalse {
+		return fatal(result)
+	}
+
+	return sfromString("test-complete")
+}
+
 func isApplication(v *val) *val {
 	return isPair(v)
 }
@@ -260,6 +320,15 @@ func evalApply(e, v *val) *val {
 	return apply(eval(e, car(v)), valueList(e, cdr(v)))
 }
 
+func evalExp(e, v *val) *val {
+	switch {
+	case isDef(v) != vfalse:
+		return fatal(definitionExpression)
+	default:
+		return eval(e, v)
+	}
+}
+
 func eval(e, v *val) *val {
 	switch {
 	case isNumber(v) != vfalse:
@@ -282,6 +351,10 @@ func eval(e, v *val) *val {
 		return evalSeq(e, beginSeq(v))
 	case isCond(v) != vfalse:
 		return eval(e, condToIf(v))
+	case isLet(v) != vfalse:
+		return eval(e, expandLet(v))
+	case isTest(v) != vfalse:
+		return evalTest(e, v)
 	case isApplication(v) != vfalse:
 		return evalApply(e, v)
 	default:

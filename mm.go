@@ -3,6 +3,11 @@ experiment bootstrapping a scheme value space
 */
 package main
 
+func initialEnv() *val {
+	env := newEnv()
+	return env
+}
+
 func loop(env, in, out *val) {
 	// TODO:
 	// - need to drain input for OSX terminal
@@ -43,7 +48,7 @@ func loop(env, in, out *val) {
 }
 
 func main() {
-	env := newEnv()
+	env := initialEnv()
 	in := reader(stdin())
 	out := printer(stdout())
 	loop(env, in, out)

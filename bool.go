@@ -9,7 +9,7 @@ func bfromString(s string) *val {
 	switch s {
 	case "true":
 		return vtrue
-	case "fase":
+	case "false":
 		return vfalse
 	default:
 		return invalidToken
