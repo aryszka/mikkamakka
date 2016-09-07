@@ -10,6 +10,7 @@ var (
 	invalidIf            = &val{merror, "invalid if expression"}
 	invalidFn            = &val{merror, "invalid function expression"}
 	invalidSequence      = &val{merror, "invalid sequence"}
+	invalidVector        = &val{merror, "invalid vector"}
 	invalidCond          = &val{merror, "invalid cond expression"}
 	invalidLet           = &val{merror, "invalid let expression"}
 	invalidTest          = &val{merror, "invalid test"}
@@ -45,6 +46,18 @@ func makeFn(a, b *val) *val {
 
 func isDef(v *val) *val {
 	return isTaggedBy(v, sfromString("def"))
+}
+
+func isVectorForm(v *val) *val {
+	return isTaggedBy(v, sfromString("vector:"))
+}
+
+func evalVector(e, v *val) *val {
+	if isPair(v) == vfalse {
+		return fatal(invalidVector)
+	}
+
+	return vectorFromList(valueList(e, cdr(v)))
 }
 
 func nameOfDef(v *val) *val {
@@ -344,6 +357,8 @@ func eval(e, v *val) *val {
 		return lookupDef(e, v)
 	case isDef(v) != vfalse:
 		return evalDef(e, v)
+	case isVectorForm(v) != vfalse:
+		return evalVector(e, v)
 	case isIf(v) != vfalse:
 		return evalIf(e, v)
 	case isFn(v) != vfalse:

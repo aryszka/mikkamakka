@@ -1,14 +1,10 @@
 package main
 
-import "log"
-
 type vect struct {
 	items []*val
 }
 
 func vectorFromList(l *val) *val {
-	log.Println(l)
-
 	var items []*val
 	for {
 		if l == vnil {

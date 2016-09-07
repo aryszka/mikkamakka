@@ -312,7 +312,7 @@ func readQuote(r *val) *val {
 func readVector(r *val) *val {
 	r = readList(r)
 	return assign(r, fromMap(map[string]*val{
-		"value": vectorFromList(field(r, sfromString("value"))),
+		"value": cons(sfromString("vector:"), field(r, sfromString("value"))),
 	}))
 }
 
