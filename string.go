@@ -38,3 +38,11 @@ func stringLength(s *val) *val {
 func isString(a *val) *val {
 	return is(a, mstring)
 }
+
+func seq(left, right *val) *val {
+	if stringVal(left) == stringVal(right) {
+		return vtrue
+	}
+
+	return vfalse
+}

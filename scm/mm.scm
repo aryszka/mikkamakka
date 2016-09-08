@@ -1,7 +1,6 @@
 (def tnone 0)
 (def undefined (fn () 'ok))
 
-
 (def (reader input)
   { input         input 
     token-type    tnone

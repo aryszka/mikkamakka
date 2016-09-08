@@ -22,7 +22,7 @@ func reader(in *val) *val {
 		"token-type":    ttnone,
 		"value":         voidError,
 		"current-token": fromString(""),
-		"in-list":       vfalse,
+		"in-list":       fromString(""),
 		"close-list":    vfalse,
 		"cons":          vfalse,
 		"cons-items":    fromInt(0),
@@ -172,11 +172,24 @@ func processString(r *val) *val {
 	}))
 }
 
-func inList(r *val) bool {
-	return field(r, sfromString("in-list")) != vfalse
+func closeChar(c *val) *val {
+	switch stringVal(c) {
+	case "(":
+		return fromString(")")
+	case "[":
+		return fromString("]")
+	case "{":
+		return fromString("}")
+	default:
+		return fromString("")
+	}
 }
 
-func setClose(r *val) *val {
+func setClose(r, c *val) *val {
+	if seq(closeChar(field(r, sfromString("in-list"))), c) == vfalse {
+		return setUnexpectedClose(r)
+	}
+
 	return assign(r, fromMap(map[string]*val{
 		"close-list": vtrue,
 	}))
@@ -212,11 +225,11 @@ func setIrregularCons(r *val) *val {
 	}))
 }
 
-func readList(r *val) *val {
+func readList(r, c *val) *val {
 	lr := reader(field(r, sfromString("in")))
 	lr = assign(lr, fromMap(map[string]*val{
 		"list-items": vnil,
-		"in-list":    vtrue,
+		"in-list":    c,
 	}))
 
 	var loop func(*val) *val
@@ -288,9 +301,9 @@ func readList(r *val) *val {
 
 func readQuote(r *val) *val {
 	lr := reader(field(r, sfromString("in")))
-	if inList(r) {
+	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == vfalse {
 		lr = assign(lr, fromMap(map[string]*val{
-			"in-list": vtrue,
+			"in-list": field(r, sfromString("in-list")),
 		}))
 	}
 
@@ -310,23 +323,31 @@ func readQuote(r *val) *val {
 }
 
 func readVector(r *val) *val {
-	r = readList(r)
+	r = readList(r, fromString("["))
+	if readError(r) {
+		return r
+	}
+
 	return assign(r, fromMap(map[string]*val{
 		"value": cons(sfromString("vector:"), field(r, sfromString("value"))),
 	}))
 }
 
 func readStruct(r *val) *val {
-	r = readList(r)
+	r = readList(r, fromString("{"))
+	if readError(r) {
+		return r
+	}
+
 	return assign(r, fromMap(map[string]*val{
-		"value": structFromList(field(r, sfromString("value"))),
+		"value": cons(sfromString("struct:"), field(r, sfromString("value"))),
 	}))
 }
 
 func read(r *val) *val {
 	t := currentTokenType(r)
 	if isTList(t) {
-		return setNone(readList(r))
+		return setNone(readList(r, fromString("(")))
 	}
 
 	if isTQuote(t) {
@@ -360,35 +381,19 @@ func read(r *val) *val {
 		case isListOpen(c) != vfalse:
 			return read(setList(r))
 		case isListClose(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(r)
+			return setClose(r, c)
 		case isCons(c) != vfalse:
-			if !inList(r) {
-				return setIrregularCons(r)
-			}
-
 			return setCons(r)
 		case isQuoteChar(c) != vfalse:
 			return read(setQuote(r))
 		case isOpenVector(c) != vfalse:
 			return read(setVector(r))
 		case isCloseVector(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(r)
+			return setClose(r, c)
 		case isOpenStruct(c) != vfalse:
 			return read(setStruct(r))
 		case isCloseStruct(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(r)
+			return setClose(r, c)
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
@@ -410,33 +415,17 @@ func read(r *val) *val {
 		case isListOpen(c) != vfalse:
 			return setList(closeSymbol(r))
 		case isListClose(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(closeSymbol(r))
+			return setClose(closeSymbol(r), c)
 		case isCons(c) != vfalse:
-			if !inList(r) {
-				return setIrregularCons(r)
-			}
-
 			return setCons(closeSymbol(r))
 		case isOpenVector(c) != vfalse:
 			return setVector(closeSymbol(r))
 		case isCloseVector(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(closeSymbol(r))
+			return setClose(closeSymbol(r), c)
 		case isOpenStruct(c) != vfalse:
 			return setStruct(closeSymbol(r))
 		case isCloseStruct(c) != vfalse:
-			if !inList(r) {
-				return setUnexpectedClose(r)
-			}
-
-			return setClose(closeSymbol(r))
+			return setClose(closeSymbol(r), c)
 		default:
 			return read(appendToken(r))
 		}

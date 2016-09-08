@@ -48,7 +48,7 @@ func structFromList(l *val) *val {
 		}
 
 		if isPair(l) == vfalse || isPair(cdr(l)) == vfalse || isSymbol(car(l)) == vfalse {
-			return invalidStruct
+			return fatal(invalidStruct)
 		}
 
 		sys[sstringVal(car(l))], l = car(cdr(l)), cdr(cdr(l))

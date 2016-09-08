@@ -60,6 +60,36 @@ func evalVector(e, v *val) *val {
 	return vectorFromList(valueList(e, cdr(v)))
 }
 
+func isStructForm(v *val) *val {
+	return isTaggedBy(v, sfromString("struct:"))
+}
+
+func evalStructValues(e, v *val) *val {
+	if isNil(v) != vfalse {
+		return vnil
+	}
+
+	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse {
+		return fatal(invalidStruct)
+	}
+
+	return cons(
+		car(v),
+		cons(
+			eval(e, car(cdr(v))),
+			evalStructValues(e, cdr(cdr(v))),
+		),
+	)
+}
+
+func evalStruct(e, v *val) *val {
+	if isPair(v) == vfalse {
+		return fatal(invalidStruct)
+	}
+
+	return structFromList(evalStructValues(e, cdr(v)))
+}
+
 func nameOfDef(v *val) *val {
 	return car(cdr(v))
 }
@@ -359,6 +389,8 @@ func eval(e, v *val) *val {
 		return evalDef(e, v)
 	case isVectorForm(v) != vfalse:
 		return evalVector(e, v)
+	case isStructForm(v) != vfalse:
+		return evalStruct(e, v)
 	case isIf(v) != vfalse:
 		return evalIf(e, v)
 	case isFn(v) != vfalse:
