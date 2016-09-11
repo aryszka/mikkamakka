@@ -17,14 +17,26 @@ func cons(car, cdr *val) *val {
 	return &val{pair, &tpair{car, cdr}}
 }
 
+func bcons(a []*val) *val {
+	return cons(a[0], a[1])
+}
+
 func car(p *val) *val {
 	checkType(p, pair)
 	return p.value.(*tpair).car
 }
 
+func bcar(a []*val) *val {
+	return car(a[0])
+}
+
 func cdr(p *val) *val {
 	checkType(p, pair)
 	return p.value.(*tpair).cdr
+}
+
+func bcdr(a []*val) *val {
+	return cdr(a[0])
 }
 
 func isPair(a *val) *val {
@@ -35,12 +47,20 @@ func isPair(a *val) *val {
 	return vfalse
 }
 
+func bisPair(a []*val) *val {
+	return isPair(a[0])
+}
+
 func isNil(a *val) *val {
 	if a == vnil {
 		return vtrue
 	}
 
 	return vfalse
+}
+
+func bisNil(a []*val) *val {
+	return isNil(a[0])
 }
 
 func list(a ...*val) *val {
@@ -50,6 +70,10 @@ func list(a ...*val) *val {
 	}
 
 	return l
+}
+
+func blist(a []*val) *val {
+	return list(a...)
 }
 
 func reverse(l *val) *val {

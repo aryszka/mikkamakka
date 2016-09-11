@@ -10,14 +10,30 @@ func fromInt(i int) *val {
 	return &val{number, i}
 }
 
-func greater(left, right *val) *val {
-	checkType(left, number)
-	checkType(right, number)
-	if left.value.(int) > right.value.(int) {
-		return vtrue
-	}
+func greater(a ...*val) *val {
+	return bgreater(a)
+}
 
-	return vfalse
+func bgreater(a []*val) *val {
+	for {
+		if len(a) == 0 {
+			return vfalse
+		}
+
+		checkType(a[0], number)
+
+		if len(a) == 1 {
+			return vtrue
+		}
+
+		checkType(a[1], number)
+
+		if a[0].value.(int) <= a[1].value.(int) {
+			return vfalse
+		}
+
+		a = a[1:]
+	}
 }
 
 func nfromString(s string) *val {
@@ -29,6 +45,15 @@ func nfromString(s string) *val {
 	return fromInt(n)
 }
 
+func tryNumberFromString(s *val) *val {
+	checkType(s, mstring)
+	return nfromString(stringVal(s))
+}
+
+func btryNumberFromString(a []*val) *val {
+	return tryNumberFromString(a[0])
+}
+
 func numberToString(n *val) *val {
 	checkType(n, number)
 	return fromString(strconv.Itoa(n.value.(int)))
@@ -36,6 +61,10 @@ func numberToString(n *val) *val {
 
 func isNumber(a *val) *val {
 	return is(a, number)
+}
+
+func bisNumber(a []*val) *val {
+	return isNumber(a[0])
 }
 
 func sub(left, right *val) *val {
@@ -50,6 +79,10 @@ func add(left, right *val) *val {
 	return fromInt(left.value.(int) + right.value.(int))
 }
 
-func neq(left, right *val) bool {
-	return left.value.(int) == right.value.(int)
+func neq(left, right *val) *val {
+	if left.value.(int) == right.value.(int) {
+		return vtrue
+	}
+
+	return vfalse
 }

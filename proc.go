@@ -5,6 +5,7 @@ type builtin func([]*val) *val
 type proc struct {
 	builtin  builtin
 	argCount int
+	varArgs  bool
 	params   *val
 	body     *val
 	env      *val
@@ -12,12 +13,13 @@ type proc struct {
 
 var invalidArguments = &val{merror, "invalid arguments"}
 
-func newBuiltin(p builtin, argCount int) *val {
+func newBuiltin(p builtin, argCount int, varArgs bool) *val {
 	return &val{
 		procedure,
 		&proc{
 			builtin:  p,
 			argCount: argCount,
+			varArgs:  varArgs,
 		},
 	}
 }
@@ -36,8 +38,9 @@ func procString(p *val) *val {
 
 func applyBuiltin(p *proc, a *val) *val {
 	args := make([]*val, 0, p.argCount)
+
 	for {
-		if isNil(a) != vfalse || len(args) == p.argCount {
+		if isNil(a) != vfalse || !p.varArgs && len(args) == p.argCount {
 			break
 		}
 
@@ -46,9 +49,10 @@ func applyBuiltin(p *proc, a *val) *val {
 		}
 
 		args = append(args, car(a))
+		a = cdr(a)
 	}
 
-	if isNil(a) == vfalse || len(args) != p.argCount {
+	if isNil(a) == vfalse || !p.varArgs && len(args) != p.argCount || p.varArgs && len(args) < p.argCount {
 		return fatal(invalidArguments)
 	}
 
@@ -69,6 +73,10 @@ func apply(p, a *val) *val {
 	}
 
 	return applyLang(pt, a)
+}
+
+func bapply(a []*val) *val {
+	return apply(a[0], a[1])
 }
 
 func isProc(e *val) *val {

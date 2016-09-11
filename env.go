@@ -11,12 +11,12 @@ var (
 	definitionExists = &val{merror, "definition exists"}
 )
 
-func newEnv() *val {
+func newEnv(p *val) *val {
 	return &val{
 		environment,
 		&env{
 			current: make(map[string]*val),
-			parent:  nil,
+			parent:  p,
 		},
 	}
 }
@@ -35,10 +35,38 @@ func lookupDef(e, n *val) *val {
 	}
 
 	if et.parent == nil {
+		println("undefined reference", ns)
 		return fatal(undefined)
 	}
 
 	return lookupDef(et.parent, n)
+}
+
+func defineStruct(e, n, s, names *val) *val {
+	checkType(e, environment)
+	checkType(n, symbol)
+	checkType(s, mstruct)
+	checkType(names, pair, mnil)
+
+	if isNil(names) != vfalse {
+		return s
+	}
+
+	define(
+		e,
+		sfromString(
+			stringVal(
+				appendString(
+					symbolToString(n),
+					fromString(":"),
+					symbolToString(car(names)),
+				),
+			),
+		),
+		structVal(s, car(names)),
+	)
+
+	return defineStruct(e, n, s, cdr(names))
 }
 
 func define(e, n, v *val) *val {
@@ -55,31 +83,44 @@ func define(e, n, v *val) *val {
 	}
 
 	et.current[ns] = v
+	if isStruct(v) != vfalse {
+		return defineStruct(e, n, v, structNames(v))
+	}
+
 	return v
 }
 
-func extendEnv(e, n, a *val) *val {
-	m := make(map[string]*val)
+func defineAll(e, n, a *val) *val {
 	for {
 		if isNil(n) != vfalse && isNil(a) != vfalse {
 			break
 		}
 
-		if isPair(n) == vfalse || isPair(a) == vfalse {
+		if isPair(a) == vfalse && isNil(a) == vfalse {
 			return fatal(invalidArguments)
 		}
 
-		m[sstringVal(car(n))] = car(a)
+		if isPair(n) == vfalse {
+			define(e, n, a)
+			return e
+		}
+
+		if isNil(a) != vfalse {
+			return fatal(invalidArguments)
+		}
+
+		ni := car(n)
+		ai := car(a)
+		define(e, ni, ai)
 		n, a = cdr(n), cdr(a)
 	}
 
-	return &val{
-		environment,
-		&env{
-			current: m,
-			parent:  e,
-		},
-	}
+	return e
+}
+
+func extendEnv(e, n, a *val) *val {
+	e = newEnv(e)
+	return defineAll(e, n, a)
 }
 
 func envString(e *val) *val {

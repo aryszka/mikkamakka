@@ -40,6 +40,10 @@ func assign(s *val, a ...*val) *val {
 	return fromMap(next)
 }
 
+func bassign(a []*val) *val {
+	return assign(a[0], a[1:]...)
+}
+
 func structFromList(l *val) *val {
 	sys := make(map[string]*val)
 	for {
@@ -74,4 +78,16 @@ func structNames(s *val) *val {
 	}
 
 	return reverse(n)
+}
+
+func structVal(s, n *val) *val {
+	checkType(s, mstruct)
+	checkType(n, symbol)
+	ns := sstringVal(n)
+
+	if v, ok := s.value.(*tstruct).sys[ns]; !ok {
+		return fatal(undefined)
+	} else {
+		return v
+	}
 }

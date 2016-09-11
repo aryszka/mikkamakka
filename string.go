@@ -30,6 +30,10 @@ func appendString(a ...*val) *val {
 	return fromBytes(b)
 }
 
+func bappendString(a []*val) *val {
+	return appendString(a...)
+}
+
 func stringLength(s *val) *val {
 	checkType(s, mstring)
 	return fromInt(len(s.value.(*str).sys))
@@ -37,6 +41,10 @@ func stringLength(s *val) *val {
 
 func isString(a *val) *val {
 	return is(a, mstring)
+}
+
+func bisString(a []*val) *val {
+	return isString(a[0])
 }
 
 func seq(left, right *val) *val {

@@ -2,9 +2,13 @@ package main
 
 func printer(out *val) *val {
 	return fromMap(map[string]*val{
-		"out":   out,
-		"state": vnil,
+		"output": out,
+		"state":  vnil,
 	})
+}
+
+func bprinter(a []*val) *val {
+	return printer(a[0])
 }
 
 func printState(p *val) *val {
@@ -12,10 +16,10 @@ func printState(p *val) *val {
 }
 
 func printRaw(p *val, r *val) *val {
-	f := fwrite(field(p, sfromString("out")), r)
+	f := fwrite(field(p, sfromString("output")), r)
 	return assign(p, fromMap(map[string]*val{
-		"out":   f,
-		"state": fstate(f),
+		"output": f,
+		"state":  fstate(f),
 	}))
 }
 
@@ -97,7 +101,7 @@ func printVector(p, v *val) *val {
 
 	var loop func(*val, *val, *val) *val
 	loop = func(p, i, f *val) *val {
-		if neq(i, vectorLength(v)) {
+		if neq(i, vectorLength(v)) != vfalse {
 			return p
 		}
 
@@ -192,20 +196,24 @@ func mprintq(p, v, q *val) *val {
 		}))
 	}
 
-	f := fwrite(field(p, sfromString("out")), v)
+	f := fwrite(field(p, sfromString("output")), v)
 	if st := fstate(f); isError(st) != vfalse {
 		return assign(p, fromMap(map[string]*val{
-			"out":   f,
-			"state": st,
+			"output": f,
+			"state":  st,
 		}))
 	}
 
 	return assign(p, fromMap(map[string]*val{
-		"out":   f,
-		"state": v,
+		"output": f,
+		"state":  v,
 	}))
 }
 
 func mprint(p, v *val) *val {
 	return mprintq(p, v, vfalse)
+}
+
+func bprint(a []*val) *val {
+	return mprint(a[0], a[1])
 }

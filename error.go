@@ -6,6 +6,10 @@ func isError(a *val) *val {
 	return is(a, merror)
 }
 
+func bisError(a []*val) *val {
+	return isError(a[0])
+}
+
 func errorString(a *val) *val {
 	switch v := a.value.(type) {
 	case error:
@@ -25,6 +29,7 @@ func fatal(a *val) *val {
 		fwrite(stderr(), errorString(a))
 	}
 
+	println()
 	os.Exit(-1)
 	return a
 }

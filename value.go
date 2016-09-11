@@ -67,13 +67,13 @@ func is(v *val, t mtype) *val {
 	return vfalse
 }
 
-func unexpectedType(expected ...mtype) {
+func unexpectedType(got mtype, expected ...mtype) {
 	s := make([]string, len(expected))
 	for i, e := range expected {
 		s[i] = typeString(e)
 	}
 
-	panic(fmt.Sprintf("expected: %s", strings.Join(s, ", ")))
+	panic(fmt.Sprintf("expected: %s, got: %s", strings.Join(s, ", "), typeString(got)))
 }
 
 func checkType(v *val, expected ...mtype) {
@@ -83,5 +83,37 @@ func checkType(v *val, expected ...mtype) {
 		}
 	}
 
-	unexpectedType(expected...)
+	unexpectedType(v.mtype, expected...)
+}
+
+func eq(v ...*val) *val {
+	if len(v) == 0 {
+		return vfalse
+	}
+
+	if len(v) == 1 {
+		return vtrue
+	}
+
+	a := v[0]
+	b := v[1]
+
+	switch {
+	case isNumber(a) != vfalse && isNumber(b) != vfalse:
+		return and(neq(a, b), eq(v[1:]...))
+	case isString(a) != vfalse && isString(b) != vfalse:
+		return and(seq(a, b), eq(v[1:]...))
+	case isSymbol(a) != vfalse && isSymbol(b) != vfalse:
+		return and(smeq(a, b), eq(v[1:]...))
+	default:
+		if a != b {
+			return vfalse
+		}
+
+		return eq(v[1:]...)
+	}
+}
+
+func beq(v []*val) *val {
+	return eq(v...)
 }

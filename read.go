@@ -1,5 +1,7 @@
 package main
 
+import "unicode"
+
 var (
 	invalidToken    = &val{merror, "invalid token"}
 	notImplemented  = &val{merror, "not implemented"}
@@ -21,6 +23,8 @@ func reader(in *val) *val {
 		"in":            in,
 		"token-type":    ttnone,
 		"value":         voidError,
+		"escaped":       vfalse,
+		"last-char":     fromString(""),
 		"current-token": fromString(""),
 		"in-list":       fromString(""),
 		"close-list":    vfalse,
@@ -40,6 +44,7 @@ func charCheck(c string) func(*val) *val {
 }
 
 var (
+	isEscapeChar      = charCheck("\\")
 	isNewline         = charCheck("\n")
 	isStringDelimiter = charCheck(`"`)
 	isComment         = charCheck(";")
@@ -54,7 +59,7 @@ var (
 )
 
 func isWhitespace(s *val) *val {
-	if isNewline(s) != vfalse || stringVal(s) == " " {
+	if unicode.IsSpace(rune(stringVal(s)[0])) {
 		return vtrue
 	}
 
@@ -148,9 +153,60 @@ func closeString(r *val) *val {
 	return clearToken(processString(setTokenType(r, ttnone)))
 }
 
+func setEscaped(r *val) *val {
+	return assign(r, fromMap(map[string]*val{"escaped": vtrue}))
+}
+
+func unsetEscaped(r *val) *val {
+	return assign(r, fromMap(map[string]*val{"escaped": vfalse}))
+}
+
+func isEscaped(r *val) *val {
+	return field(r, sfromString("escaped"))
+}
+
+func unescapeSymbolChar(c *val) *val {
+	return c
+}
+
+func unescapeStringChar(c *val) *val {
+	switch stringVal(c) {
+	case "b":
+		return fromString("\b")
+	case "f":
+		return fromString("\f")
+	case "n":
+		return fromString("\n")
+	case "r":
+		return fromString("\r")
+	case "t":
+		return fromString("\t")
+	case "v":
+		return fromString("\v")
+	default:
+		return c
+	}
+}
+
+func unescapeChar(tokenType, c *val) *val {
+	switch tokenType {
+	case ttsymbol:
+		return unescapeSymbolChar(c)
+	case ttstring:
+		return unescapeStringChar(c)
+	default:
+		return invalidToken
+	}
+}
+
 func appendToken(r *val) *val {
+	c := lastChar(r)
+	if isEscaped(r) != vfalse {
+		c = unescapeChar(field(r, sfromString("token-type")), c)
+	}
+
 	return assign(r, fromMap(map[string]*val{
-		"current-token": appendString(field(r, sfromString("current-token")), lastChar(r)),
+		"current-token": appendString(field(r, sfromString("current-token")), c),
 	}))
 }
 
@@ -261,7 +317,7 @@ func readList(r, c *val) *val {
 
 		if consSet(lr) {
 			if field(lr, sfromString("list-items")) == vnil ||
-				!neq(field(lr, sfromString("cons-items")), fromInt(0)) {
+				neq(field(lr, sfromString("cons-items")), fromInt(0)) == vfalse {
 				return setIrregularCons(assign(r, fromMap(map[string]*val{
 					"in": field(lr, sfromString("in")),
 				})))
@@ -275,7 +331,7 @@ func readList(r, c *val) *val {
 
 		if field(lr, sfromString("close-list")) != vfalse {
 			if hasCons(lr) {
-				if !neq(field(lr, sfromString("cons-items")), fromInt(2)) {
+				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == vfalse {
 					return setIrregularCons(assign(r, fromMap(map[string]*val{
 						"in": field(lr, sfromString("in")),
 					})))
@@ -374,6 +430,8 @@ func read(r *val) *val {
 		switch {
 		case isWhitespace(c) != vfalse:
 			return read(r)
+		case isEscapeChar(c) != vfalse:
+			return read(setEscaped(setSymbol(r)))
 		case isStringDelimiter(c) != vfalse:
 			return read(setString(r))
 		case isComment(c) != vfalse:
@@ -406,8 +464,12 @@ func read(r *val) *val {
 		return read(r)
 	case isTSymbol(t):
 		switch {
+		case isEscaped(r) != vfalse:
+			return read(unsetEscaped(appendToken(r)))
 		case isWhitespace(c) != vfalse:
 			return closeSymbol(r)
+		case isEscapeChar(c) != vfalse:
+			return read(setEscaped(r))
 		case isComment(c) != vfalse:
 			return setComment(closeSymbol(r))
 		case isStringDelimiter(c) != vfalse:
@@ -431,6 +493,10 @@ func read(r *val) *val {
 		}
 	case isTString(t):
 		switch {
+		case isEscaped(r) != vfalse:
+			return read(unsetEscaped(appendToken(r)))
+		case isEscapeChar(c) != vfalse:
+			return read(setEscaped(r))
 		case isStringDelimiter(c) != vfalse:
 			return closeString(r)
 		default:
