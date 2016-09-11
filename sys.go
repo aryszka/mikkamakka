@@ -27,7 +27,7 @@ func isSys(a *val) *val {
 func fopen(a *val) *val {
 	checkType(a, mstring)
 
-	f, err := os.Open(a.value.(string))
+	f, err := os.Open(stringVal(a))
 	if err != nil {
 		return &val{merror, err}
 	}
@@ -207,4 +207,13 @@ func derivedObject(a []*val) *val {
 	}
 
 	return derivedObject([]*val{a[0], a[1].value.(*file).original})
+}
+
+func argv([]*val) *val {
+	argv := vnil
+	for i := len(os.Args) - 1; i >= 0; i-- {
+		argv = cons(fromString(os.Args[i]), argv)
+	}
+
+	return argv
 }

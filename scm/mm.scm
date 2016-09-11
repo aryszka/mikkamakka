@@ -118,7 +118,7 @@
 
 
 (def (make-char-check . cc) (fn (c) (apply char-check (cons c cc))))
-(def whitespace? (make-char-check " " "\b" "\f" "\r" "\t" "\v"))
+(def whitespace? (make-char-check " " "\b" "\f" "\n" "\r" "\t" "\v"))
 (def escape-char? (make-char-check "\\"))
 (def string-delimiter? (make-char-check "\""))
 (def comment-char? (make-char-check ";"))
@@ -355,7 +355,7 @@
                      (else (read (append-token (set-symbol next))))))
 
               ((= next:token-type token-type:comment)
-               (cond ((newline? next:char) (clear-token next))
+               (cond ((newline? next:char) (read (clear-token next)))
                      (else (read next))))
 
               ((= next:token-type token-type:symbol)
@@ -448,9 +448,7 @@
 
   (test "ignores comments" (assert-read-string "; a comment" undefined))
 
-  (test "new line closes comments"
-    (let (r (read (read-string "; a comment\na")))
-      (assert-read r:value 'a)))
+  (test "new line closes comments" (assert-read-string "; a comment\na" 'a))
 
   (test "reads list" (assert-read-string "(a b c)" '(a b c)))
 
@@ -475,3 +473,30 @@
                          (test-yield next (cdr expected)))))))
     (test-yield (reader (fwrite (buffer) "a b c")) '(a b c))
     (test-yield (reader (fwrite (buffer) "a {b 2} [c]")) '(a {b 2} [c]))))
+
+
+(def (compile-file fin fout)
+  (def (compile r p)
+    (let (next-in (read r))
+	  (cond ((= next-in:value eof) (list next-in p))
+			((error? next-in:value) next-in:value)
+			(else
+			  (let (next-out (print p next-in:value))
+				(cond ((error? next-out:state) next-out:state)
+					  (else (compile next-in next-out))))))))
+
+  (let (result (compile (reader fin) (printer fout)))
+	(cond ((error? result) result)
+		  (else (list ((car result) 'input) ((car (cdr result)) 'output))))))
+
+
+(compile-file (fopen (car (cdr (argv)))) (stdout))
+
+; (let (fin  (fopen (car (cdr (argv))))
+; 	  fout (stdout))
+;   (cond ((error? (fstate fin)) (fstate fin))
+; 		((error? (fstate fout)) (fstate fout))
+; 		(else (let (result (compile-file fin fout))
+; 				(fwrite (car (cdr result)) "\n")
+; 				(cond ((error? result) result)
+; 					  (else (fclose (car result))))))))

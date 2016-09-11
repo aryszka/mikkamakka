@@ -59,13 +59,29 @@ func applyBuiltin(p *proc, a *val) *val {
 	return p.builtin(args)
 }
 
+func applyStruct(s, a *val) *val {
+	checkType(s, mstruct)
+	checkType(a, pair)
+
+	if isNil(cdr(a)) == vfalse {
+		return invalidArguments
+	}
+
+	return field(s, car(a))
+}
+
 func applyLang(p *proc, a *val) *val {
 	return evalSeq(extendEnv(p.env, p.params, a), p.body)
 }
 
 func apply(p, a *val) *val {
-	checkType(p, procedure)
+	checkType(p, procedure, mstruct)
 	checkType(a, pair, mnil)
+
+	if isStruct(p) != vfalse {
+		return applyStruct(p, a)
+	}
+
 	pt := p.value.(*proc)
 
 	if pt.builtin != nil {

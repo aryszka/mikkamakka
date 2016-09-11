@@ -28,6 +28,8 @@ func initialEnv() *val {
 	define(env, sfromString("bool?"), newBuiltin(bisBool, 1, false))
 	define(env, sfromString("string?"), newBuiltin(bisString, 1, false))
 	define(env, sfromString("assign"), newBuiltin(bassign, 1, true))
+	define(env, sfromString("fopen"), newBuiltin(bfopen, 1, false))
+	define(env, sfromString("fclose"), newBuiltin(bfclose, 1, false))
 	define(env, sfromString("fread"), newBuiltin(bfread, 2, false))
 	define(env, sfromString("fwrite"), newBuiltin(bfwrite, 2, false))
 	define(env, sfromString("fstate"), newBuiltin(bfstate, 1, false))
@@ -36,7 +38,9 @@ func initialEnv() *val {
 	define(env, sfromString("eof"), eof)
 	define(env, sfromString("stdin"), newBuiltin(bstdin, 0, false))
 	define(env, sfromString("stderr"), newBuiltin(bstderr, 0, false))
+	define(env, sfromString("stdout"), newBuiltin(bstdout, 0, false))
 	define(env, sfromString("buffer"), newBuiltin(bbuffer, 0, false))
+	define(env, sfromString("argv"), newBuiltin(argv, 0, false))
 	define(env, sfromString("invalid-token"), invalidToken)
 	define(env, sfromString("string-append"), newBuiltin(bappendString, 0, true))
 	define(env, sfromString("printer"), newBuiltin(bprinter, 1, false))
@@ -67,17 +71,17 @@ func loop(env, in, out *val) {
 
 	v = eval(env, v)
 
-	out = mprint(out, v)
-	v = field(out, sfromString("state"))
-	if isError(v) != vfalse {
-		fatal(v)
-	}
+	// out = mprint(out, v)
+	// v = field(out, sfromString("state"))
+	// if isError(v) != vfalse {
+	// 	fatal(v)
+	// }
 
 	f := field(out, sfromString("output"))
-	f = fwrite(f, fromString("\n"))
-	if isError(fstate(f)) != vfalse {
-		fatal(fstate(f))
-	}
+	// f = fwrite(f, fromString("\n"))
+	// if isError(fstate(f)) != vfalse {
+	// 	fatal(fstate(f))
+	// }
 
 	loop(env, in, assign(out, fromMap(map[string]*val{
 		"output": f,
