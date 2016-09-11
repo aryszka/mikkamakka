@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 type tpair struct {
 	car, cdr *val

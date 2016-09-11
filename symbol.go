@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 type sym struct {
 	val string
@@ -47,4 +47,8 @@ func smeq(left, right *val) *val {
 	}
 
 	return vfalse
+}
+
+func SfromString(s string) *Val {
+	return (*Val)(sfromString(s))
 }

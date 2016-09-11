@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 type tstruct struct {
 	sys map[string]*val
@@ -90,4 +90,26 @@ func structVal(s, n *val) *val {
 	} else {
 		return v
 	}
+}
+
+func Field(s, f *Val) *Val {
+	return (*Val)(field((*val)(s), (*val)(f)))
+}
+
+func Assign(s *Val, a ...*Val) *Val {
+	av := make([]*val, len(a))
+	for i, ai := range a {
+		av[i] = (*val)(ai)
+	}
+
+	return (*Val)(assign((*val)(s), av...))
+}
+
+func FromMap(m map[string]*Val) *Val {
+	mv := make(map[string]*val)
+	for k, v := range m {
+		mv[k] = (*val)(v)
+	}
+
+	return (*Val)(fromMap(mv))
 }

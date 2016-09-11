@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import "unicode"
 
@@ -510,3 +510,8 @@ func read(r *val) *val {
 		return setInvalid(r)
 	}
 }
+
+func Reader(in *Val) *Val { return (*Val)(reader((*val)(in))) }
+func Read(r *Val) *Val { return (*Val)(read((*val)(r))) }
+
+var VoidError = (*Val)(voidError)

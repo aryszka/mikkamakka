@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import "strconv"
 
@@ -60,4 +60,8 @@ func seq(left, right *val) *val {
 func escapeCompiled(a []*val) *val {
 	checkType(a[0], mstring)
 	return fromString(strconv.Quote(stringVal(a[0])))
+}
+
+func FromString(s string) *Val {
+	return (*Val)(fromString(s))
 }

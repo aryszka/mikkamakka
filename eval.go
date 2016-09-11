@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 /*
 when panic, when error?
@@ -468,4 +468,8 @@ func eval(e, v *val) *val {
 		println(v.mtype)
 		return fatal(invalidExpression)
 	}
+}
+
+func Eval(e, v *Val) *Val {
+	return (*Val)(eval((*val)(e), (*val)(v)))
 }

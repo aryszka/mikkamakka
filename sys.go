@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import (
 	"bytes"
@@ -216,4 +216,14 @@ func argv([]*val) *val {
 	}
 
 	return argv
+}
+
+var Eof = (*Val)(eof)
+
+func Stdin() *Val {
+	return (*Val)(stdin())
+}
+
+func Stdout() *Val {
+	return (*Val)(stdout())
 }

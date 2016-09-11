@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import "strconv"
 
@@ -102,4 +102,8 @@ func neq(left, right *val) *val {
 	}
 
 	return vfalse
+}
+
+func FromInt(i int) *Val {
+	return (*Val)(fromInt(i))
 }

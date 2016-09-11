@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import (
 	"fmt"
@@ -49,4 +49,12 @@ func fatal(a *val) *val {
 func estring(e *val) *val {
 	checkType(e, merror)
 	return fromString(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
+}
+
+func IsError(a *Val) *Val {
+	return (*Val)(isError((*val)(a)))
+}
+
+func Fatal(a *Val) *Val {
+	return (*Val)(fatal((*val)(a)))
 }

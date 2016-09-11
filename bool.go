@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 var (
 	vfalse = &val{mbool, false}
@@ -85,3 +85,5 @@ func not(a []*val) *val {
 
 	return vfalse
 }
+
+var Vfalse = (*Val)(vfalse)

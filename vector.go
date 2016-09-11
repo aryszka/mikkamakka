@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 type vect struct {
 	items []*val

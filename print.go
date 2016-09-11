@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 func printer(out *val) *val {
 	return fromMap(map[string]*val{

@@ -492,8 +492,8 @@
 (def (test? v) (tagged? v 'test))
 
 
-(def (compile-number v) (string-append " fromInt(" (number->string v) ") "))
-(def (compile-string v) (string-append " fromString(" (escape-compiled-string v) ") "))
+(def (compile-number v) (string-append " mm.FromInt(" (number->string v) ") "))
+(def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " vtrue " " vfalse "))
 (def (compile-nil v) " vnil ")
 (def (compile-quote v) (string-append " list(sfromString(\""
@@ -538,9 +538,22 @@
 		(else invalid-expression)))
 
 
+(def compiled-head
+	 "package main
+
+	 import mm \"github.com/aryszka/mikkamakka\"
+
+	 func main() {
+	 ")
+
+
+(def compiled-tail "
+	 }")
+
+
 (def (compile-file fin fout)
-  (def (write-head fout) (fwrite fout "package main\nfunc main() {\n"))
-  (def (write-tail fout) (fwrite fout "\n}"))
+  (def (write-head fout) (fwrite fout compiled-head))
+  (def (write-tail fout) (fwrite fout compiled-tail))
 
   (def (compile-reader r fout)
     (let (next-in (read r))

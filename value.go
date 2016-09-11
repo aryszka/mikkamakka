@@ -1,4 +1,4 @@
-package main
+package mikkamakka
 
 import (
 	"fmt"
@@ -117,3 +117,9 @@ func eq(v ...*val) *val {
 func beq(v []*val) *val {
 	return eq(v...)
 }
+
+type Val val
+
+type Mtype mtype
+
+var Merror = Mtype(merror)
