@@ -36,6 +36,7 @@
 
 
 (def irregular-cons (string->error "irregular cons expression"))
+(def unexpected-close (string->error "unexpected close token"))
 
 
 (def token-type
@@ -360,18 +361,30 @@
                      (else (read next))))
 
               ((= next:token-type token-type:symbol)
-               (cond (next:escaped? (read (append-token next)))
+               (cond (next:escaped?
+					  (read (assign (append-token next) {escaped? false})))
                      ((whitespace? next:char) (finalize-token next))
+					 ((escape-char? next:char) (read (set-escaped next)))
+                     ((string-delimiter? next:char)
+                      (set-string (finalize-token next)))
+                     ((comment-char? next:char)
+                      (set-comment (finalize-token next)))
+                     ((list-open? next:char)
+                      (set-list (finalize-token next)))
                      ((list-close? next:char)
                       (set-close (finalize-token next) list-type:lisp))
+					 ((vector-open? next:char) (set-vector (finalize-token next)))
 					 ((vector-close? next:char)
 					  (set-close (finalize-token next) list-type:vector))
+					 ((struct-open? next:char) (set-struct (finalize-token next)))
 					 ((struct-close? next:char)
 					  (set-close (finalize-token next) list-type:struct))
                      (else (read (append-token next)))))
 
               ((= next:token-type token-type:string)
-               (cond ((string-delimiter? next:char) (finalize-token next))
+               (cond (next:escaped? (read (assign (append-token next) {escaped? false})))
+					 ((escape-char? next:char) (read (set-escaped next)))
+					 ((string-delimiter? next:char) (finalize-token next))
                      (else (read (append-token next)))))
 
               (else (assign next {value invalid-token})))))))
@@ -410,9 +423,33 @@
 
   (test "reads symbol" (assert-read-string "a-symbol" 'a-symbol))
 
+  (test "reads symbol with escape" (assert-read-string "a\\(b" 'a\(b))
+
+  (test "reads symbol with escaped escape char" (assert-read-string "a\\\\b" 'a\\b))
+
+  (test "reads symbol closed by whitespace" (assert-read-string "a b" 'a))
+
+  (test "reads symbol closed by string" (assert-read-string "a\"b\"" 'a))
+
+  (test "reads symbol closed by comment" (assert-read-string "a; a comment" 'a))
+
+  (test "reads symbol closed by list" (assert-read-string "a(b)" 'a))
+
+  (test "reads symbol closed by vector" (assert-read-string "a[b]" 'a))
+
+  (test "reads symbol closed by struct" (assert-read-string "a{b 2}" 'a))
+
   (test "reads string" (assert-read-string "\"a string\"" "a string"))
 
+  (test "reads string with escape" (assert-read-string "\"a \\\"string\\\"\"" "a \"string\""))
+
+  (test "reads string with escaped escape char" (assert-read-string "\"a \\\\\"" "a \\"))
+
   (test "ignores comments" (assert-read-string "; a comment" undefined))
+
+  (test "new line closes comments"
+    (let (r (read (read-string "; a comment\na")))
+      (assert-read r:value 'a)))
 
   (test "reads list" (assert-read-string "(a b c)" '(a b c)))
 
