@@ -25,6 +25,7 @@ func initialEnv() *val {
 	define(env, sfromString("symbol?"), newBuiltin(bisSymbol, 1, false))
 	define(env, sfromString("string->symbol"), newBuiltin(stringToSymbol, 1, false))
 	define(env, sfromString("number?"), newBuiltin(bisNumber, 1, false))
+	define(env, sfromString("number->string"), newBuiltin(bnumberToString, 1, false))
 	define(env, sfromString("bool?"), newBuiltin(bisBool, 1, false))
 	define(env, sfromString("string?"), newBuiltin(bisString, 1, false))
 	define(env, sfromString("assign"), newBuiltin(bassign, 1, true))
@@ -43,6 +44,7 @@ func initialEnv() *val {
 	define(env, sfromString("argv"), newBuiltin(argv, 0, false))
 	define(env, sfromString("invalid-token"), invalidToken)
 	define(env, sfromString("string-append"), newBuiltin(bappendString, 0, true))
+	define(env, sfromString("escape-compiled-string"), newBuiltin(escapeCompiled, 1, false))
 	define(env, sfromString("printer"), newBuiltin(bprinter, 1, false))
 	define(env, sfromString("print"), newBuiltin(bprint, 2, false))
 

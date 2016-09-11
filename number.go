@@ -59,6 +59,10 @@ func numberToString(n *val) *val {
 	return fromString(strconv.Itoa(n.value.(int)))
 }
 
+func bnumberToString(a []*val) *val {
+	return numberToString(a[0])
+}
+
 func isNumber(a *val) *val {
 	return is(a, number)
 }

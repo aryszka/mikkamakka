@@ -1,5 +1,7 @@
 package main
 
+import "strconv"
+
 type str struct {
 	sys string
 }
@@ -53,4 +55,9 @@ func seq(left, right *val) *val {
 	}
 
 	return vfalse
+}
+
+func escapeCompiled(a []*val) *val {
+	checkType(a[0], mstring)
+	return fromString(strconv.Quote(stringVal(a[0])))
 }

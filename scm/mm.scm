@@ -475,28 +475,92 @@
     (test-yield (reader (fwrite (buffer) "a {b 2} [c]")) '(a {b 2} [c]))))
 
 
+(def (tagged? v t) (and (pair? v) (= (car v) t)))
+
+
+(def (quote? v) (tagged? v 'quote))
+(def (def? v) (tagged? v 'def))
+(def (vector-form? v) (tagged? v 'vector:))
+(def (struct-form? v) (tagged? v 'struct:))
+(def (if? v) (tagged? v 'if))
+(def (and? v) (tagged? v 'and))
+(def (or? v) (tagged? v 'or))
+(def (fn? v) (tagged? v 'fn))
+(def (begin? v) (tagged? v 'begin))
+(def (cond? v) (tagged? v 'cond))
+(def (let? v) (tagged? v 'let))
+(def (test? v) (tagged? v 'test))
+
+
+(def (compile-number v) (string-append " fromInt(" (number->string v) ") "))
+(def (compile-string v) (string-append " fromString(" (escape-compiled-string v) ") "))
+(def (compile-bool v) (if v " vtrue " " vfalse "))
+(def (compile-nil v) " vnil ")
+(def (compile-quote v) (string-append " list(sfromString(\""
+									  (escape-compiled-string (symbol->string v))
+									  "\"), "
+									  (compile-exp (car (cdr v)))
+									  ") "))
+(def (compile-symbol v) (string-append " sfromString(\""
+									   (escape-compiled-string (symbol->string v))
+									   "\") "))
+
+
+(def (compile-def v) "")
+(def (compile-test v) "")
+(def (compile-let v) "")
+
+
+(def (compile-exp v)
+  (cond ((def? v) definition-expression)
+		(else (compile v))))
+
+
+(def (compile v)
+  (cond ((number? v) (compile-number v))
+		((string? v) (compile-string v))
+		((bool? v) (compile-bool v))
+		((nil? v) (compile-nil v))
+		((quote? v) (compile-quote v))
+		((symbol? v) (compile-symbol v))
+		((def? v) (compile-def v))
+		((vector-form? v) (compile-vector-form v))
+		((struct-form? v) (compile-struct-form v))
+		((if? v) (compile-if v))
+		((and? v) (compile-and v))
+		((or? v) (compile-or v))
+		((fn? v) (compile-fn v))
+		((begin? v) (compile-begin v))
+		((cond? v) (compile-cond v))
+		((let? v) (compile-let v))
+		((test? v) (compile-test v))
+		((application? v) (compile-application v))
+		(else invalid-expression)))
+
+
 (def (compile-file fin fout)
-  (def (compile r p)
+  (def (write-head fout) (fwrite fout "package main\nfunc main() {\n"))
+  (def (write-tail fout) (fwrite fout "\n}"))
+
+  (def (compile-reader r fout)
     (let (next-in (read r))
-	  (cond ((= next-in:value eof) (list next-in p))
+	  (cond ((= next-in:value eof) (list next-in fout))
 			((error? next-in:value) next-in:value)
 			(else
-			  (let (next-out (print p next-in:value))
-				(cond ((error? next-out:state) next-out:state)
-					  (else (compile next-in next-out))))))))
+			  (let (next-out (fwrite fout (string-append (compile next-in:value) ";")))
+				(cond ((error? (fstate next-out)) (fstate next-out))
+					  (else (compile-reader next-in next-out))))))))
 
-  (let (result (compile (reader fin) (printer fout)))
+  (let (result (compile-reader (reader fin) (write-head fout)))
 	(cond ((error? result) result)
-		  (else (list ((car result) 'input) ((car (cdr result)) 'output))))))
+		  (else (list ((car result) 'input) (write-tail (car (cdr result))))))))
 
 
-(compile-file (fopen (car (cdr (argv)))) (stdout))
-
-; (let (fin  (fopen (car (cdr (argv))))
-; 	  fout (stdout))
-;   (cond ((error? (fstate fin)) (fstate fin))
-; 		((error? (fstate fout)) (fstate fout))
-; 		(else (let (result (compile-file fin fout))
-; 				(fwrite (car (cdr result)) "\n")
-; 				(cond ((error? result) result)
-; 					  (else (fclose (car result))))))))
+(let (fin  (fopen (car (cdr (argv))))
+	  fout (stdout))
+  (cond ((error? (fstate fin)) (fstate fin))
+		((error? (fstate fout)) (fstate fout))
+		(else (let (result (compile-file fin fout))
+				(fwrite (car (cdr result)) "\n")
+				(cond ((error? result) result)
+					  (else (fclose (car result))))))))
