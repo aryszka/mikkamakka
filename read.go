@@ -455,6 +455,7 @@ func read(r *val) *val {
 		default:
 			return read(appendToken(setSymbol(r)))
 		}
+
 	case isTComment(t):
 		switch {
 		case isNewline(c) != vfalse:
@@ -462,6 +463,7 @@ func read(r *val) *val {
 		}
 
 		return read(r)
+
 	case isTSymbol(t):
 		switch {
 		case isEscaped(r) != vfalse:
@@ -491,6 +493,7 @@ func read(r *val) *val {
 		default:
 			return read(appendToken(r))
 		}
+
 	case isTString(t):
 		switch {
 		case isEscaped(r) != vfalse:
@@ -502,6 +505,7 @@ func read(r *val) *val {
 		default:
 			return read(appendToken(r))
 		}
+
 	default:
 		return setInvalid(r)
 	}

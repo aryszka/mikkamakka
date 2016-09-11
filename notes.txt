@@ -35,6 +35,12 @@
 
 #lit
 
+One of the main drivers of this project should be simplicity.
+
+File extension?
+.mmk (.mm is for c++ in objective c)
+.scmm? (.scm is colored differently on github)
+
 The below code implements the traditional map:
 
 (code
