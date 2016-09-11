@@ -9,6 +9,7 @@ var (
 	invalidDef           = &val{merror, "invalid definition"}
 	invalidIf            = &val{merror, "invalid if expression"}
 	invalidAnd           = &val{merror, "invalid and expression"}
+	invalidOr            = &val{merror, "invalid or expression"}
 	invalidFn            = &val{merror, "invalid function expression"}
 	invalidSequence      = &val{merror, "invalid sequence"}
 	invalidVector        = &val{merror, "invalid vector"}
@@ -194,12 +195,38 @@ func evalAnd(e, v *val) *val {
 		return invalidAnd
 	}
 
+	r := evalExp(e, car(v))
 	if isNil(cdr(v)) != vfalse {
-		return evalExp(e, car(v))
+		return r
 	}
 
-	if evalExp(e, car(v)) == vfalse {
+	if r == vfalse {
 		return vfalse
+	}
+
+	return evalAnd(e, cdr(v))
+}
+
+func isOr(v *val) *val {
+	return isTaggedBy(v, sfromString("or"))
+}
+
+func evalOr(e, v *val) *val {
+	if isNil(v) != vfalse {
+		return vfalse
+	}
+
+	if isPair(v) == vfalse {
+		return invalidOr
+	}
+
+	r := evalExp(e, car(v))
+	if isNil(cdr(v)) != vfalse {
+		return r
+	}
+
+	if r != vfalse {
+		return r
 	}
 
 	return evalAnd(e, cdr(v))
@@ -423,6 +450,8 @@ func eval(e, v *val) *val {
 		return evalIf(e, v)
 	case isAnd(v) != vfalse:
 		return evalAnd(e, cdr(v))
+	case isOr(v) != vfalse:
+		return evalOr(e, cdr(v))
 	case isFn(v) != vfalse:
 		return fnToProc(e, v)
 	case isBegin(v) != vfalse:

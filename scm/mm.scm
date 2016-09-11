@@ -14,14 +14,28 @@
 (def (append . l)
   (def (append-two left right)
     (cond ((nil? left) right)
-		  (else (cons (car left) (append-two (cdr left) right)))))
+          (else (cons (car left) (append-two (cdr left) right)))))
   (cond ((nil? l) nil)
-		(else (append-two (car l) (apply append (cdr l))))))
+        (else (append-two (car l) (apply append (cdr l))))))
 
 
 (def (reverse l)
   (cond ((nil? l) nil)
-		(else (append (reverse (cdr l)) (list (car l))))))
+        (else (append (reverse (cdr l)) (list (car l))))))
+
+
+(def (reverse-irregular l)
+  (def (reverse from to)
+    (cond ((nil? from) to)
+		  (else (reverse (cdr from) (cons (car from) to)))))
+  (cond ((or (nil? l) (nil? (cdr l))) irregular-cons)
+		(else (reverse (cdr (cdr l)) (cons (car (cdr l)) (car l))))))
+
+
+(def (inc n) (+ n 1))
+
+
+(def irregular-cons (string->error "irregular cons expression"))
 
 
 (def token-type
@@ -104,6 +118,7 @@
 (def comment-char? (make-char-check ";"))
 (def list-open? (make-char-check "("))
 (def list-close? (make-char-check ")"))
+(def cons-char? (make-char-check "."))
 
 
 (def (set-escaped r)
@@ -132,8 +147,14 @@
 
 (def (set-close r list-type)
   (if (= list-type r:list-type)
-	(assign r {close-list? true})
-	(assign r {value unexpected-close})))
+    (assign r {close-list? true})
+    (assign r {value unexpected-close})))
+
+
+(def (set-cons r)
+  (assign r (if (= r:list-type list-type:lisp)
+		      {list-cons? true}
+			  {value irregular-cons})))
 
 
 (def (symbol-token r)
@@ -167,8 +188,8 @@
 (def (finalize-token r)
   (cond ((= r:token-type token-type:symbol)
          (clear-token (symbol-token r)))
-		((= r:token-type token-type:string)
-		 (clear-token (assign r {value r:token})))
+        ((= r:token-type token-type:string)
+         (clear-token (assign r {value r:token})))
         (else
           (assign r
             {value
@@ -218,36 +239,36 @@
 (def (read-list r list-type)
   (def (read-item lr)
     (let (next (read lr))
-	  (cond ((error? next:value) next)
-			((= next:value undefined) next)
-			(else
-			  (assign next
-			    {list-items (cons next:value next:list-items)
-				 cons-items (if (> next:cons-items 0) (inc lr:cons-items) 0)
-				 value      undefined})))))
+      (cond ((error? next:value) next)
+            ((= next:value undefined) next)
+            (else
+              (assign next
+                {list-items (cons next:value next:list-items)
+                 cons-items (if (> next:cons-items 0) (inc lr:cons-items) 0)
+                 value      undefined})))))
 
   (def (check-cons lr)
     (if lr:list-cons?
-	  (assign lr
-	    (if (or (nil? lr:list-items) (> lr:cons-items 0))
-		  {value irregular-cons}
-		  {cons-items 1 cons false}))
-	  lr))
+      (assign lr
+        (if (or (nil? lr:list-items) (> lr:cons-items 0))
+          {value irregular-cons}
+          {cons-items 1 list-cons? false}))
+      lr))
 
   (def (complete-list lr)
     (assign r
-	  {input lr:input
-	   value (cond ((and (> lr:cons-items 0) (not (= lr:cons-items 2)))
-					irregular-cons)
-				   ((> lr:cons-items 0)
-					(reverse-irregular lr:list-items))
-				   (else (reverse lr:list-items)))}))
+      {input lr:input
+       value (cond ((and (> lr:cons-items 0) (not (= lr:cons-items 2)))
+                    irregular-cons)
+                   ((> lr:cons-items 0)
+                    (reverse-irregular lr:list-items))
+                   (else (reverse lr:list-items)))}))
 
   (def (read-items lr)
-	(let (next (check-cons (read-item lr)))
-	  (cond ((error? next:value) (assign r {input next:input value next:value}))
-			(next:close-list? (complete-list next))
-			(else (read-items next)))))
+    (let (next (check-cons (read-item lr)))
+      (cond ((error? next:value) (assign r {input next:input value next:value}))
+            (next:close-list? (complete-list next))
+            (else (read-items next)))))
   
   (read-items (assign (reader r:input) {list-type list-type})))
 
@@ -261,34 +282,40 @@
       (let (next (read-char r))
         (cond ((= next:value eof)
                (finalize-token next))
+
               ((error? next:value) next)
-              (else
-                (cond ((= next:token-type token-type:none)
-                       (cond ((whitespace? next:char) (read next))
-                             ((escape-char? next:char)
-                              (read (set-symbol (set-escaped next))))
-                             ((string-delimiter? next:char)
-                              (read (set-string next)))
-                             ((comment-char? next:char)
-                              (read (set-comment next)))
-                             ((list-open? next:char)
-                              (read (set-list next)))
-                             ((list-close? next:char)
-                              (set-close next list-type:lisp))
-                             (else (read (append-token (set-symbol next))))))
-                      ((= next:token-type token-type:comment)
-                       (cond ((newline? next:char) (clear-token next))
-                             (else (read next))))
-                      ((= next:token-type token-type:symbol)
-                       (cond (next:escaped? (read (append-token next)))
-							 ((whitespace? next:char) (finalize-token next))
-							 ((list-close? next:char)
-							  (set-close (finalize-token next) list-type:lisp))
-							 (else (read (append-token next)))))
-                      ((= next:token-type token-type:string)
-                       (cond ((string-delimiter? next:char) (finalize-token next))
-                             (else (read (append-token next)))))
-                      (else (assign next {value invalid-token})))))))))
+
+              ((= next:token-type token-type:none)
+               (cond ((whitespace? next:char) (read next))
+                     ((escape-char? next:char)
+                      (read (set-symbol (set-escaped next))))
+                     ((string-delimiter? next:char)
+                      (read (set-string next)))
+                     ((comment-char? next:char)
+                      (read (set-comment next)))
+                     ((list-open? next:char)
+                      (read (set-list next)))
+                     ((list-close? next:char)
+                      (set-close next list-type:lisp))
+					 ((cons-char? next:char) (set-cons next))
+                     (else (read (append-token (set-symbol next))))))
+
+              ((= next:token-type token-type:comment)
+               (cond ((newline? next:char) (clear-token next))
+                     (else (read next))))
+
+              ((= next:token-type token-type:symbol)
+               (cond (next:escaped? (read (append-token next)))
+                     ((whitespace? next:char) (finalize-token next))
+                     ((list-close? next:char)
+                      (set-close (finalize-token next) list-type:lisp))
+                     (else (read (append-token next)))))
+
+              ((= next:token-type token-type:string)
+               (cond ((string-delimiter? next:char) (finalize-token next))
+                     (else (read (append-token next)))))
+
+              (else (assign next {value invalid-token})))))))
 
 
 (test "read"
@@ -340,6 +367,11 @@
   (test "reads list"
     (let (r (read (reader (fwrite (buffer) "(a b c)"))))
       (assert-value r:value '(a b c))))
+
+  (trace "test started")
+  (test "reads irregular list"
+    (let (r (read (reader (fwrite (buffer) "(a b . c)"))))
+	  (assert-value (trace r:value) '(a b . c))))
 
   (test "escapes characters"
     (let (r (read (reader (fwrite (buffer) "\\ "))))

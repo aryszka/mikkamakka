@@ -79,6 +79,19 @@ func add(left, right *val) *val {
 	return fromInt(left.value.(int) + right.value.(int))
 }
 
+func badd(a []*val) *val {
+	s := 0
+	for {
+		if len(a) == 0 {
+			return fromInt(s)
+		}
+
+		checkType(a[0], number)
+		s += intVal(a[0])
+		a = a[1:]
+	}
+}
+
 func neq(left, right *val) *val {
 	if left.value.(int) == right.value.(int) {
 		return vtrue

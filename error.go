@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 func isError(a *val) *val {
 	return is(a, merror)
@@ -10,15 +13,24 @@ func bisError(a []*val) *val {
 	return isError(a[0])
 }
 
-func errorString(a *val) *val {
+func stringToError(a []*val) *val {
+	checkType(a[0], mstring)
+	return &val{merror, stringVal(a[0])}
+}
+
+func errorStringRaw(a *val) string {
 	switch v := a.value.(type) {
 	case error:
-		return fromString(v.Error())
+		return v.Error()
 	case string:
-		return fromString(v)
+		return v
 	default:
-		return fromString("unknown error")
+		return "unknown error"
 	}
+}
+
+func errorString(a *val) *val {
+	return fromString(errorStringRaw(a))
 }
 
 func fatal(a *val) *val {
@@ -35,5 +47,6 @@ func fatal(a *val) *val {
 }
 
 func estring(e *val) *val {
-	return fromString("<error>")
+	checkType(e, merror)
+	return fromString(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
 }
