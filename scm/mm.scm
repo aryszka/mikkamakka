@@ -199,24 +199,22 @@
       (= r:value 'a-symbol))))
 
 
+; TODO: clean this up
 (def (finalize-token r)
   (cond ((= r:token-type token-type:symbol)
          (clear-token (symbol-token r)))
         ((= r:token-type token-type:string)
          (clear-token (assign r {value r:token})))
+        ((= r:token-type token-type:none) (clear-token r))
         (else
-          (assign r
-            {value
-             (if (= r:token "")
-               undefined
-               invalid-token)}))))
+          (assign r {value (if (= r:token "") undefined invalid-token)}))))
 
 
 (test "finalize-token"
   (test "invalid token type"
     (let (r (finalize-token
               (assign (reader (buffer))
-                {token-type token-type:none
+                {token-type token-type:vector
                  token "a"})))
       (error? r:value)))
 
@@ -272,6 +270,7 @@
   (def (complete-list lr)
     (assign r
       {input lr:input
+       token-type token-type:none
        value (cond ((and (> lr:cons-items 0) (not (= lr:cons-items 2)))
                     irregular-cons)
                    ((> lr:cons-items 0)
@@ -289,26 +288,26 @@
 
 (def (read-quote r)
   (let (lr (assign (reader r:input) {list-type r:list-type})
-		next (read lr))
-	(assign r {input next:input
-			   value (if (error? next:value) next:value (list 'quote next:value))
-			   close-list? next:close-list?})))
+        next (read lr))
+    (assign r {input next:input
+               value (if (error? next:value) next:value (list 'quote next:value))
+               close-list? next:close-list?})))
 
 
 (def (read-vector r)
   (let (next (read-list r list-type:vector))
-	(assign next
-	  {value (if (error? next:value)
-			   next:value
-			   (cons 'vector: next:value))})))
+    (assign next
+      {value (if (error? next:value)
+               next:value
+               (cons 'vector: next:value))})))
 
 
 (def (read-struct r)
   (let (next (read-list r list-type:struct))
-	(assign next
-	  {value (if (error? next:value)
-			   next:value
-			   (cons 'struct: next:value))})))
+    (assign next
+      {value (if (error? next:value)
+               next:value
+               (cons 'struct: next:value))})))
 
 
 (def (read r)
@@ -331,8 +330,7 @@
 
     (else
       (let (next (read-char r))
-        (cond ((= next:value eof)
-               (finalize-token next))
+        (cond ((= next:value eof) (finalize-token next))
 
               ((error? next:value) next)
 
@@ -349,11 +347,11 @@
                      ((list-close? next:char)
                       (set-close next list-type:lisp))
                      ((cons-char? next:char) (set-cons next))
-					 ((quote-char? next:char) (read (set-quote next)))
-					 ((vector-open? next:char) (read (set-vector next)))
-					 ((vector-close? next:char) (set-close next list-type:vector))
-					 ((struct-open? next:char) (read (set-struct next)))
-					 ((struct-close? next:char) (set-close next list-type:struct))
+                     ((quote-char? next:char) (read (set-quote next)))
+                     ((vector-open? next:char) (read (set-vector next)))
+                     ((vector-close? next:char) (set-close next list-type:vector))
+                     ((struct-open? next:char) (read (set-struct next)))
+                     ((struct-close? next:char) (set-close next list-type:struct))
                      (else (read (append-token (set-symbol next))))))
 
               ((= next:token-type token-type:comment)
@@ -362,9 +360,9 @@
 
               ((= next:token-type token-type:symbol)
                (cond (next:escaped?
-					  (read (assign (append-token next) {escaped? false})))
+                      (read (assign (append-token next) {escaped? false})))
                      ((whitespace? next:char) (finalize-token next))
-					 ((escape-char? next:char) (read (set-escaped next)))
+                     ((escape-char? next:char) (read (set-escaped next)))
                      ((string-delimiter? next:char)
                       (set-string (finalize-token next)))
                      ((comment-char? next:char)
@@ -373,18 +371,18 @@
                       (set-list (finalize-token next)))
                      ((list-close? next:char)
                       (set-close (finalize-token next) list-type:lisp))
-					 ((vector-open? next:char) (set-vector (finalize-token next)))
-					 ((vector-close? next:char)
-					  (set-close (finalize-token next) list-type:vector))
-					 ((struct-open? next:char) (set-struct (finalize-token next)))
-					 ((struct-close? next:char)
-					  (set-close (finalize-token next) list-type:struct))
+                     ((vector-open? next:char) (set-vector (finalize-token next)))
+                     ((vector-close? next:char)
+                      (set-close (finalize-token next) list-type:vector))
+                     ((struct-open? next:char) (set-struct (finalize-token next)))
+                     ((struct-close? next:char)
+                      (set-close (finalize-token next) list-type:struct))
                      (else (read (append-token next)))))
 
               ((= next:token-type token-type:string)
                (cond (next:escaped? (read (assign (append-token next) {escaped? false})))
-					 ((escape-char? next:char) (read (set-escaped next)))
-					 ((string-delimiter? next:char) (finalize-token next))
+                     ((escape-char? next:char) (read (set-escaped next)))
+                     ((string-delimiter? next:char) (finalize-token next))
                      (else (read (append-token next)))))
 
               (else (assign next {value invalid-token})))))))
@@ -401,13 +399,14 @@
           ((pair? test-value) (and (pair? result)
                                    (assert-read (car result) (car test-value))
                                    (assert-read (cdr result) (cdr test-value))))
+          ((= test-value eof) (= result eof))
           (else (test-value result))))
 
   (def (read-string s) (read (reader (fwrite (buffer) s))))
 
   (def (assert-read-string string expected)
     (let (r (read-string string))
-	  (assert-read r:value expected)))
+      (assert-read r:value expected)))
 
   (test "returns error"
     (let (r (read (reader (failing-reader))))
@@ -415,7 +414,7 @@
 
   (test "returns on eof" (assert-read-string "a" 'a))
 
-  (test "ignores whitespace" (assert-read-string " " undefined))
+  (test "ignores whitespace" (assert-read-string " " eof))
 
   (test "reads number" (assert-read-string "123" 123))
 
@@ -426,6 +425,8 @@
   (test "reads symbol with escape" (assert-read-string "a\\(b" 'a\(b))
 
   (test "reads symbol with escaped escape char" (assert-read-string "a\\\\b" 'a\\b))
+
+  (test "reads symbol with escaped whitespace only" (assert-read-string "\\ " '\ ))
 
   (test "reads symbol closed by whitespace" (assert-read-string "a b" 'a))
 
@@ -462,5 +463,15 @@
   (test "reads vector" (assert-read-string "[a b c]" '[a b c]))
 
   (test "reads struct" (assert-read-string "{a 1 b 2 c 3}" '{a 1 b 2 c 3}))
-
-  (test "escapes characters" (assert-read-string "\\ " '\ )))
+  
+  (test "yields ready objects"
+    (def (test-yield r expected)
+      (let (next (read r))
+        (cond ((and (nil? expected) (= next:value eof)) 'ok)
+              ((and (not (nil? expected)) (= next:value eof))
+               (string->error "more values expected"))
+              ((nil? expected) (string->error "unexpected value"))
+              (else (and (assert-read next:value (car expected))
+                         (test-yield next (cdr expected)))))))
+    (test-yield (reader (fwrite (buffer) "a b c")) '(a b c))
+    (test-yield (reader (fwrite (buffer) "a {b 2} [c]")) '(a {b 2} [c]))))
