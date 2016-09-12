@@ -512,6 +512,6 @@ func read(r *val) *val {
 }
 
 func Reader(in *Val) *Val { return (*Val)(reader((*val)(in))) }
-func Read(r *Val) *Val { return (*Val)(read((*val)(r))) }
+func Read(r *Val) *Val    { return (*Val)(read((*val)(r))) }
 
 var VoidError = (*Val)(voidError)

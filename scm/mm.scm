@@ -11,6 +11,11 @@
   (trace (printer (stderr)) (cons message values)))
 
 
+(def (len l)
+  (cond ((nil? l) 0)
+        (else (inc (len (cdr l))))))
+
+
 (def (append . l)
   (def (append-two left right)
     (cond ((nil? left) right)
@@ -37,6 +42,8 @@
 
 (def irregular-cons (string->error "irregular cons expression"))
 (def unexpected-close (string->error "unexpected close token"))
+(def invalid-statement (string->error "invalid expression in statement position"))
+(def invalid-cond (string->error "invalid cond expression"))
 
 
 (def token-type
@@ -290,6 +297,7 @@
   (let (lr (assign (reader r:input) {list-type r:list-type})
         next (read lr))
     (assign r {input next:input
+               token-type token-type:none
                value (if (error? next:value) next:value (list 'quote next:value))
                close-list? next:close-list?})))
 
@@ -490,65 +498,300 @@
 (def (cond? v) (tagged? v 'cond))
 (def (let? v) (tagged? v 'let))
 (def (test? v) (tagged? v 'test))
+(def (application? v) (pair? v))
 
 
 (def (compile-number v) (string-append " mm.FromInt(" (number->string v) ") "))
 (def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
-(def (compile-bool v) (if v " vtrue " " vfalse "))
-(def (compile-nil v) " vnil ")
-(def (compile-quote v) (string-append " list(sfromString(\""
-									  (escape-compiled-string (symbol->string v))
-									  "\"), "
-									  (compile-exp (car (cdr v)))
-									  ") "))
-(def (compile-symbol v) (string-append " sfromString(\""
-									   (escape-compiled-string (symbol->string v))
-									   "\") "))
+(def (compile-bool v) (if v " mm.Vtrue " " mm.Vfalse "))
+(def (compile-nil v) " mm.Vnil ")
+(def (compile-quote-literal v) (string-append " mm.List(mm.SfromString("
+                                      (escape-compiled-string (symbol->string 'quote))
+                                      "), "
+                                      (compile-literal (car (cdr v)))
+                                      ") "))
+(def (compile-quote v) (compile-literal (car (cdr v))))
+(def (compile-symbol v) (string-append " mm.SfromString("
+                                       (escape-compiled-string (symbol->string v))
+                                       ") "))
 
 
-(def (compile-def v) "")
-(def (compile-test v) "")
-(def (compile-let v) "")
+(def (compile-pair v)
+  (string-append " mm.Cons("
+                 (compile-literal (car v))
+                 ", "
+                 (compile-literal (cdr v))
+                 ") "))
+
+
+(def (make-fn args body) (cons 'fn (cons args body)))
+
+
+(def (def-name v)
+  (cond ((or (not (pair? v)) (not (pair? (cdr v)))) (fatal invalid-def))
+        ((symbol? (car (cdr v))) (car (cdr v)))
+        (else
+          (cond ((or (not (pair? (car (cdr v)))) (not (symbol? (car (car (cdr v))))))
+                 (fatal invalid-def))
+                (else (car (car (cdr v))))))))
+
+
+(def (def-value v)
+  (cond ((or (not (pair? v)) (not (pair? (cdr v)))) (fatal invalid-def))
+        ((symbol? (car (cdr v))) 
+         (cond ((or (not (pair? (cdr (cdr v)))) (not (nil? (cdr (cdr (cdr v))))))
+                (fatal invalid-def))
+               (else (car (cdr (cdr v))))))
+        (else
+          (cond ((not (pair? (car (cdr v)))) (fatal invalid-def))
+                (else (make-fn (cdr (car (cdr v))) (cdr (cdr v))))))))
+
+
+(def (compile-def v) (string-append " mm.Define(env, "
+                                    (compile-literal (def-name v))
+                                    ", "
+                                    (compile-exp (def-value v))
+                                    ") "))
+
+
+(def (fn-signature v)
+  (cond ((nil? v) {count 0 var? false names '()})
+        ((symbol? v) {count 0 var? true names v})
+        ((pair? v) (let (signature (fn-signature (cdr v)))
+                     (assign signature {count (inc signature:count)
+                                         names (cons (car v) signature:names)})))
+        (else (fatal invalid-fn))))
+
+
+(def (compile-seq v)
+  (cond ((not (pair? v)) (fatal invalid-seq))
+        ((nil? (cdr v)) (string-append "return " (compile-exp (car v))))
+        (else (string-append (compile (car v)) ";\n" (compile-seq (cdr v))))))
+
+
+(def (compile-fn v)
+  (cond ((or (not (pair? v))
+             (not (pair? (cdr v))))
+         (fatal invalid-fn))
+        (else
+          (let (signature (fn-signature (car (cdr v)))
+                body      (cdr (cdr v)))
+            (string-append
+              "mm.NewCompiled(func(a *mm.Val) *mm.Val { env := mm.ExtendEnv(env, "
+              (compile-literal signature:names)
+              ", a); env = env; "
+              (compile-seq body)
+              "}, "
+              (number->string signature:count)
+              ", "
+              (if signature:var? "true" "false")
+              ")")))))
+
+
+(def (compile-if v)
+  (cond ((not (= (len v) 4)) (fatal invalid-if))
+        (else (string-append " func() *mm.Val { if "
+                             (compile-exp (car (cdr v)))
+                             " != mm.Vfalse { return "
+                             (compile-exp (car (cdr (cdr v))))
+                             " } else { return "
+                             (compile-exp (car (cdr (cdr (cdr v)))))
+                             " }}() "))))
+
+
+(def (compile-and v)
+  (def (compile-and s)
+    (cond ((nil? s) " return mm.Vtrue ")
+          ((nil? (cdr s))
+           (string-append " return " (compile-exp (car s))))
+          (else
+            (string-append " if "
+                           (compile-exp (car s))
+                           " == mm.Vfalse { return mm.Vfalse }; "
+                           (compile-and (cdr s))))))
+  (string-append " func() *mm.Val { "
+                 (compile-and (cdr v))
+                 " }() "))
+
+
+(def (compile-or v)
+  (def (compile-or s)
+    (cond ((nil? s) " return mm.Vfalse ")
+          ((nil? (cdr s))
+           (string-append " return " (compile-exp (car s))))
+          (else
+            (string-append "if v := "
+                           (compile-exp (car s))
+                           "; v != mm.Vfalse { return v }; "
+                           (compile-or (cdr s))))))
+  (string-append " func() *mm.Val { "
+                 (compile-or (cdr v))
+                 " }() "))
+
+
+(def (compile-begin v)
+  (string-append " func() *mm.Val { "
+                 (compile-seq (cdr v))
+                 " }() "))
+
+
+(def (cond->if v)
+  (def (seq->exp v)
+    (cond ((nil? (cdr v)) (car v))
+          (else (cons 'begin v))))
+  (def (expand v)
+    (cond ((or (not (pair? v))
+               (not (pair? (car v)))
+               (not (pair? (cdr (car v)))))
+           (fatal invalid-cond))
+          ((= (car (car v)) 'else)
+           (cond ((not (nil? (cdr v)))
+                  (fatal invalid-cond))
+                 (else (seq->exp (cdr (car v))))))
+          (else
+            (list 'if (car (car v))
+                  (seq->exp (cdr (car v)))
+                  (expand (cdr v))))))
+  (expand (cdr v)))
+
+
+(def (compile-cond v) (compile (cond->if v)))
+
+
+(def (compile-let v)
+  (def (let-defs v)
+    (cond ((nil? v) nil)
+          ((or (not (pair? v)) (not (pair? (cdr v))))
+           (fatal invalid-let))
+          (else (cons (list 'def (car v) (car (cdr v)))
+                      (let-defs (cdr (cdr v)))))))
+  (def (let-body v)
+    (cond ((or (not (pair? v))
+               (not (pair? (cdr v)))
+               (nil? (cdr (cdr v))))
+           (fatal invalid-let))
+          (else (append (let-defs (car (cdr v))) (cdr (cdr v))))))
+  (compile (list (make-fn nil (let-body v)))))
+
+
+(def (compile-test v)
+  (def (compile-test-seq v)
+    (cond ((nil? v) (string-append " return " (compile-literal 'test-complete)))
+          (else (string-append " if result := func() *mm.Val { return "
+                               (compile-exp-statement (car v))
+                               " }(); result == mm.Vfalse { return mm.Fatal("
+                               (compile-exp "test failed")
+                               ") } else if mm.IsError(result) != mm.Vfalse "
+                               " { return mm.Fatal(result) }; "
+                               (compile-test-seq (cdr v))))))
+  (string-append " func() *mm.Val { "
+                 " env := mm.ExtendEnv(env, mm.Vnil, mm.Vnil); env = env; "
+                 (compile-test-seq (cdr v))
+                 " }() "))
+
+
+(def (compile-lookup v)
+  (string-append " mm.LookupDef(env, "
+                 (compile-symbol v)
+                 ") "))
+
+
+(def (compile-value-list v)
+  (cond ((nil? v) " mm.Vnil ")
+        ((not (pair? v)) (fatal invalid-application))
+        (else (string-append " mm.Cons( "
+                             (compile-exp (car v))
+                             ", "
+                             (compile-value-list (cdr v))
+                             ") "))))
+
+
+(def (compile-application v)
+  (string-append " mm.Apply("
+                 (compile-exp (car v))
+                 ", "
+                 (compile-value-list (cdr v))
+                 ")"))
+
+
+(def (compile-literal v)
+  (cond ((number? v) (compile-number v))
+        ((string? v) (compile-string v))
+        ((bool? v) (compile-bool v))
+        ((nil? v) (compile-nil v))
+        ((quote? v) (compile-quote-literal v))
+        ((symbol? v) (compile-symbol v))
+        ((pair? v) (compile-pair v))
+        (else (fatal invalid-literal))))
 
 
 (def (compile-exp v)
-  (cond ((def? v) definition-expression)
-		(else (compile v))))
+  (cond ((number? v) (compile-number v))
+        ((string? v) (compile-string v))
+        ((bool? v) (compile-bool v))
+        ((nil? v) (compile-nil v))
+        ((quote? v) (compile-quote v))
+        ((symbol? v) (compile-lookup v))
+        ((vector-form? v) (compile-vector v))
+        ((struct-form? v) (compile-struct v))
+        ((if? v) (compile-if v))
+        ((and? v) (compile-and v))
+        ((or? v) (compile-or v))
+        ((fn? v) (compile-fn v))
+        ((begin? v) (compile-begin v))
+        ((cond? v) (compile-cond v))
+        ((let? v) (compile-let v))
+        ((test? v) (compile-test v))
+        ((application? v) (compile-application v))
+        (else (fatal invalid-expression))))
 
 
 (def (compile v)
+  (cond ((def? v) (compile-def v))
+        ((if? v) (compile-if v))
+        ((and? v) (compile-and v))
+        ((or? v) (compile-or v))
+        ((begin? v) (compile-begin v))
+        ((cond? v) (compile-cond v))
+        ((let? v) (compile-let v))
+        ((test? v) (compile-test v))
+        ((application? v) (compile-application v))
+        (else (fatal invalid-statement))))
+
+
+(def (compile-exp-statement v)
   (cond ((number? v) (compile-number v))
-		((string? v) (compile-string v))
-		((bool? v) (compile-bool v))
-		((nil? v) (compile-nil v))
-		((quote? v) (compile-quote v))
-		((symbol? v) (compile-symbol v))
-		((def? v) (compile-def v))
-		((vector-form? v) (compile-vector-form v))
-		((struct-form? v) (compile-struct-form v))
-		((if? v) (compile-if v))
-		((and? v) (compile-and v))
-		((or? v) (compile-or v))
-		((fn? v) (compile-fn v))
-		((begin? v) (compile-begin v))
-		((cond? v) (compile-cond v))
-		((let? v) (compile-let v))
-		((test? v) (compile-test v))
-		((application? v) (compile-application v))
-		(else invalid-expression)))
+        ((string? v) (compile-string v))
+        ((bool? v) (compile-bool v))
+        ((nil? v) (compile-nil v))
+        ((quote? v) (compile-quote v))
+        ((symbol? v) (compile-lookup v))
+        ((vector-form? v) (compile-vector v))
+        ((struct-form? v) (compile-struct v))
+        ((def? v) (compile-def v))
+        ((if? v) (compile-if v))
+        ((and? v) (compile-and v))
+        ((or? v) (compile-or v))
+        ((fn? v) (compile-fn v))
+        ((begin? v) (compile-begin v))
+        ((cond? v) (compile-cond v))
+        ((let? v) (compile-let v))
+        ((test? v) (compile-test v))
+        ((application? v) (compile-application v))
+        (else (fatal invalid-expression))))
 
 
 (def compiled-head
-	 "package main
+     "package main
 
-	 import mm \"github.com/aryszka/mikkamakka\"
+     import mm \"github.com/aryszka/mikkamakka\"
 
-	 func main() {
-	 ")
+     func main() {
+         env := mm.InitialEnv()
+     ")
 
 
-(def compiled-tail "
-	 }")
+(def compiled-tail "}")
 
 
 (def (compile-file fin fout)
@@ -557,23 +800,27 @@
 
   (def (compile-reader r fout)
     (let (next-in (read r))
-	  (cond ((= next-in:value eof) (list next-in fout))
-			((error? next-in:value) next-in:value)
-			(else
-			  (let (next-out (fwrite fout (string-append (compile next-in:value) ";")))
-				(cond ((error? (fstate next-out)) (fstate next-out))
-					  (else (compile-reader next-in next-out))))))))
+      (cond ((= next-in:value eof) (list next-in fout))
+            ((error? next-in:value) next-in:value)
+            (else
+              (let (code (compile next-in:value))
+                (cond ((error? code) code)
+                      (else
+                        (let (next-out (fwrite fout (string-append code ";\n")))
+                          (cond ((error? (fstate next-out)) (fstate next-out))
+                                (else (compile-reader next-in next-out)))))))))))
 
   (let (result (compile-reader (reader fin) (write-head fout)))
-	(cond ((error? result) result)
-		  (else (list ((car result) 'input) (write-tail (car (cdr result))))))))
+    (cond ((error? result) result)
+          (else (list ((car result) 'input) (write-tail (car (cdr result))))))))
 
 
 (let (fin  (fopen (car (cdr (argv))))
-	  fout (stdout))
+      fout (stdout))
   (cond ((error? (fstate fin)) (fstate fin))
-		((error? (fstate fout)) (fstate fout))
-		(else (let (result (compile-file fin fout))
-				(fwrite (car (cdr result)) "\n")
-				(cond ((error? result) result)
-					  (else (fclose (car result))))))))
+        ((error? (fstate fout)) (fstate fout))
+        (else (let (result (compile-file fin fout))
+                (cond ((error? result) (fatal result))
+                      (else
+                        (fwrite (car (cdr result)) "\n")
+                        (fclose (car result))))))))

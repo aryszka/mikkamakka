@@ -102,3 +102,38 @@ func isProc(e *val) *val {
 
 	return vfalse
 }
+
+type Compiled func(*Val) *Val
+
+func toBuiltin(c Compiled) builtin {
+	return func(a []*val) *val {
+		al := vnil
+		for i := len(a) - 1; i >= 0; i-- {
+			al = cons(a[i], al)
+		}
+
+		return (*val)(c((*Val)(al)))
+	}
+}
+
+// needs the names
+func NewCompiled(p Compiled, argCount int, varArgs bool) *Val {
+	return (*Val)(newBuiltin(toBuiltin(p), argCount, varArgs))
+}
+
+func Apply(p, a *Val) *Val {
+	av := vnil
+	for {
+		if isNil((*val)(a)) != vfalse {
+			break
+		}
+
+		if isPair((*val)(a)) == vfalse {
+			return (*Val)(fatal(invalidArguments))
+		}
+
+		av, a = cons((*val)(car((*val)(a))), av), (*Val)(cdr((*val)(a)))
+	}
+
+	return (*Val)(apply((*val)(p), reverse(av)))
+}

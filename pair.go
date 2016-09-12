@@ -115,3 +115,18 @@ func mappend(left, right *val) *val {
 
 	return cons(car(left), mappend(cdr(left), right))
 }
+
+var Vnil = (*Val)(vnil)
+
+func List(a ...*Val) *Val {
+	av := make([]*val, len(a))
+	for i, ai := range a {
+		av[i] = (*val)(ai)
+	}
+
+	return (*Val)(list(av...))
+}
+
+func Cons(car, cdr *Val) *Val {
+	return (*Val)(cons((*val)(car), (*val)(cdr)))
+}

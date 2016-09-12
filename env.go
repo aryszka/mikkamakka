@@ -149,6 +149,7 @@ func InitialEnv() *Val {
 	define(env, sfromString("apply"), newBuiltin(bapply, 2, false))
 	define(env, sfromString("error?"), newBuiltin(bisError, 1, false))
 	define(env, sfromString("string->error"), newBuiltin(stringToError, 1, false))
+	define(env, sfromString("fatal"), newBuiltin(bfatal, 1, false))
 	define(env, sfromString("not"), newBuiltin(not, 1, false))
 	define(env, sfromString("="), newBuiltin(beq, 0, true))
 	define(env, sfromString(">"), newBuiltin(bgreater, 2, false))
@@ -156,10 +157,12 @@ func InitialEnv() *Val {
 	define(env, sfromString("try-string->number"), newBuiltin(btryNumberFromString, 1, false))
 	define(env, sfromString("try-string->bool"), newBuiltin(btryBoolFromString, 1, false))
 	define(env, sfromString("symbol?"), newBuiltin(bisSymbol, 1, false))
+	define(env, sfromString("symbol->string"), newBuiltin(bsymbolToString, 1, false))
 	define(env, sfromString("string->symbol"), newBuiltin(stringToSymbol, 1, false))
 	define(env, sfromString("number?"), newBuiltin(bisNumber, 1, false))
 	define(env, sfromString("number->string"), newBuiltin(bnumberToString, 1, false))
 	define(env, sfromString("bool?"), newBuiltin(bisBool, 1, false))
+	define(env, sfromString("bool->string"), newBuiltin(bboolToString, 1, false))
 	define(env, sfromString("string?"), newBuiltin(bisString, 1, false))
 	define(env, sfromString("assign"), newBuiltin(bassign, 1, true))
 	define(env, sfromString("fopen"), newBuiltin(bfopen, 1, false))
@@ -182,4 +185,16 @@ func InitialEnv() *Val {
 	define(env, sfromString("print"), newBuiltin(bprint, 2, false))
 
 	return (*Val)(env)
+}
+
+func Define(e, n, v *Val) *Val {
+	return (*Val)(define((*val)(e), (*val)(n), (*val)(v)))
+}
+
+func ExtendEnv(e, n, v *Val) *Val {
+	return (*Val)(extendEnv((*val)(e), (*val)(n), (*val)(v)))
+}
+
+func LookupDef(e, n *Val) *Val {
+	return (*Val)(lookupDef((*val)(e), (*val)(n)))
 }

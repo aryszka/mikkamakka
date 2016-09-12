@@ -22,6 +22,10 @@ func symbolToString(s *val) *val {
 	return fromString(sstringVal(s))
 }
 
+func bsymbolToString(a []*val) *val {
+	return symbolToString(a[0])
+}
+
 func stringToSymbol(a []*val) *val {
 	checkType(a[0], mstring)
 	return sfromString(stringVal(a[0]))

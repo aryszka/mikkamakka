@@ -33,6 +33,10 @@ func boolToString(b *val) *val {
 	return fromString("false")
 }
 
+func bboolToString(a []*val) *val {
+	return boolToString(a[0])
+}
+
 func isBool(a *val) *val {
 	if a.mtype == mbool {
 		return vtrue
@@ -87,3 +91,8 @@ func not(a []*val) *val {
 }
 
 var Vfalse = (*Val)(vfalse)
+var Vtrue = (*Val)(vtrue)
+
+func BfromString(s string) *Val {
+	return (*Val)(bfromString(s))
+}

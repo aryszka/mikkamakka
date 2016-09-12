@@ -46,6 +46,10 @@ func fatal(a *val) *val {
 	return a
 }
 
+func bfatal(a []*val) *val {
+	return fatal(a[0])
+}
+
 func estring(e *val) *val {
 	checkType(e, merror)
 	return fromString(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
