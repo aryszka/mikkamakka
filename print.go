@@ -17,10 +17,10 @@ func printState(p *Val) *Val {
 
 func printRaw(p *Val, r *Val) *Val {
 	f := fwrite(field(p, sfromString("output")), r)
-	return assign(p, fromMap(map[string]*Val{
+	return Assign(list(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  fstate(f),
-	}))
+	})))
 }
 
 func printQuoteSign(p *Val) *Val {
@@ -191,23 +191,23 @@ func mprintq(p, v, q *Val) *Val {
 	} else if isFn(v) != False {
 		v = fnString(v)
 	} else {
-		return assign(p, fromMap(map[string]*Val{
+		return Assign(list(p, fromMap(map[string]*Val{
 			"state": notImplemented,
-		}))
+		})))
 	}
 
 	f := fwrite(field(p, sfromString("output")), v)
 	if st := fstate(f); isError(st) != False {
-		return assign(p, fromMap(map[string]*Val{
+		return Assign(list(p, fromMap(map[string]*Val{
 			"output": f,
 			"state":  st,
-		}))
+		})))
 	}
 
-	return assign(p, fromMap(map[string]*Val{
+	return Assign(list(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  v,
-	}))
+	})))
 }
 
 func mprint(p, v *Val) *Val {

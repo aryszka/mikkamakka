@@ -10,6 +10,28 @@ var (
 	mixedTypes = &Val{merror, "mixed types"}
 )
 
+func listToSlice(l *Val) []*Val {
+	var s []*Val
+	for {
+		if isNil(l) != False {
+			break
+		}
+
+		s, l = append(s, car(l)), cdr(l)
+	}
+
+	return s
+}
+
+func sliceToList(s []*Val) *Val {
+	l := Nil
+	for _, si := range s {
+		l = cons(si, l)
+	}
+
+	return reverse(l)
+}
+
 func cons(car, cdr *Val) *Val {
 	// if car.mtype != cdr.mtype && cdr.mtype != mnil && cdr.mtype != pair {
 	// 	panic(mixedTypes)

@@ -22,26 +22,31 @@ func field(s, f *Val) *Val {
 	return v
 }
 
-func assign(s *Val, a ...*Val) *Val {
-	checkType(s, mstruct)
-
+func Assign(a *Val) *Val {
 	next := make(map[string]*Val)
+	s := car(a)
+	a = cdr(a)
 	for k, v := range s.value.(*tstruct).sys {
 		next[k] = v
 	}
 
-	for _, ai := range a {
-		checkType(ai, mstruct)
-		for k, v := range ai.value.(*tstruct).sys {
+	for {
+		if isNil(a) != False {
+			break
+		}
+
+		for k, v := range car(a).value.(*tstruct).sys {
 			next[k] = v
 		}
+
+		a = cdr(a)
 	}
 
 	return fromMap(next)
 }
 
 func bassign(a []*Val) *Val {
-	return assign(a[0], a[1:]...)
+	return Assign(cons(a[0], sliceToList(a[1:])))
 }
 
 func structFromList(l *Val) *Val {
@@ -94,15 +99,6 @@ func structVal(s, n *Val) *Val {
 
 func Field(s, f *Val) *Val {
 	return field(s, f)
-}
-
-func Assign(s *Val, a ...*Val) *Val {
-	av := make([]*Val, len(a))
-	for i, ai := range a {
-		av[i] = ai
-	}
-
-	return assign(s, av...)
 }
 
 func FromMap(m map[string]*Val) *Val {
