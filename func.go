@@ -2,9 +2,9 @@ package mikkamakka
 
 type builtin func([]*Val) *Val
 
-type Compiled func(*Val) *Val
+type Function func(*Val) *Val
 
-type proc struct {
+type fn struct {
 	builtin  builtin
 	argCount int
 	varArgs  bool
@@ -17,8 +17,8 @@ var invalidArguments = &Val{merror, "invalid arguments"}
 
 func newBuiltin(p builtin, argCount int, varArgs bool) *Val {
 	return &Val{
-		procedure,
-		&proc{
+		function,
+		&fn{
 			builtin:  p,
 			argCount: argCount,
 			varArgs:  varArgs,
@@ -26,19 +26,19 @@ func newBuiltin(p builtin, argCount int, varArgs bool) *Val {
 	}
 }
 
-func newProc(e, p, b *Val) *Val {
+func newFn(e, p, b *Val) *Val {
 	return &Val{
-		procedure,
-		&proc{params: p, body: b, env: e},
+		function,
+		&fn{params: p, body: b, env: e},
 	}
 }
 
-func procString(p *Val) *Val {
-	checkType(p, procedure)
-	return fromString("<procedure>")
+func fnString(p *Val) *Val {
+	checkType(p, function)
+	return fromString("<function>")
 }
 
-func applyBuiltin(p *proc, a *Val) *Val {
+func applyBuiltin(p *fn, a *Val) *Val {
 	args := make([]*Val, 0, p.argCount)
 
 	for {
@@ -72,19 +72,19 @@ func applyStruct(s, a *Val) *Val {
 	return field(s, car(a))
 }
 
-func applyLang(p *proc, a *Val) *Val {
+func applyLang(p *fn, a *Val) *Val {
 	return evalSeq(extendEnv(p.env, p.params, a), p.body)
 }
 
 func apply(p, a *Val) *Val {
-	checkType(p, procedure, mstruct)
+	checkType(p, function, mstruct)
 	checkType(a, pair, mnil)
 
 	if isStruct(p) != False {
 		return applyStruct(p, a)
 	}
 
-	pt := p.value.(*proc)
+	pt := p.value.(*fn)
 
 	if pt.builtin != nil {
 		return applyBuiltin(pt, a)
@@ -97,15 +97,15 @@ func bapply(a []*Val) *Val {
 	return apply(a[0], a[1])
 }
 
-func isProc(e *Val) *Val {
-	if e.mtype == procedure {
+func isFn(e *Val) *Val {
+	if e.mtype == function {
 		return True
 	}
 
 	return False
 }
 
-func toBuiltin(c Compiled) builtin {
+func toBuiltin(c Function) builtin {
 	return func(a []*Val) *Val {
 		al := Nil
 		for i := len(a) - 1; i >= 0; i-- {
@@ -117,7 +117,7 @@ func toBuiltin(c Compiled) builtin {
 }
 
 // needs the names
-func NewCompiled(p Compiled, argCount int, varArgs bool) *Val {
+func NewCompiled(p Function, argCount int, varArgs bool) *Val {
 	return newBuiltin(toBuiltin(p), argCount, varArgs)
 }
 

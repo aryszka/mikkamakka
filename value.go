@@ -20,7 +20,7 @@ const (
 	sys
 	merror // true or false?
 	environment
-	procedure
+	function
 )
 
 type Val struct {
@@ -52,8 +52,8 @@ func typeString(t mtype) string {
 		return "error"
 	case environment:
 		return "environment"
-	case procedure:
-		return "procedure"
+	case function:
+		return "function"
 	default:
 		panic("invalid type")
 	}

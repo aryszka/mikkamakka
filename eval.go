@@ -232,7 +232,7 @@ func evalOr(e, v *Val) *Val {
 	return evalAnd(e, cdr(v))
 }
 
-func isFn(v *Val) *Val {
+func isFunction(v *Val) *Val {
 	return isTaggedBy(v, sfromString("fn"))
 }
 
@@ -253,8 +253,8 @@ func fnBody(v *Val) *Val {
 	return cdr(cdr(v))
 }
 
-func fnToProc(e, v *Val) *Val {
-	return newProc(e, fnParams(v), fnBody(v))
+func fnToFunc(e, v *Val) *Val {
+	return newFn(e, fnParams(v), fnBody(v))
 }
 
 func isBegin(v *Val) *Val {
@@ -452,8 +452,8 @@ func eval(e, v *Val) *Val {
 		return evalAnd(e, cdr(v))
 	case isOr(v) != False:
 		return evalOr(e, cdr(v))
-	case isFn(v) != False:
-		return fnToProc(e, v)
+	case isFunction(v) != False:
+		return fnToFunc(e, v)
 	case isBegin(v) != False:
 		return evalSeq(e, beginSeq(v))
 	case isCond(v) != False:
