@@ -3,32 +3,32 @@ package mikkamakka
 import "unicode"
 
 var (
-	invalidToken    = &Val{merror, "invalid token"}
-	notImplemented  = &Val{merror, "not implemented"}
-	unexpectedClose = &Val{merror, "unexpected close"}
-	irregularCons   = &Val{merror, "irregular cons"}
-	VoidError       = &Val{merror, "void error"}
-	ttnone          = &Val{number, 0}
-	ttcomment       = &Val{number, 1}
-	ttsymbol        = &Val{number, 2}
-	ttstring        = &Val{number, 3}
-	ttlist          = &Val{number, 4}
-	ttquote         = &Val{number, 5}
-	ttvector        = &Val{number, 7}
-	ttstruct        = &Val{number, 8}
+	invalidToken       = &Val{merror, "invalid token"}
+	notImplemented     = &Val{merror, "not implemented"}
+	unexpectedClose    = &Val{merror, "unexpected close"}
+	irregularCons      = &Val{merror, "irregular cons"}
+	UndefinedReadValue = &Val{symbol, "undefined read value"}
+	ttnone             = &Val{number, 0}
+	ttcomment          = &Val{number, 1}
+	ttsymbol           = &Val{number, 2}
+	ttstring           = &Val{number, 3}
+	ttlist             = &Val{number, 4}
+	ttquote            = &Val{number, 5}
+	ttvector           = &Val{number, 7}
+	ttstruct           = &Val{number, 8}
 )
 
 func reader(in *Val) *Val {
 	return fromMap(map[string]*Val{
 		"in":            in,
 		"token-type":    ttnone,
-		"value":         VoidError,
-		"escaped":       vfalse,
+		"value":         UndefinedReadValue,
+		"escaped":       False,
 		"last-char":     fromString(""),
 		"current-token": fromString(""),
 		"in-list":       fromString(""),
-		"close-list":    vfalse,
-		"cons":          vfalse,
+		"close-list":    False,
+		"cons":          False,
 		"cons-items":    fromInt(0),
 	})
 }
@@ -36,10 +36,10 @@ func reader(in *Val) *Val {
 func charCheck(c string) func(*Val) *Val {
 	return func(s *Val) *Val {
 		if stringVal(s) == c {
-			return vtrue
+			return True
 		}
 
-		return vfalse
+		return False
 	}
 }
 
@@ -60,20 +60,20 @@ var (
 
 func isWhitespace(s *Val) *Val {
 	if unicode.IsSpace(rune(stringVal(s)[0])) {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func symbolToken(t *Val) *Val {
 	v := nfromString(stringVal(t))
-	if isError(v) == vfalse {
+	if isError(v) == False {
 		return v
 	}
 
 	v = bfromString(stringVal(t))
-	if isError(v) == vfalse {
+	if isError(v) == False {
 		return v
 	}
 
@@ -84,7 +84,7 @@ func readChar(r *Val) *Val {
 	in := fread(field(r, sfromString("in")), fromInt(1))
 	st := fstate(in)
 
-	if isError(st) != vfalse {
+	if isError(st) != False {
 		return assign(r, fromMap(map[string]*Val{
 			"in":    in,
 			"value": st,
@@ -99,7 +99,7 @@ func readChar(r *Val) *Val {
 
 func readError(r *Val) bool {
 	v := field(r, sfromString("value"))
-	return isError(v) != vfalse && v != VoidError
+	return isError(v) != False && v != UndefinedReadValue
 
 }
 
@@ -154,11 +154,11 @@ func closeString(r *Val) *Val {
 }
 
 func setEscaped(r *Val) *Val {
-	return assign(r, fromMap(map[string]*Val{"escaped": vtrue}))
+	return assign(r, fromMap(map[string]*Val{"escaped": True}))
 }
 
 func unsetEscaped(r *Val) *Val {
-	return assign(r, fromMap(map[string]*Val{"escaped": vfalse}))
+	return assign(r, fromMap(map[string]*Val{"escaped": False}))
 }
 
 func isEscaped(r *Val) *Val {
@@ -201,7 +201,7 @@ func unescapeChar(tokenType, c *Val) *Val {
 
 func appendToken(r *Val) *Val {
 	c := lastChar(r)
-	if isEscaped(r) != vfalse {
+	if isEscaped(r) != False {
 		c = unescapeChar(field(r, sfromString("token-type")), c)
 	}
 
@@ -242,21 +242,21 @@ func closeChar(c *Val) *Val {
 }
 
 func setClose(r, c *Val) *Val {
-	if seq(closeChar(field(r, sfromString("in-list"))), c) == vfalse {
+	if seq(closeChar(field(r, sfromString("in-list"))), c) == False {
 		return setUnexpectedClose(r)
 	}
 
 	return assign(r, fromMap(map[string]*Val{
-		"close-list": vtrue,
+		"close-list": True,
 	}))
 }
 
 func hasCons(r *Val) bool {
-	return greater(field(r, sfromString("cons-items")), fromInt(0)) != vfalse
+	return greater(field(r, sfromString("cons-items")), fromInt(0)) != False
 }
 
 func consSet(r *Val) bool {
-	return field(r, sfromString("cons")) != vfalse
+	return field(r, sfromString("cons")) != False
 }
 
 func setCons(r *Val) *Val {
@@ -265,7 +265,7 @@ func setCons(r *Val) *Val {
 	}
 
 	return assign(r, fromMap(map[string]*Val{
-		"cons": vtrue,
+		"cons": True,
 	}))
 }
 
@@ -299,13 +299,13 @@ func readList(r, c *Val) *Val {
 		}
 
 		v := field(lr, sfromString("value"))
-		if v != VoidError {
+		if v != UndefinedReadValue {
 			lr = assign(lr, fromMap(map[string]*Val{
 				"list-items": cons(
 					v,
 					field(lr, sfromString("list-items")),
 				),
-				"value": VoidError,
+				"value": UndefinedReadValue,
 			}))
 
 			if hasCons(lr) {
@@ -317,7 +317,7 @@ func readList(r, c *Val) *Val {
 
 		if consSet(lr) {
 			if field(lr, sfromString("list-items")) == Nil ||
-				neq(field(lr, sfromString("cons-items")), fromInt(0)) == vfalse {
+				neq(field(lr, sfromString("cons-items")), fromInt(0)) == False {
 				return setIrregularCons(assign(r, fromMap(map[string]*Val{
 					"in": field(lr, sfromString("in")),
 				})))
@@ -325,13 +325,13 @@ func readList(r, c *Val) *Val {
 
 			lr = assign(lr, fromMap(map[string]*Val{
 				"cons-items": fromInt(1),
-				"cons":       vfalse,
+				"cons":       False,
 			}))
 		}
 
-		if field(lr, sfromString("close-list")) != vfalse {
+		if field(lr, sfromString("close-list")) != False {
 			if hasCons(lr) {
-				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == vfalse {
+				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == False {
 					return setIrregularCons(assign(r, fromMap(map[string]*Val{
 						"in": field(lr, sfromString("in")),
 					})))
@@ -357,7 +357,7 @@ func readList(r, c *Val) *Val {
 
 func readQuote(r *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
-	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == vfalse {
+	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == False {
 		lr = assign(lr, fromMap(map[string]*Val{
 			"in-list": field(r, sfromString("in-list")),
 		}))
@@ -428,29 +428,29 @@ func read(r *Val) *Val {
 	switch {
 	case isTNone(t):
 		switch {
-		case isWhitespace(c) != vfalse:
+		case isWhitespace(c) != False:
 			return read(r)
-		case isEscapeChar(c) != vfalse:
+		case isEscapeChar(c) != False:
 			return read(setEscaped(setSymbol(r)))
-		case isStringDelimiter(c) != vfalse:
+		case isStringDelimiter(c) != False:
 			return read(setString(r))
-		case isComment(c) != vfalse:
+		case isComment(c) != False:
 			return read(setComment(r))
-		case isListOpen(c) != vfalse:
+		case isListOpen(c) != False:
 			return read(setList(r))
-		case isListClose(c) != vfalse:
+		case isListClose(c) != False:
 			return setClose(r, c)
-		case isCons(c) != vfalse:
+		case isCons(c) != False:
 			return setCons(r)
-		case isQuoteChar(c) != vfalse:
+		case isQuoteChar(c) != False:
 			return read(setQuote(r))
-		case isOpenVector(c) != vfalse:
+		case isOpenVector(c) != False:
 			return read(setVector(r))
-		case isCloseVector(c) != vfalse:
+		case isCloseVector(c) != False:
 			return setClose(r, c)
-		case isOpenStruct(c) != vfalse:
+		case isOpenStruct(c) != False:
 			return read(setStruct(r))
-		case isCloseStruct(c) != vfalse:
+		case isCloseStruct(c) != False:
 			return setClose(r, c)
 		default:
 			return read(appendToken(setSymbol(r)))
@@ -458,7 +458,7 @@ func read(r *Val) *Val {
 
 	case isTComment(t):
 		switch {
-		case isNewline(c) != vfalse:
+		case isNewline(c) != False:
 			return read(closeComment(r))
 		}
 
@@ -466,29 +466,29 @@ func read(r *Val) *Val {
 
 	case isTSymbol(t):
 		switch {
-		case isEscaped(r) != vfalse:
+		case isEscaped(r) != False:
 			return read(unsetEscaped(appendToken(r)))
-		case isWhitespace(c) != vfalse:
+		case isWhitespace(c) != False:
 			return closeSymbol(r)
-		case isEscapeChar(c) != vfalse:
+		case isEscapeChar(c) != False:
 			return read(setEscaped(r))
-		case isComment(c) != vfalse:
+		case isComment(c) != False:
 			return setComment(closeSymbol(r))
-		case isStringDelimiter(c) != vfalse:
+		case isStringDelimiter(c) != False:
 			return setString(closeSymbol(r))
-		case isListOpen(c) != vfalse:
+		case isListOpen(c) != False:
 			return setList(closeSymbol(r))
-		case isListClose(c) != vfalse:
+		case isListClose(c) != False:
 			return setClose(closeSymbol(r), c)
-		case isCons(c) != vfalse:
+		case isCons(c) != False:
 			return setCons(closeSymbol(r))
-		case isOpenVector(c) != vfalse:
+		case isOpenVector(c) != False:
 			return setVector(closeSymbol(r))
-		case isCloseVector(c) != vfalse:
+		case isCloseVector(c) != False:
 			return setClose(closeSymbol(r), c)
-		case isOpenStruct(c) != vfalse:
+		case isOpenStruct(c) != False:
 			return setStruct(closeSymbol(r))
-		case isCloseStruct(c) != vfalse:
+		case isCloseStruct(c) != False:
 			return setClose(closeSymbol(r), c)
 		default:
 			return read(appendToken(r))
@@ -496,11 +496,11 @@ func read(r *Val) *Val {
 
 	case isTString(t):
 		switch {
-		case isEscaped(r) != vfalse:
+		case isEscaped(r) != False:
 			return read(unsetEscaped(appendToken(r)))
-		case isEscapeChar(c) != vfalse:
+		case isEscapeChar(c) != False:
 			return read(setEscaped(r))
-		case isStringDelimiter(c) != vfalse:
+		case isStringDelimiter(c) != False:
 			return closeString(r)
 		default:
 			return read(appendToken(r))

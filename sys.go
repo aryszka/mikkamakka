@@ -18,7 +18,7 @@ type file struct {
 	original *Val
 }
 
-var eof = &Val{merror, "EOF"}
+var Eof = &Val{merror, "EOF"}
 
 func isSys(a *Val) *Val {
 	return is(a, sys)
@@ -80,7 +80,7 @@ func fstate(f *Val) *Val {
 	}
 
 	if ft.err == io.EOF && len(ft.buf) == 0 {
-		return eof
+		return Eof
 	}
 
 	return fromBytes(ft.buf)
@@ -199,11 +199,11 @@ func derivedObject(a []*Val) *Val {
 	checkType(a[1], sys)
 
 	if a[0].value.(*file).original == a[1] {
-		return vtrue
+		return True
 	}
 
 	if a[1].value.(*file).original == nil {
-		return vfalse
+		return False
 	}
 
 	return derivedObject([]*Val{a[0], a[1].value.(*file).original})
@@ -217,8 +217,6 @@ func argv([]*Val) *Val {
 
 	return argv
 }
-
-var Eof = eof
 
 func Stdin() *Val {
 	return stdin()

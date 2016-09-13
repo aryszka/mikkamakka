@@ -42,10 +42,10 @@ func bcdr(a []*Val) *Val {
 
 func isPair(a *Val) *Val {
 	if a.mtype == pair {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func bisPair(a []*Val) *Val {
@@ -54,10 +54,10 @@ func bisPair(a []*Val) *Val {
 
 func isNil(a *Val) *Val {
 	if a == Nil {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func bisNil(a []*Val) *Val {
@@ -110,7 +110,7 @@ func mappend(left, right *Val) *Val {
 	checkType(left, pair, mnil)
 	checkType(right, pair, mnil)
 
-	if isNil(left) != vfalse {
+	if isNil(left) != False {
 		return right
 	}
 

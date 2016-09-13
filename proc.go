@@ -42,11 +42,11 @@ func applyBuiltin(p *proc, a *Val) *Val {
 	args := make([]*Val, 0, p.argCount)
 
 	for {
-		if isNil(a) != vfalse || !p.varArgs && len(args) == p.argCount {
+		if isNil(a) != False || !p.varArgs && len(args) == p.argCount {
 			break
 		}
 
-		if isPair(a) == vfalse {
+		if isPair(a) == False {
 			return fatal(invalidArguments)
 		}
 
@@ -54,7 +54,7 @@ func applyBuiltin(p *proc, a *Val) *Val {
 		a = cdr(a)
 	}
 
-	if isNil(a) == vfalse || !p.varArgs && len(args) != p.argCount || p.varArgs && len(args) < p.argCount {
+	if isNil(a) == False || !p.varArgs && len(args) != p.argCount || p.varArgs && len(args) < p.argCount {
 		return fatal(invalidArguments)
 	}
 
@@ -65,7 +65,7 @@ func applyStruct(s, a *Val) *Val {
 	checkType(s, mstruct)
 	checkType(a, pair)
 
-	if isNil(cdr(a)) == vfalse {
+	if isNil(cdr(a)) == False {
 		return invalidArguments
 	}
 
@@ -80,7 +80,7 @@ func apply(p, a *Val) *Val {
 	checkType(p, procedure, mstruct)
 	checkType(a, pair, mnil)
 
-	if isStruct(p) != vfalse {
+	if isStruct(p) != False {
 		return applyStruct(p, a)
 	}
 
@@ -99,10 +99,10 @@ func bapply(a []*Val) *Val {
 
 func isProc(e *Val) *Val {
 	if e.mtype == procedure {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func toBuiltin(c Compiled) builtin {
@@ -124,11 +124,11 @@ func NewCompiled(p Compiled, argCount int, varArgs bool) *Val {
 func Apply(p, a *Val) *Val {
 	av := Nil
 	for {
-		if isNil(a) != vfalse {
+		if isNil(a) != False {
 			break
 		}
 
-		if isPair(a) == vfalse {
+		if isPair(a) == False {
 			return fatal(invalidArguments)
 		}
 

@@ -23,11 +23,11 @@ var (
 )
 
 func isTaggedBy(v, s *Val) *Val {
-	if isPair(v) != vfalse && isSymbol(car(v)) != vfalse && smeq(car(v), s) != vfalse {
-		return vtrue
+	if isPair(v) != False && isSymbol(car(v)) != False && smeq(car(v), s) != False {
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func isQuote(v *Val) *Val {
@@ -35,7 +35,7 @@ func isQuote(v *Val) *Val {
 }
 
 func evalQuote(e, v *Val) *Val {
-	if isPair(cdr(v)) == vfalse || cdr(cdr(v)) != Nil {
+	if isPair(cdr(v)) == False || cdr(cdr(v)) != Nil {
 		fatal(invalidQuote)
 	}
 
@@ -55,7 +55,7 @@ func isVectorForm(v *Val) *Val {
 }
 
 func evalVector(e, v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidVector)
 	}
 
@@ -67,11 +67,11 @@ func isStructForm(v *Val) *Val {
 }
 
 func evalStructValues(e, v *Val) *Val {
-	if isNil(v) != vfalse {
+	if isNil(v) != False {
 		return Nil
 	}
 
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse {
+	if isPair(v) == False || isPair(cdr(v)) == False {
 		return fatal(invalidStruct)
 	}
 
@@ -85,7 +85,7 @@ func evalStructValues(e, v *Val) *Val {
 }
 
 func evalStruct(e, v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidStruct)
 	}
 
@@ -97,7 +97,7 @@ func nameOfDef(v *Val) *Val {
 }
 
 func nameOfFunctionDef(v *Val) *Val {
-	if isPair(car(cdr(v))) == vfalse || isSymbol(car(car(cdr(v)))) == vfalse {
+	if isPair(car(cdr(v))) == False || isSymbol(car(car(cdr(v)))) == False {
 		return fatal(invalidDef)
 	}
 
@@ -105,11 +105,11 @@ func nameOfFunctionDef(v *Val) *Val {
 }
 
 func defName(v *Val) *Val {
-	if isPair(cdr(v)) == vfalse {
+	if isPair(cdr(v)) == False {
 		return fatal(invalidDef)
 	}
 
-	if isSymbol(car(cdr(v))) != vfalse {
+	if isSymbol(car(cdr(v))) != False {
 		return nameOfDef(v)
 	}
 
@@ -117,7 +117,7 @@ func defName(v *Val) *Val {
 }
 
 func valueOfDef(v *Val) *Val {
-	if isPair(cdr(cdr(v))) == vfalse || cdr(cdr(cdr(v))) != Nil {
+	if isPair(cdr(cdr(v))) == False || cdr(cdr(cdr(v))) != Nil {
 		return fatal(invalidDef)
 	}
 
@@ -125,15 +125,15 @@ func valueOfDef(v *Val) *Val {
 }
 
 func defValue(v *Val) *Val {
-	if isPair(cdr(v)) == vfalse {
+	if isPair(cdr(v)) == False {
 		return fatal(invalidDef)
 	}
 
-	if isSymbol(car(cdr(v))) != vfalse {
+	if isSymbol(car(cdr(v))) != False {
 		return valueOfDef(v)
 	}
 
-	if isPair(car(cdr(v))) == vfalse {
+	if isPair(car(cdr(v))) == False {
 		return fatal(invalidDef)
 	}
 
@@ -149,7 +149,7 @@ func isIf(v *Val) *Val {
 }
 
 func ifPredicate(v *Val) *Val {
-	if isPair(cdr(v)) == vfalse {
+	if isPair(cdr(v)) == False {
 		return fatal(invalidIf)
 	}
 
@@ -157,7 +157,7 @@ func ifPredicate(v *Val) *Val {
 }
 
 func ifConsequent(v *Val) *Val {
-	if isPair(cdr(v)) == vfalse || isPair(cdr(cdr(v))) == vfalse {
+	if isPair(cdr(v)) == False || isPair(cdr(cdr(v))) == False {
 		return fatal(invalidIf)
 	}
 
@@ -165,9 +165,9 @@ func ifConsequent(v *Val) *Val {
 }
 
 func ifAlternative(v *Val) *Val {
-	if isPair(cdr(v)) == vfalse ||
-		isPair(cdr(cdr(v))) == vfalse ||
-		isPair(cdr(cdr(cdr(v)))) == vfalse {
+	if isPair(cdr(v)) == False ||
+		isPair(cdr(cdr(v))) == False ||
+		isPair(cdr(cdr(cdr(v)))) == False {
 		return fatal(invalidIf)
 	}
 
@@ -175,7 +175,7 @@ func ifAlternative(v *Val) *Val {
 }
 
 func evalIf(e, v *Val) *Val {
-	if evalExp(e, ifPredicate(v)) != vfalse {
+	if evalExp(e, ifPredicate(v)) != False {
 		return evalExp(e, ifConsequent(v))
 	}
 
@@ -187,21 +187,21 @@ func isAnd(v *Val) *Val {
 }
 
 func evalAnd(e, v *Val) *Val {
-	if isNil(v) != vfalse {
-		return vtrue
+	if isNil(v) != False {
+		return True
 	}
 
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return invalidAnd
 	}
 
 	r := evalExp(e, car(v))
-	if isNil(cdr(v)) != vfalse {
+	if isNil(cdr(v)) != False {
 		return r
 	}
 
-	if r == vfalse {
-		return vfalse
+	if r == False {
+		return False
 	}
 
 	return evalAnd(e, cdr(v))
@@ -212,20 +212,20 @@ func isOr(v *Val) *Val {
 }
 
 func evalOr(e, v *Val) *Val {
-	if isNil(v) != vfalse {
-		return vfalse
+	if isNil(v) != False {
+		return False
 	}
 
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return invalidOr
 	}
 
 	r := evalExp(e, car(v))
-	if isNil(cdr(v)) != vfalse {
+	if isNil(cdr(v)) != False {
 		return r
 	}
 
-	if r != vfalse {
+	if r != False {
 		return r
 	}
 
@@ -237,8 +237,8 @@ func isFn(v *Val) *Val {
 }
 
 func fnParams(v *Val) *Val {
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse ||
-		isSymbol(car(cdr(v))) == vfalse && isPair(car(cdr(v))) == vfalse && isNil(car(cdr(v))) == vfalse {
+	if isPair(v) == False || isPair(cdr(v)) == False ||
+		isSymbol(car(cdr(v))) == False && isPair(car(cdr(v))) == False && isNil(car(cdr(v))) == False {
 		return fatal(invalidFn)
 	}
 
@@ -246,7 +246,7 @@ func fnParams(v *Val) *Val {
 }
 
 func fnBody(v *Val) *Val {
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse || isPair(cdr(cdr(v))) == vfalse {
+	if isPair(v) == False || isPair(cdr(v)) == False || isPair(cdr(cdr(v))) == False {
 		return fatal(invalidFn)
 	}
 
@@ -262,7 +262,7 @@ func isBegin(v *Val) *Val {
 }
 
 func beginSeq(v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidSequence)
 	}
 
@@ -270,7 +270,7 @@ func beginSeq(v *Val) *Val {
 }
 
 func evalSeq(e, v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidSequence)
 	}
 
@@ -287,11 +287,11 @@ func isCond(v *Val) *Val {
 }
 
 func seqToExp(v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidCond)
 	}
 
-	if isNil(cdr(v)) != vfalse {
+	if isNil(cdr(v)) != False {
 		return car(v)
 	}
 
@@ -299,21 +299,21 @@ func seqToExp(v *Val) *Val {
 }
 
 func expandCond(v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidCond)
 	}
 
 	cond := car(v)
 	rest := cdr(v)
 
-	if isPair(cond) == vfalse {
+	if isPair(cond) == False {
 		return fatal(invalidCond)
 	}
 
 	pred := car(cond)
 
-	if isSymbol(pred) != vfalse && smeq(pred, sfromString("else")) != vfalse {
-		if isNil(rest) == vfalse {
+	if isSymbol(pred) != False && smeq(pred, sfromString("else")) != False {
+		if isNil(rest) == False {
 			return fatal(invalidCond)
 		}
 
@@ -329,7 +329,7 @@ func expandCond(v *Val) *Val {
 }
 
 func condToIf(v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidCond)
 	}
 
@@ -341,11 +341,11 @@ func isLet(v *Val) *Val {
 }
 
 func letDefs(v *Val) *Val {
-	if isNil(v) != vfalse {
+	if isNil(v) != False {
 		return Nil
 	}
 
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse {
+	if isPair(v) == False || isPair(cdr(v)) == False {
 		return fatal(invalidLet)
 	}
 
@@ -356,7 +356,7 @@ func letDefs(v *Val) *Val {
 }
 
 func letFnBody(v *Val) *Val {
-	if isPair(v) == vfalse || isPair(cdr(v)) == vfalse || isNil(cdr(cdr(v))) != vfalse {
+	if isPair(v) == False || isPair(cdr(v)) == False || isNil(cdr(cdr(v))) != False {
 		return fatal(invalidLet)
 	}
 
@@ -373,20 +373,20 @@ func isTest(v *Val) *Val {
 
 // TODO: should be and
 func evalTest(e, v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidTest)
 	}
 
-	if isNil(cdr(v)) != vfalse {
-		return vtrue
+	if isNil(cdr(v)) != False {
+		return True
 	}
 
 	result := evalSeq(newEnv(e), cdr(v))
-	if result == vfalse {
+	if result == False {
 		return fatal(testFailed)
 	}
 
-	if isError(result) != vfalse {
+	if isError(result) != False {
 		return fatal(result)
 	}
 
@@ -398,11 +398,11 @@ func isApplication(v *Val) *Val {
 }
 
 func valueList(e, v *Val) *Val {
-	if isNil(v) != vfalse {
+	if isNil(v) != False {
 		return Nil
 	}
 
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidApplication)
 	}
 
@@ -410,7 +410,7 @@ func valueList(e, v *Val) *Val {
 }
 
 func evalApply(e, v *Val) *Val {
-	if isPair(v) == vfalse {
+	if isPair(v) == False {
 		return fatal(invalidApplication)
 	}
 
@@ -419,7 +419,7 @@ func evalApply(e, v *Val) *Val {
 
 func evalExp(e, v *Val) *Val {
 	switch {
-	case isDef(v) != vfalse:
+	case isDef(v) != False:
 		return fatal(definitionExpression)
 	default:
 		return eval(e, v)
@@ -428,41 +428,41 @@ func evalExp(e, v *Val) *Val {
 
 func eval(e, v *Val) *Val {
 	switch {
-	case isNumber(v) != vfalse:
+	case isNumber(v) != False:
 		return v
-	case isString(v) != vfalse:
+	case isString(v) != False:
 		return v
-	case isBool(v) != vfalse:
+	case isBool(v) != False:
 		return v
-	case isNil(v) != vfalse:
+	case isNil(v) != False:
 		return v
-	case isQuote(v) != vfalse:
+	case isQuote(v) != False:
 		return evalQuote(e, v)
-	case isSymbol(v) != vfalse:
+	case isSymbol(v) != False:
 		return lookupDef(e, v)
-	case isDef(v) != vfalse:
+	case isDef(v) != False:
 		return evalDef(e, v)
-	case isVectorForm(v) != vfalse:
+	case isVectorForm(v) != False:
 		return evalVector(e, v)
-	case isStructForm(v) != vfalse:
+	case isStructForm(v) != False:
 		return evalStruct(e, v)
-	case isIf(v) != vfalse:
+	case isIf(v) != False:
 		return evalIf(e, v)
-	case isAnd(v) != vfalse:
+	case isAnd(v) != False:
 		return evalAnd(e, cdr(v))
-	case isOr(v) != vfalse:
+	case isOr(v) != False:
 		return evalOr(e, cdr(v))
-	case isFn(v) != vfalse:
+	case isFn(v) != False:
 		return fnToProc(e, v)
-	case isBegin(v) != vfalse:
+	case isBegin(v) != False:
 		return evalSeq(e, beginSeq(v))
-	case isCond(v) != vfalse:
+	case isCond(v) != False:
 		return eval(e, condToIf(v))
-	case isLet(v) != vfalse:
+	case isLet(v) != False:
 		return eval(e, expandLet(v))
-	case isTest(v) != vfalse:
+	case isTest(v) != False:
 		return evalTest(e, v)
-	case isApplication(v) != vfalse:
+	case isApplication(v) != False:
 		return evalApply(e, v)
 	default:
 		println(v.mtype)

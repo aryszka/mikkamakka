@@ -51,7 +51,7 @@ func structFromList(l *Val) *Val {
 			break
 		}
 
-		if isPair(l) == vfalse || isPair(cdr(l)) == vfalse || isSymbol(car(l)) == vfalse {
+		if isPair(l) == False || isPair(cdr(l)) == False || isSymbol(car(l)) == False {
 			return fatal(invalidStruct)
 		}
 
@@ -63,10 +63,10 @@ func structFromList(l *Val) *Val {
 
 func isStruct(a *Val) *Val {
 	if a.mtype == mstruct {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func structNames(s *Val) *Val {

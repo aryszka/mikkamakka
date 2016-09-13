@@ -1,16 +1,16 @@
 package mikkamakka
 
 var (
-	vfalse = &Val{mbool, false}
-	vtrue  = &Val{mbool, true}
+	False = &Val{mbool, false}
+	True  = &Val{mbool, true}
 )
 
 func bfromString(s string) *Val {
 	switch s {
 	case "true":
-		return vtrue
+		return True
 	case "false":
-		return vfalse
+		return False
 	default:
 		return invalidToken
 	}
@@ -26,7 +26,7 @@ func btryBoolFromString(a []*Val) *Val {
 }
 
 func boolToString(b *Val) *Val {
-	if b == vtrue {
+	if b == True {
 		return fromString("true")
 	}
 
@@ -39,10 +39,10 @@ func bboolToString(a []*Val) *Val {
 
 func isBool(a *Val) *Val {
 	if a.mtype == mbool {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func bisBool(a []*Val) *Val {
@@ -51,10 +51,10 @@ func bisBool(a []*Val) *Val {
 
 func and(v ...*Val) *Val {
 	if len(v) == 0 {
-		return vtrue
+		return True
 	}
 
-	if len(v) == 1 || v[0] == vfalse {
+	if len(v) == 1 || v[0] == False {
 		return v[0]
 	}
 
@@ -67,10 +67,10 @@ func band(v []*Val) *Val {
 
 func or(v ...*Val) *Val {
 	if len(v) == 0 {
-		return vfalse
+		return False
 	}
 
-	if len(v) == 1 || v[0] != vfalse {
+	if len(v) == 1 || v[0] != False {
 		return v[0]
 	}
 
@@ -83,16 +83,9 @@ func bor(v []*Val) *Val {
 
 func not(a []*Val) *Val {
 	checkType(a[0], mbool)
-	if a[0] == vfalse {
-		return vtrue
+	if a[0] == False {
+		return True
 	}
 
-	return vfalse
-}
-
-var Vfalse = (*Val)(vfalse)
-var Vtrue = (*Val)(vtrue)
-
-func BfromString(s string) *Val {
-	return (*Val)(bfromString(s))
+	return False
 }

@@ -33,10 +33,10 @@ func stringToSymbol(a []*Val) *Val {
 
 func isSymbol(a *Val) *Val {
 	if a.mtype == symbol {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func bisSymbol(a []*Val) *Val {
@@ -47,10 +47,10 @@ func smeq(left, right *Val) *Val {
 	checkType(left, symbol)
 	checkType(right, symbol)
 	if sstringVal(left) == sstringVal(right) {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func SfromString(s string) *Val {

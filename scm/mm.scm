@@ -513,7 +513,7 @@
 
 (def (compile-number v) (string-append " mm.FromInt(" (number->string v) ") "))
 (def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
-(def (compile-bool v) (if v " mm.Vtrue " " mm.Vfalse "))
+(def (compile-bool v) (if v " mm.True " " mm.False "))
 (def (compile-nil v) " mm.Nil ")
 (def (compile-quote-literal v) (string-append " mm.List(mm.SfromString("
                                       (escape-compiled-string (symbol->string 'quote))
@@ -602,7 +602,7 @@
   (cond ((not (= (len v) 4)) (fatal invalid-if))
         (else (string-append " func() *mm.Val { if "
                              (compile-exp (car (cdr v)))
-                             " != mm.Vfalse { return "
+                             " != mm.False { return "
                              (compile-exp (car (cdr (cdr v))))
                              " } else { return "
                              (compile-exp (car (cdr (cdr (cdr v)))))
@@ -611,13 +611,13 @@
 
 (def (compile-and v)
   (def (compile-and s)
-    (cond ((nil? s) " return mm.Vtrue ")
+    (cond ((nil? s) " return mm.True ")
           ((nil? (cdr s))
            (string-append " return " (compile-exp (car s))))
           (else
             (string-append " if "
                            (compile-exp (car s))
-                           " == mm.Vfalse { return mm.Vfalse }; "
+                           " == mm.False { return mm.False }; "
                            (compile-and (cdr s))))))
   (string-append " func() *mm.Val { "
                  (compile-and (cdr v))
@@ -626,13 +626,13 @@
 
 (def (compile-or v)
   (def (compile-or s)
-    (cond ((nil? s) " return mm.Vfalse ")
+    (cond ((nil? s) " return mm.False ")
           ((nil? (cdr s))
            (string-append " return " (compile-exp (car s))))
           (else
             (string-append "if v := "
                            (compile-exp (car s))
-                           "; v != mm.Vfalse { return v }; "
+                           "; v != mm.False { return v }; "
                            (compile-or (cdr s))))))
   (string-append " func() *mm.Val { "
                  (compile-or (cdr v))
@@ -689,9 +689,9 @@
     (cond ((nil? v) (string-append " return " (compile-literal 'test-complete)))
           (else (string-append " if result := func() *mm.Val { return "
                                (compile-exp-statement (car v))
-                               " }(); result == mm.Vfalse { return mm.Fatal("
+                               " }(); result == mm.False { return mm.Fatal("
                                (compile-exp "test failed")
-                               ") } else if mm.IsError(result) != mm.Vfalse "
+                               ") } else if mm.IsError(result) != mm.False "
                                " { return mm.Fatal(result) }; "
                                (compile-test-seq (cdr v))))))
   (string-append " func() *mm.Val { "

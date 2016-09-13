@@ -61,10 +61,10 @@ func typeString(t mtype) string {
 
 func is(v *Val, t mtype) *Val {
 	if v.mtype == t {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func unexpectedType(got mtype, expected ...mtype) {
@@ -88,26 +88,26 @@ func checkType(v *Val, expected ...mtype) {
 
 func eq(v ...*Val) *Val {
 	if len(v) == 0 {
-		return vfalse
+		return False
 	}
 
 	if len(v) == 1 {
-		return vtrue
+		return True
 	}
 
 	a := v[0]
 	b := v[1]
 
 	switch {
-	case isNumber(a) != vfalse && isNumber(b) != vfalse:
+	case isNumber(a) != False && isNumber(b) != False:
 		return and(neq(a, b), eq(v[1:]...))
-	case isString(a) != vfalse && isString(b) != vfalse:
+	case isString(a) != False && isString(b) != False:
 		return and(seq(a, b), eq(v[1:]...))
-	case isSymbol(a) != vfalse && isSymbol(b) != vfalse:
+	case isSymbol(a) != False && isSymbol(b) != False:
 		return and(smeq(a, b), eq(v[1:]...))
 	default:
 		if a != b {
-			return vfalse
+			return False
 		}
 
 		return eq(v[1:]...)
@@ -117,7 +117,3 @@ func eq(v ...*Val) *Val {
 func beq(v []*Val) *Val {
 	return eq(v...)
 }
-
-type Mtype mtype
-
-var Merror = Mtype(merror)

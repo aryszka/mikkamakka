@@ -19,10 +19,10 @@ func vectorFromList(l *Val) *Val {
 
 func isVector(a *Val) *Val {
 	if a.mtype == vector {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func vectorLength(v *Val) *Val {

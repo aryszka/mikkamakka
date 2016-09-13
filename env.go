@@ -48,7 +48,7 @@ func defineStruct(e, n, s, names *Val) *Val {
 	checkType(s, mstruct)
 	checkType(names, pair, mnil)
 
-	if isNil(names) != vfalse {
+	if isNil(names) != False {
 		return s
 	}
 
@@ -83,7 +83,7 @@ func define(e, n, v *Val) *Val {
 	}
 
 	et.current[ns] = v
-	if isStruct(v) != vfalse {
+	if isStruct(v) != False {
 		return defineStruct(e, n, v, structNames(v))
 	}
 
@@ -92,20 +92,20 @@ func define(e, n, v *Val) *Val {
 
 func defineAll(e, n, a *Val) *Val {
 	for {
-		if isNil(n) != vfalse && isNil(a) != vfalse {
+		if isNil(n) != False && isNil(a) != False {
 			break
 		}
 
-		if isPair(a) == vfalse && isNil(a) == vfalse {
+		if isPair(a) == False && isNil(a) == False {
 			return fatal(invalidArguments)
 		}
 
-		if isPair(n) == vfalse {
+		if isPair(n) == False {
 			define(e, n, a)
 			return e
 		}
 
-		if isNil(a) != vfalse {
+		if isNil(a) != False {
 			return fatal(invalidArguments)
 		}
 
@@ -130,10 +130,10 @@ func envString(e *Val) *Val {
 
 func isEnv(e *Val) *Val {
 	if e.mtype == environment {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func InitialEnv() *Val {
@@ -172,7 +172,7 @@ func InitialEnv() *Val {
 	define(env, sfromString("fstate"), newBuiltin(bfstate, 1, false))
 	define(env, sfromString("derived-object?"), newBuiltin(derivedObject, 2, false))
 	define(env, sfromString("failing-reader"), newBuiltin(failingReader, 0, false))
-	define(env, sfromString("eof"), eof)
+	define(env, sfromString("eof"), Eof)
 	define(env, sfromString("stdin"), newBuiltin(bstdin, 0, false))
 	define(env, sfromString("stderr"), newBuiltin(bstderr, 0, false))
 	define(env, sfromString("stdout"), newBuiltin(bstdout, 0, false))

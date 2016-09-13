@@ -13,12 +13,12 @@ func loop(env, in *mm.Val) {
 
 	in = mm.Read(in)
 	v := mm.Field(in, mm.SfromString("value"))
-	if mm.IsError(v) != mm.Vfalse {
+	if mm.IsError(v) != mm.False {
 		if v == mm.Eof {
 			return
 		}
 
-		if v == mm.VoidError {
+		if v == mm.UndefinedReadValue {
 			mm.Fatal(mm.FromString("failed to read value"))
 			return
 		}

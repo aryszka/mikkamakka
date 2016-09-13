@@ -51,10 +51,10 @@ func bisString(a []*Val) *Val {
 
 func seq(left, right *Val) *Val {
 	if stringVal(left) == stringVal(right) {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func escapeCompiled(a []*Val) *Val {

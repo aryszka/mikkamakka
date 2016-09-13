@@ -17,19 +17,19 @@ func greater(a ...*Val) *Val {
 func bgreater(a []*Val) *Val {
 	for {
 		if len(a) == 0 {
-			return vfalse
+			return False
 		}
 
 		checkType(a[0], number)
 
 		if len(a) == 1 {
-			return vtrue
+			return True
 		}
 
 		checkType(a[1], number)
 
 		if a[0].value.(int) <= a[1].value.(int) {
-			return vfalse
+			return False
 		}
 
 		a = a[1:]
@@ -98,10 +98,10 @@ func badd(a []*Val) *Val {
 
 func neq(left, right *Val) *Val {
 	if left.value.(int) == right.value.(int) {
-		return vtrue
+		return True
 	}
 
-	return vfalse
+	return False
 }
 
 func FromInt(i int) *Val {
