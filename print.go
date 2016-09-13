@@ -1,33 +1,33 @@
 package mikkamakka
 
-func printer(out *val) *val {
-	return fromMap(map[string]*val{
+func printer(out *Val) *Val {
+	return fromMap(map[string]*Val{
 		"output": out,
-		"state":  vnil,
+		"state":  Nil,
 	})
 }
 
-func bprinter(a []*val) *val {
+func bprinter(a []*Val) *Val {
 	return printer(a[0])
 }
 
-func printState(p *val) *val {
+func printState(p *Val) *Val {
 	return field(p, sfromString("state"))
 }
 
-func printRaw(p *val, r *val) *val {
+func printRaw(p *Val, r *Val) *Val {
 	f := fwrite(field(p, sfromString("output")), r)
-	return assign(p, fromMap(map[string]*val{
+	return assign(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  fstate(f),
 	}))
 }
 
-func printQuoteSign(p *val) *val {
+func printQuoteSign(p *Val) *Val {
 	return printRaw(p, fromString("'"))
 }
 
-func printSymbol(p, v, q *val) *val {
+func printSymbol(p, v, q *Val) *Val {
 	if q == vfalse {
 		p = printQuoteSign(p)
 	}
@@ -35,12 +35,12 @@ func printSymbol(p, v, q *val) *val {
 	return printRaw(p, symbolToString(v))
 }
 
-func printQuote(p, v *val) *val {
+func printQuote(p, v *Val) *Val {
 	p = printQuoteSign(p)
 	return mprintq(p, car(cdr(v)), vfalse)
 }
 
-func printPair(p, v, q *val) *val {
+func printPair(p, v, q *Val) *Val {
 	if q == vfalse {
 		p = printQuoteSign(p)
 	}
@@ -50,8 +50,8 @@ func printPair(p, v, q *val) *val {
 		return p
 	}
 
-	var loop func(*val, *val, *val) *val
-	loop = func(p *val, v *val, first *val) *val {
+	var loop func(*Val, *Val, *Val) *Val
+	loop = func(p *Val, v *Val, first *Val) *Val {
 		if isNil(v) != vfalse {
 			return printRaw(p, fromString(")"))
 		}
@@ -93,14 +93,14 @@ func printPair(p, v, q *val) *val {
 	return loop(p, v, vtrue)
 }
 
-func printVector(p, v *val) *val {
+func printVector(p, v *Val) *Val {
 	p = printRaw(p, fromString("["))
 	if st := field(p, sfromString("state")); isError(st) != vfalse {
 		return p
 	}
 
-	var loop func(*val, *val, *val) *val
-	loop = func(p, i, f *val) *val {
+	var loop func(*Val, *Val, *Val) *Val
+	loop = func(p, i, f *Val) *Val {
 		if neq(i, vectorLength(v)) != vfalse {
 			return p
 		}
@@ -124,15 +124,15 @@ func printVector(p, v *val) *val {
 	return printRaw(p, fromString("]"))
 }
 
-func printStruct(p, v *val) *val {
+func printStruct(p, v *Val) *Val {
 	p = printRaw(p, fromString("{"))
 	if st := field(p, sfromString("state")); isError(st) != vfalse {
 		return p
 	}
 
-	var loop func(*val, *val, *val) *val
-	loop = func(p, n, f *val) *val {
-		if n == vnil {
+	var loop func(*Val, *Val, *Val) *Val
+	loop = func(p, n, f *Val) *Val {
+		if n == Nil {
 			return p
 		}
 
@@ -165,7 +165,7 @@ func printStruct(p, v *val) *val {
 	return printRaw(p, fromString("}"))
 }
 
-func mprintq(p, v, q *val) *val {
+func mprintq(p, v, q *Val) *Val {
 	if isSymbol(v) != vfalse {
 		return printSymbol(p, v, q)
 	} else if isNumber(v) != vfalse {
@@ -191,29 +191,29 @@ func mprintq(p, v, q *val) *val {
 	} else if isProc(v) != vfalse {
 		v = procString(v)
 	} else {
-		return assign(p, fromMap(map[string]*val{
+		return assign(p, fromMap(map[string]*Val{
 			"state": notImplemented,
 		}))
 	}
 
 	f := fwrite(field(p, sfromString("output")), v)
 	if st := fstate(f); isError(st) != vfalse {
-		return assign(p, fromMap(map[string]*val{
+		return assign(p, fromMap(map[string]*Val{
 			"output": f,
 			"state":  st,
 		}))
 	}
 
-	return assign(p, fromMap(map[string]*val{
+	return assign(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  v,
 	}))
 }
 
-func mprint(p, v *val) *val {
+func mprint(p, v *Val) *Val {
 	return mprintq(p, v, vfalse)
 }
 
-func bprint(a []*val) *val {
+func bprint(a []*Val) *Val {
 	return mprint(a[0], a[1])
 }

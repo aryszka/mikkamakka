@@ -2,19 +2,19 @@ package mikkamakka
 
 import "strconv"
 
-func intVal(n *val) int {
+func intVal(n *Val) int {
 	return n.value.(int)
 }
 
-func fromInt(i int) *val {
-	return &val{number, i}
+func fromInt(i int) *Val {
+	return &Val{number, i}
 }
 
-func greater(a ...*val) *val {
+func greater(a ...*Val) *Val {
 	return bgreater(a)
 }
 
-func bgreater(a []*val) *val {
+func bgreater(a []*Val) *Val {
 	for {
 		if len(a) == 0 {
 			return vfalse
@@ -36,7 +36,7 @@ func bgreater(a []*val) *val {
 	}
 }
 
-func nfromString(s string) *val {
+func nfromString(s string) *Val {
 	n, err := strconv.Atoi(s)
 	if err != nil {
 		return invalidToken
@@ -45,45 +45,45 @@ func nfromString(s string) *val {
 	return fromInt(n)
 }
 
-func tryNumberFromString(s *val) *val {
+func tryNumberFromString(s *Val) *Val {
 	checkType(s, mstring)
 	return nfromString(stringVal(s))
 }
 
-func btryNumberFromString(a []*val) *val {
+func btryNumberFromString(a []*Val) *Val {
 	return tryNumberFromString(a[0])
 }
 
-func numberToString(n *val) *val {
+func numberToString(n *Val) *Val {
 	checkType(n, number)
 	return fromString(strconv.Itoa(n.value.(int)))
 }
 
-func bnumberToString(a []*val) *val {
+func bnumberToString(a []*Val) *Val {
 	return numberToString(a[0])
 }
 
-func isNumber(a *val) *val {
+func isNumber(a *Val) *Val {
 	return is(a, number)
 }
 
-func bisNumber(a []*val) *val {
+func bisNumber(a []*Val) *Val {
 	return isNumber(a[0])
 }
 
-func sub(left, right *val) *val {
+func sub(left, right *Val) *Val {
 	checkType(left, number)
 	checkType(right, number)
 	return fromInt(left.value.(int) - right.value.(int))
 }
 
-func add(left, right *val) *val {
+func add(left, right *Val) *Val {
 	checkType(left, number)
 	checkType(right, number)
 	return fromInt(left.value.(int) + right.value.(int))
 }
 
-func badd(a []*val) *val {
+func badd(a []*Val) *Val {
 	s := 0
 	for {
 		if len(a) == 0 {
@@ -96,7 +96,7 @@ func badd(a []*val) *val {
 	}
 }
 
-func neq(left, right *val) *val {
+func neq(left, right *Val) *Val {
 	if left.value.(int) == right.value.(int) {
 		return vtrue
 	}

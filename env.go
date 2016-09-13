@@ -1,27 +1,27 @@
 package mikkamakka
 
 type env struct {
-	current map[string]*val
-	parent  *val
+	current map[string]*Val
+	parent  *Val
 }
 
 var (
-	undefined        = &val{merror, "undefined"}
-	notAnEnvironment = &val{merror, "not an environment"}
-	definitionExists = &val{merror, "definition exists"}
+	undefined        = &Val{merror, "undefined"}
+	notAnEnvironment = &Val{merror, "not an environment"}
+	definitionExists = &Val{merror, "definition exists"}
 )
 
-func newEnv(p *val) *val {
-	return &val{
+func newEnv(p *Val) *Val {
+	return &Val{
 		environment,
 		&env{
-			current: make(map[string]*val),
+			current: make(map[string]*Val),
 			parent:  p,
 		},
 	}
 }
 
-func lookupDef(e, n *val) *val {
+func lookupDef(e, n *Val) *Val {
 	checkType(e, environment)
 	checkType(n, symbol)
 	et, ok := e.value.(*env)
@@ -42,7 +42,7 @@ func lookupDef(e, n *val) *val {
 	return lookupDef(et.parent, n)
 }
 
-func defineStruct(e, n, s, names *val) *val {
+func defineStruct(e, n, s, names *Val) *Val {
 	checkType(e, environment)
 	checkType(n, symbol)
 	checkType(s, mstruct)
@@ -69,7 +69,7 @@ func defineStruct(e, n, s, names *val) *val {
 	return defineStruct(e, n, s, cdr(names))
 }
 
-func define(e, n, v *val) *val {
+func define(e, n, v *Val) *Val {
 	checkType(e, environment)
 	checkType(n, symbol)
 	et, ok := e.value.(*env)
@@ -90,7 +90,7 @@ func define(e, n, v *val) *val {
 	return v
 }
 
-func defineAll(e, n, a *val) *val {
+func defineAll(e, n, a *Val) *Val {
 	for {
 		if isNil(n) != vfalse && isNil(a) != vfalse {
 			break
@@ -118,17 +118,17 @@ func defineAll(e, n, a *val) *val {
 	return e
 }
 
-func extendEnv(e, n, a *val) *val {
+func extendEnv(e, n, a *Val) *Val {
 	e = newEnv(e)
 	return defineAll(e, n, a)
 }
 
-func envString(e *val) *val {
+func envString(e *Val) *Val {
 	checkType(e, environment)
 	return fromString("<environment>")
 }
 
-func isEnv(e *val) *val {
+func isEnv(e *Val) *Val {
 	if e.mtype == environment {
 		return vtrue
 	}
@@ -139,7 +139,7 @@ func isEnv(e *val) *val {
 func InitialEnv() *Val {
 	env := newEnv(nil)
 
-	define(env, sfromString("nil"), vnil)
+	define(env, sfromString("nil"), Nil)
 	define(env, sfromString("nil?"), newBuiltin(bisNil, 1, false))
 	define(env, sfromString("pair?"), newBuiltin(bisPair, 1, false))
 	define(env, sfromString("cons"), newBuiltin(bcons, 2, false))
@@ -188,13 +188,13 @@ func InitialEnv() *Val {
 }
 
 func Define(e, n, v *Val) *Val {
-	return (*Val)(define((*val)(e), (*val)(n), (*val)(v)))
+	return define(e, n, v)
 }
 
 func ExtendEnv(e, n, v *Val) *Val {
-	return (*Val)(extendEnv((*val)(e), (*val)(n), (*val)(v)))
+	return extendEnv(e, n, v)
 }
 
 func LookupDef(e, n *Val) *Val {
-	return (*Val)(lookupDef((*val)(e), (*val)(n)))
+	return lookupDef(e, n)
 }

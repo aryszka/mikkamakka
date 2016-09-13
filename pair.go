@@ -1,45 +1,46 @@
 package mikkamakka
 
 type tpair struct {
-	car, cdr *val
+	car, cdr *Val
 }
 
 var (
-	vnil       = &val{mtype: mnil}
-	mixedTypes = &val{merror, "mixed types"}
+	Nil = &Val{mtype: mnil}
+
+	mixedTypes = &Val{merror, "mixed types"}
 )
 
-func cons(car, cdr *val) *val {
+func cons(car, cdr *Val) *Val {
 	// if car.mtype != cdr.mtype && cdr.mtype != mnil && cdr.mtype != pair {
 	// 	panic(mixedTypes)
 	// }
 
-	return &val{pair, &tpair{car, cdr}}
+	return &Val{pair, &tpair{car, cdr}}
 }
 
-func bcons(a []*val) *val {
+func bcons(a []*Val) *Val {
 	return cons(a[0], a[1])
 }
 
-func car(p *val) *val {
+func car(p *Val) *Val {
 	checkType(p, pair)
 	return p.value.(*tpair).car
 }
 
-func bcar(a []*val) *val {
+func bcar(a []*Val) *Val {
 	return car(a[0])
 }
 
-func cdr(p *val) *val {
+func cdr(p *Val) *Val {
 	checkType(p, pair)
 	return p.value.(*tpair).cdr
 }
 
-func bcdr(a []*val) *val {
+func bcdr(a []*Val) *Val {
 	return cdr(a[0])
 }
 
-func isPair(a *val) *val {
+func isPair(a *Val) *Val {
 	if a.mtype == pair {
 		return vtrue
 	}
@@ -47,24 +48,24 @@ func isPair(a *val) *val {
 	return vfalse
 }
 
-func bisPair(a []*val) *val {
+func bisPair(a []*Val) *Val {
 	return isPair(a[0])
 }
 
-func isNil(a *val) *val {
-	if a == vnil {
+func isNil(a *Val) *Val {
+	if a == Nil {
 		return vtrue
 	}
 
 	return vfalse
 }
 
-func bisNil(a []*val) *val {
+func bisNil(a []*Val) *Val {
 	return isNil(a[0])
 }
 
-func list(a ...*val) *val {
-	l := vnil
+func list(a ...*Val) *Val {
+	l := Nil
 	for i := len(a) - 1; i >= 0; i-- {
 		l = cons(a[i], l)
 	}
@@ -72,16 +73,16 @@ func list(a ...*val) *val {
 	return l
 }
 
-func blist(a []*val) *val {
+func blist(a []*Val) *Val {
 	return list(a...)
 }
 
-func reverse(l *val) *val {
+func reverse(l *Val) *Val {
 	checkType(l, pair, mnil)
 
-	r := vnil
+	r := Nil
 	for {
-		if l == vnil {
+		if l == Nil {
 			return r
 		}
 
@@ -90,13 +91,13 @@ func reverse(l *val) *val {
 	}
 }
 
-func reverseIrregular(l *val) *val {
+func reverseIrregular(l *Val) *Val {
 	checkType(l, pair, mnil)
 
 	r := cons(car(cdr(l)), car(l))
 	l = cdr(cdr(l))
 	for {
-		if l == vnil {
+		if l == Nil {
 			return r
 		}
 
@@ -105,7 +106,7 @@ func reverseIrregular(l *val) *val {
 	}
 }
 
-func mappend(left, right *val) *val {
+func mappend(left, right *Val) *Val {
 	checkType(left, pair, mnil)
 	checkType(right, pair, mnil)
 
@@ -116,17 +117,15 @@ func mappend(left, right *val) *val {
 	return cons(car(left), mappend(cdr(left), right))
 }
 
-var Vnil = (*Val)(vnil)
-
 func List(a ...*Val) *Val {
-	av := make([]*val, len(a))
+	av := make([]*Val, len(a))
 	for i, ai := range a {
-		av[i] = (*val)(ai)
+		av[i] = ai
 	}
 
-	return (*Val)(list(av...))
+	return list(av...)
 }
 
 func Cons(car, cdr *Val) *Val {
-	return (*Val)(cons((*val)(car), (*val)(cdr)))
+	return cons(car, cdr)
 }

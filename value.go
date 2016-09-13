@@ -23,7 +23,7 @@ const (
 	procedure
 )
 
-type val struct {
+type Val struct {
 	mtype mtype
 	value interface{}
 }
@@ -59,7 +59,7 @@ func typeString(t mtype) string {
 	}
 }
 
-func is(v *val, t mtype) *val {
+func is(v *Val, t mtype) *Val {
 	if v.mtype == t {
 		return vtrue
 	}
@@ -76,7 +76,7 @@ func unexpectedType(got mtype, expected ...mtype) {
 	panic(fmt.Sprintf("expected: %s, got: %s", strings.Join(s, ", "), typeString(got)))
 }
 
-func checkType(v *val, expected ...mtype) {
+func checkType(v *Val, expected ...mtype) {
 	for _, t := range expected {
 		if v.mtype == t {
 			return
@@ -86,7 +86,7 @@ func checkType(v *val, expected ...mtype) {
 	unexpectedType(v.mtype, expected...)
 }
 
-func eq(v ...*val) *val {
+func eq(v ...*Val) *Val {
 	if len(v) == 0 {
 		return vfalse
 	}
@@ -114,11 +114,9 @@ func eq(v ...*val) *val {
 	}
 }
 
-func beq(v []*val) *val {
+func beq(v []*Val) *Val {
 	return eq(v...)
 }
-
-type Val val
 
 type Mtype mtype
 

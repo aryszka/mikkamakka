@@ -4,34 +4,34 @@ type sym struct {
 	val string
 }
 
-var emptySymbol = &val{merror, "empty symbol not allowed"}
+var emptySymbol = &Val{merror, "empty symbol not allowed"}
 
-func sfromString(s string) *val {
+func sfromString(s string) *Val {
 	if s == "" {
 		return emptySymbol
 	}
 
-	return &val{symbol, &sym{s}}
+	return &Val{symbol, &sym{s}}
 }
 
-func sstringVal(s *val) string {
+func sstringVal(s *Val) string {
 	return s.value.(*sym).val
 }
 
-func symbolToString(s *val) *val {
+func symbolToString(s *Val) *Val {
 	return fromString(sstringVal(s))
 }
 
-func bsymbolToString(a []*val) *val {
+func bsymbolToString(a []*Val) *Val {
 	return symbolToString(a[0])
 }
 
-func stringToSymbol(a []*val) *val {
+func stringToSymbol(a []*Val) *Val {
 	checkType(a[0], mstring)
 	return sfromString(stringVal(a[0]))
 }
 
-func isSymbol(a *val) *val {
+func isSymbol(a *Val) *Val {
 	if a.mtype == symbol {
 		return vtrue
 	}
@@ -39,11 +39,11 @@ func isSymbol(a *val) *val {
 	return vfalse
 }
 
-func bisSymbol(a []*val) *val {
+func bisSymbol(a []*Val) *Val {
 	return isSymbol(a[0])
 }
 
-func smeq(left, right *val) *val {
+func smeq(left, right *Val) *Val {
 	checkType(left, symbol)
 	checkType(right, symbol)
 	if sstringVal(left) == sstringVal(right) {
@@ -54,5 +54,5 @@ func smeq(left, right *val) *val {
 }
 
 func SfromString(s string) *Val {
-	return (*Val)(sfromString(s))
+	return sfromString(s)
 }

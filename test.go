@@ -10,6 +10,6 @@ func (fr readerFail) Read([]byte) (int, error) {
 	return 0, errTestReadFailed
 }
 
-func failingReader([]*val) *val {
-	return &val{sys, &file{sys: readerFail{}}}
+func failingReader([]*Val) *Val {
+	return &Val{sys, &file{sys: readerFail{}}}
 }

@@ -1,16 +1,16 @@
 package mikkamakka
 
 type tstruct struct {
-	sys map[string]*val
+	sys map[string]*Val
 }
 
-var invalidStruct = &val{merror, "invalid struct"}
+var invalidStruct = &Val{merror, "invalid struct"}
 
-func fromMap(m map[string]*val) *val {
-	return &val{mstruct, &tstruct{m}}
+func fromMap(m map[string]*Val) *Val {
+	return &Val{mstruct, &tstruct{m}}
 }
 
-func field(s, f *val) *val {
+func field(s, f *Val) *Val {
 	checkType(s, mstruct)
 	checkType(f, symbol)
 	name := sstringVal(f)
@@ -22,10 +22,10 @@ func field(s, f *val) *val {
 	return v
 }
 
-func assign(s *val, a ...*val) *val {
+func assign(s *Val, a ...*Val) *Val {
 	checkType(s, mstruct)
 
-	next := make(map[string]*val)
+	next := make(map[string]*Val)
 	for k, v := range s.value.(*tstruct).sys {
 		next[k] = v
 	}
@@ -40,14 +40,14 @@ func assign(s *val, a ...*val) *val {
 	return fromMap(next)
 }
 
-func bassign(a []*val) *val {
+func bassign(a []*Val) *Val {
 	return assign(a[0], a[1:]...)
 }
 
-func structFromList(l *val) *val {
-	sys := make(map[string]*val)
+func structFromList(l *Val) *Val {
+	sys := make(map[string]*Val)
 	for {
-		if l == vnil {
+		if l == Nil {
 			break
 		}
 
@@ -61,7 +61,7 @@ func structFromList(l *val) *val {
 	return fromMap(sys)
 }
 
-func isStruct(a *val) *val {
+func isStruct(a *Val) *Val {
 	if a.mtype == mstruct {
 		return vtrue
 	}
@@ -69,10 +69,10 @@ func isStruct(a *val) *val {
 	return vfalse
 }
 
-func structNames(s *val) *val {
+func structNames(s *Val) *Val {
 	checkType(s, mstruct)
 
-	n := vnil
+	n := Nil
 	for k, _ := range s.value.(*tstruct).sys {
 		n = cons(sfromString(k), n)
 	}
@@ -80,7 +80,7 @@ func structNames(s *val) *val {
 	return reverse(n)
 }
 
-func structVal(s, n *val) *val {
+func structVal(s, n *Val) *Val {
 	checkType(s, mstruct)
 	checkType(n, symbol)
 	ns := sstringVal(n)
@@ -93,27 +93,27 @@ func structVal(s, n *val) *val {
 }
 
 func Field(s, f *Val) *Val {
-	return (*Val)(field((*val)(s), (*val)(f)))
+	return field(s, f)
 }
 
 func Assign(s *Val, a ...*Val) *Val {
-	av := make([]*val, len(a))
+	av := make([]*Val, len(a))
 	for i, ai := range a {
-		av[i] = (*val)(ai)
+		av[i] = ai
 	}
 
-	return (*Val)(assign((*val)(s), av...))
+	return assign(s, av...)
 }
 
 func FromMap(m map[string]*Val) *Val {
-	mv := make(map[string]*val)
+	mv := make(map[string]*Val)
 	for k, v := range m {
-		mv[k] = (*val)(v)
+		mv[k] = v
 	}
 
-	return (*Val)(fromMap(mv))
+	return fromMap(mv)
 }
 
 func StructFromList(l *Val) *Val {
-	return (*Val)(structFromList((*val)(l)))
+	return structFromList(l)
 }

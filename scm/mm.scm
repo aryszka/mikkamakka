@@ -514,7 +514,7 @@
 (def (compile-number v) (string-append " mm.FromInt(" (number->string v) ") "))
 (def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.Vtrue " " mm.Vfalse "))
-(def (compile-nil v) " mm.Vnil ")
+(def (compile-nil v) " mm.Nil ")
 (def (compile-quote-literal v) (string-append " mm.List(mm.SfromString("
                                       (escape-compiled-string (symbol->string 'quote))
                                       "), "
@@ -695,7 +695,7 @@
                                " { return mm.Fatal(result) }; "
                                (compile-test-seq (cdr v))))))
   (string-append " func() *mm.Val { "
-                 " env := mm.ExtendEnv(env, mm.Vnil, mm.Vnil); env = env; "
+                 " env := mm.ExtendEnv(env, mm.Nil, mm.Nil); env = env; "
                  (compile-test-seq (cdr v))
                  " }() "))
 
@@ -714,7 +714,7 @@
 
 (def (compile-struct v)
   (def (compile-struct-values v)
-    (cond ((nil? v) " mm.Vnil ")
+    (cond ((nil? v) " mm.Nil ")
           (else (string-append " mm.Cons( "
                                (compile-literal (car v))
                                ", mm.Cons( "
@@ -728,7 +728,7 @@
 
 
 (def (compile-value-list v)
-  (cond ((nil? v) " mm.Vnil ")
+  (cond ((nil? v) " mm.Nil ")
         ((not (pair? v)) (fatal invalid-application))
         (else (string-append " mm.Cons( "
                              (compile-exp (car v))

@@ -6,23 +6,23 @@ type str struct {
 	sys string
 }
 
-func fromBytes(b []byte) *val {
-	return &val{mstring, &str{string(b)}}
+func fromBytes(b []byte) *Val {
+	return &Val{mstring, &str{string(b)}}
 }
 
-func fromString(s string) *val {
-	return &val{mstring, &str{s}}
+func fromString(s string) *Val {
+	return &Val{mstring, &str{s}}
 }
 
-func stringVal(s *val) string {
+func stringVal(s *Val) string {
 	return s.value.(*str).sys
 }
 
-func byteVal(s *val) []byte {
+func byteVal(s *Val) []byte {
 	return []byte(s.value.(*str).sys)
 }
 
-func appendString(a ...*val) *val {
+func appendString(a ...*Val) *Val {
 	var b []byte
 	for _, ai := range a {
 		checkType(ai, mstring)
@@ -32,24 +32,24 @@ func appendString(a ...*val) *val {
 	return fromBytes(b)
 }
 
-func bappendString(a []*val) *val {
+func bappendString(a []*Val) *Val {
 	return appendString(a...)
 }
 
-func stringLength(s *val) *val {
+func stringLength(s *Val) *Val {
 	checkType(s, mstring)
 	return fromInt(len(s.value.(*str).sys))
 }
 
-func isString(a *val) *val {
+func isString(a *Val) *Val {
 	return is(a, mstring)
 }
 
-func bisString(a []*val) *val {
+func bisString(a []*Val) *Val {
 	return isString(a[0])
 }
 
-func seq(left, right *val) *val {
+func seq(left, right *Val) *Val {
 	if stringVal(left) == stringVal(right) {
 		return vtrue
 	}
@@ -57,7 +57,7 @@ func seq(left, right *val) *val {
 	return vfalse
 }
 
-func escapeCompiled(a []*val) *val {
+func escapeCompiled(a []*Val) *Val {
 	checkType(a[0], mstring)
 	return fromString(strconv.Quote(stringVal(a[0])))
 }

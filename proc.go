@@ -1,20 +1,22 @@
 package mikkamakka
 
-type builtin func([]*val) *val
+type builtin func([]*Val) *Val
+
+type Compiled func(*Val) *Val
 
 type proc struct {
 	builtin  builtin
 	argCount int
 	varArgs  bool
-	params   *val
-	body     *val
-	env      *val
+	params   *Val
+	body     *Val
+	env      *Val
 }
 
-var invalidArguments = &val{merror, "invalid arguments"}
+var invalidArguments = &Val{merror, "invalid arguments"}
 
-func newBuiltin(p builtin, argCount int, varArgs bool) *val {
-	return &val{
+func newBuiltin(p builtin, argCount int, varArgs bool) *Val {
+	return &Val{
 		procedure,
 		&proc{
 			builtin:  p,
@@ -24,20 +26,20 @@ func newBuiltin(p builtin, argCount int, varArgs bool) *val {
 	}
 }
 
-func newProc(e, p, b *val) *val {
-	return &val{
+func newProc(e, p, b *Val) *Val {
+	return &Val{
 		procedure,
 		&proc{params: p, body: b, env: e},
 	}
 }
 
-func procString(p *val) *val {
+func procString(p *Val) *Val {
 	checkType(p, procedure)
 	return fromString("<procedure>")
 }
 
-func applyBuiltin(p *proc, a *val) *val {
-	args := make([]*val, 0, p.argCount)
+func applyBuiltin(p *proc, a *Val) *Val {
+	args := make([]*Val, 0, p.argCount)
 
 	for {
 		if isNil(a) != vfalse || !p.varArgs && len(args) == p.argCount {
@@ -59,7 +61,7 @@ func applyBuiltin(p *proc, a *val) *val {
 	return p.builtin(args)
 }
 
-func applyStruct(s, a *val) *val {
+func applyStruct(s, a *Val) *Val {
 	checkType(s, mstruct)
 	checkType(a, pair)
 
@@ -70,11 +72,11 @@ func applyStruct(s, a *val) *val {
 	return field(s, car(a))
 }
 
-func applyLang(p *proc, a *val) *val {
+func applyLang(p *proc, a *Val) *Val {
 	return evalSeq(extendEnv(p.env, p.params, a), p.body)
 }
 
-func apply(p, a *val) *val {
+func apply(p, a *Val) *Val {
 	checkType(p, procedure, mstruct)
 	checkType(a, pair, mnil)
 
@@ -91,11 +93,11 @@ func apply(p, a *val) *val {
 	return applyLang(pt, a)
 }
 
-func bapply(a []*val) *val {
+func bapply(a []*Val) *Val {
 	return apply(a[0], a[1])
 }
 
-func isProc(e *val) *val {
+func isProc(e *Val) *Val {
 	if e.mtype == procedure {
 		return vtrue
 	}
@@ -103,37 +105,35 @@ func isProc(e *val) *val {
 	return vfalse
 }
 
-type Compiled func(*Val) *Val
-
 func toBuiltin(c Compiled) builtin {
-	return func(a []*val) *val {
-		al := vnil
+	return func(a []*Val) *Val {
+		al := Nil
 		for i := len(a) - 1; i >= 0; i-- {
 			al = cons(a[i], al)
 		}
 
-		return (*val)(c((*Val)(al)))
+		return c(al)
 	}
 }
 
 // needs the names
 func NewCompiled(p Compiled, argCount int, varArgs bool) *Val {
-	return (*Val)(newBuiltin(toBuiltin(p), argCount, varArgs))
+	return newBuiltin(toBuiltin(p), argCount, varArgs)
 }
 
 func Apply(p, a *Val) *Val {
-	av := vnil
+	av := Nil
 	for {
-		if isNil((*val)(a)) != vfalse {
+		if isNil(a) != vfalse {
 			break
 		}
 
-		if isPair((*val)(a)) == vfalse {
-			return (*Val)(fatal(invalidArguments))
+		if isPair(a) == vfalse {
+			return fatal(invalidArguments)
 		}
 
-		av, a = cons((*val)(car((*val)(a))), av), (*Val)(cdr((*val)(a)))
+		av, a = cons(car(a), av), cdr(a)
 	}
 
-	return (*Val)(apply((*val)(p), reverse(av)))
+	return apply(p, reverse(av))
 }

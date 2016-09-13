@@ -1,11 +1,11 @@
 package mikkamakka
 
 var (
-	vfalse = &val{mbool, false}
-	vtrue  = &val{mbool, true}
+	vfalse = &Val{mbool, false}
+	vtrue  = &Val{mbool, true}
 )
 
-func bfromString(s string) *val {
+func bfromString(s string) *Val {
 	switch s {
 	case "true":
 		return vtrue
@@ -16,16 +16,16 @@ func bfromString(s string) *val {
 	}
 }
 
-func tryBoolFromString(s *val) *val {
+func tryBoolFromString(s *Val) *Val {
 	checkType(s, mstring)
 	return bfromString(stringVal(s))
 }
 
-func btryBoolFromString(a []*val) *val {
+func btryBoolFromString(a []*Val) *Val {
 	return tryBoolFromString(a[0])
 }
 
-func boolToString(b *val) *val {
+func boolToString(b *Val) *Val {
 	if b == vtrue {
 		return fromString("true")
 	}
@@ -33,11 +33,11 @@ func boolToString(b *val) *val {
 	return fromString("false")
 }
 
-func bboolToString(a []*val) *val {
+func bboolToString(a []*Val) *Val {
 	return boolToString(a[0])
 }
 
-func isBool(a *val) *val {
+func isBool(a *Val) *Val {
 	if a.mtype == mbool {
 		return vtrue
 	}
@@ -45,11 +45,11 @@ func isBool(a *val) *val {
 	return vfalse
 }
 
-func bisBool(a []*val) *val {
+func bisBool(a []*Val) *Val {
 	return isBool(a[0])
 }
 
-func and(v ...*val) *val {
+func and(v ...*Val) *Val {
 	if len(v) == 0 {
 		return vtrue
 	}
@@ -61,11 +61,11 @@ func and(v ...*val) *val {
 	return and(v[1:]...)
 }
 
-func band(v []*val) *val {
+func band(v []*Val) *Val {
 	return and(v...)
 }
 
-func or(v ...*val) *val {
+func or(v ...*Val) *Val {
 	if len(v) == 0 {
 		return vfalse
 	}
@@ -77,11 +77,11 @@ func or(v ...*val) *val {
 	return or(v[1:]...)
 }
 
-func bor(v []*val) *val {
+func bor(v []*Val) *Val {
 	return or(v...)
 }
 
-func not(a []*val) *val {
+func not(a []*Val) *Val {
 	checkType(a[0], mbool)
 	if a[0] == vfalse {
 		return vtrue

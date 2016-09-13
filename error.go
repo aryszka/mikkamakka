@@ -5,20 +5,20 @@ import (
 	"os"
 )
 
-func isError(a *val) *val {
+func isError(a *Val) *Val {
 	return is(a, merror)
 }
 
-func bisError(a []*val) *val {
+func bisError(a []*Val) *Val {
 	return isError(a[0])
 }
 
-func stringToError(a []*val) *val {
+func stringToError(a []*Val) *Val {
 	checkType(a[0], mstring)
-	return &val{merror, stringVal(a[0])}
+	return &Val{merror, stringVal(a[0])}
 }
 
-func errorStringRaw(a *val) string {
+func errorStringRaw(a *Val) string {
 	switch v := a.value.(type) {
 	case error:
 		return v.Error()
@@ -29,11 +29,11 @@ func errorStringRaw(a *val) string {
 	}
 }
 
-func errorString(a *val) *val {
+func errorString(a *Val) *Val {
 	return fromString(errorStringRaw(a))
 }
 
-func fatal(a *val) *val {
+func fatal(a *Val) *Val {
 	switch a.mtype {
 	case mstring:
 		fwrite(stderr(), a)
@@ -46,19 +46,19 @@ func fatal(a *val) *val {
 	return a
 }
 
-func bfatal(a []*val) *val {
+func bfatal(a []*Val) *Val {
 	return fatal(a[0])
 }
 
-func estring(e *val) *val {
+func estring(e *Val) *Val {
 	checkType(e, merror)
 	return fromString(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
 }
 
 func IsError(a *Val) *Val {
-	return (*Val)(isError((*val)(a)))
+	return isError(a)
 }
 
 func Fatal(a *Val) *Val {
-	return (*Val)(fatal((*val)(a)))
+	return fatal(a)
 }

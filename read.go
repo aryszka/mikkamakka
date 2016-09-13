@@ -3,26 +3,26 @@ package mikkamakka
 import "unicode"
 
 var (
-	invalidToken    = &val{merror, "invalid token"}
-	notImplemented  = &val{merror, "not implemented"}
-	unexpectedClose = &val{merror, "unexpected close"}
-	irregularCons   = &val{merror, "irregular cons"}
-	voidError       = &val{merror, "void error"}
-	ttnone          = &val{number, 0}
-	ttcomment       = &val{number, 1}
-	ttsymbol        = &val{number, 2}
-	ttstring        = &val{number, 3}
-	ttlist          = &val{number, 4}
-	ttquote         = &val{number, 5}
-	ttvector        = &val{number, 7}
-	ttstruct        = &val{number, 8}
+	invalidToken    = &Val{merror, "invalid token"}
+	notImplemented  = &Val{merror, "not implemented"}
+	unexpectedClose = &Val{merror, "unexpected close"}
+	irregularCons   = &Val{merror, "irregular cons"}
+	VoidError       = &Val{merror, "void error"}
+	ttnone          = &Val{number, 0}
+	ttcomment       = &Val{number, 1}
+	ttsymbol        = &Val{number, 2}
+	ttstring        = &Val{number, 3}
+	ttlist          = &Val{number, 4}
+	ttquote         = &Val{number, 5}
+	ttvector        = &Val{number, 7}
+	ttstruct        = &Val{number, 8}
 )
 
-func reader(in *val) *val {
-	return fromMap(map[string]*val{
+func reader(in *Val) *Val {
+	return fromMap(map[string]*Val{
 		"in":            in,
 		"token-type":    ttnone,
-		"value":         voidError,
+		"value":         VoidError,
 		"escaped":       vfalse,
 		"last-char":     fromString(""),
 		"current-token": fromString(""),
@@ -33,8 +33,8 @@ func reader(in *val) *val {
 	})
 }
 
-func charCheck(c string) func(*val) *val {
-	return func(s *val) *val {
+func charCheck(c string) func(*Val) *Val {
+	return func(s *Val) *Val {
 		if stringVal(s) == c {
 			return vtrue
 		}
@@ -58,7 +58,7 @@ var (
 	isCloseStruct     = charCheck("}")
 )
 
-func isWhitespace(s *val) *val {
+func isWhitespace(s *Val) *Val {
 	if unicode.IsSpace(rune(stringVal(s)[0])) {
 		return vtrue
 	}
@@ -66,7 +66,7 @@ func isWhitespace(s *val) *val {
 	return vfalse
 }
 
-func symbolToken(t *val) *val {
+func symbolToken(t *Val) *Val {
 	v := nfromString(stringVal(t))
 	if isError(v) == vfalse {
 		return v
@@ -80,96 +80,96 @@ func symbolToken(t *val) *val {
 	return sfromString(stringVal(t))
 }
 
-func readChar(r *val) *val {
+func readChar(r *Val) *Val {
 	in := fread(field(r, sfromString("in")), fromInt(1))
 	st := fstate(in)
 
 	if isError(st) != vfalse {
-		return assign(r, fromMap(map[string]*val{
+		return assign(r, fromMap(map[string]*Val{
 			"in":    in,
 			"value": st,
 		}))
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"in":        in,
 		"last-char": st,
 	}))
 }
 
-func readError(r *val) bool {
+func readError(r *Val) bool {
 	v := field(r, sfromString("value"))
-	return isError(v) != vfalse && v != voidError
+	return isError(v) != vfalse && v != VoidError
 
 }
 
-func lastChar(r *val) *val {
+func lastChar(r *Val) *Val {
 	return field(r, sfromString("last-char"))
 }
 
-func currentTokenType(r *val) *val {
+func currentTokenType(r *Val) *Val {
 	return field(r, sfromString("token-type"))
 }
 
-func setTokenType(r *val, t *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func setTokenType(r *Val, t *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"token-type": t,
 	}))
 }
 
-func isTNone(t *val) bool    { return t == ttnone }
-func isTComment(t *val) bool { return t == ttcomment }
-func isTSymbol(t *val) bool  { return t == ttsymbol }
-func isTString(t *val) bool  { return t == ttstring }
-func isTList(t *val) bool    { return t == ttlist }
-func isTQuote(t *val) bool   { return t == ttquote }
-func isTVector(t *val) bool  { return t == ttvector }
-func isTStruct(t *val) bool  { return t == ttstruct }
+func isTNone(t *Val) bool    { return t == ttnone }
+func isTComment(t *Val) bool { return t == ttcomment }
+func isTSymbol(t *Val) bool  { return t == ttsymbol }
+func isTString(t *Val) bool  { return t == ttstring }
+func isTList(t *Val) bool    { return t == ttlist }
+func isTQuote(t *Val) bool   { return t == ttquote }
+func isTVector(t *Val) bool  { return t == ttvector }
+func isTStruct(t *Val) bool  { return t == ttstruct }
 
-func setNone(r *val) *val    { return setTokenType(r, ttnone) }
-func setString(r *val) *val  { return setTokenType(r, ttstring) }
-func setComment(r *val) *val { return setTokenType(r, ttcomment) }
-func setSymbol(r *val) *val  { return setTokenType(r, ttsymbol) }
-func setList(r *val) *val    { return setTokenType(r, ttlist) }
-func setQuote(r *val) *val   { return setTokenType(r, ttquote) }
-func setVector(r *val) *val  { return setTokenType(r, ttvector) }
-func setStruct(r *val) *val  { return setTokenType(r, ttstruct) }
+func setNone(r *Val) *Val    { return setTokenType(r, ttnone) }
+func setString(r *Val) *Val  { return setTokenType(r, ttstring) }
+func setComment(r *Val) *Val { return setTokenType(r, ttcomment) }
+func setSymbol(r *Val) *Val  { return setTokenType(r, ttsymbol) }
+func setList(r *Val) *Val    { return setTokenType(r, ttlist) }
+func setQuote(r *Val) *Val   { return setTokenType(r, ttquote) }
+func setVector(r *Val) *Val  { return setTokenType(r, ttvector) }
+func setStruct(r *Val) *Val  { return setTokenType(r, ttstruct) }
 
-func clearToken(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func clearToken(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"current-token": fromString(""),
 	}))
 }
 
-func closeComment(r *val) *val {
+func closeComment(r *Val) *Val {
 	return clearToken(setTokenType(r, ttnone))
 }
 
-func closeSymbol(r *val) *val {
+func closeSymbol(r *Val) *Val {
 	return clearToken(processSymbol(setTokenType(r, ttnone)))
 }
 
-func closeString(r *val) *val {
+func closeString(r *Val) *Val {
 	return clearToken(processString(setTokenType(r, ttnone)))
 }
 
-func setEscaped(r *val) *val {
-	return assign(r, fromMap(map[string]*val{"escaped": vtrue}))
+func setEscaped(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{"escaped": vtrue}))
 }
 
-func unsetEscaped(r *val) *val {
-	return assign(r, fromMap(map[string]*val{"escaped": vfalse}))
+func unsetEscaped(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{"escaped": vfalse}))
 }
 
-func isEscaped(r *val) *val {
+func isEscaped(r *Val) *Val {
 	return field(r, sfromString("escaped"))
 }
 
-func unescapeSymbolChar(c *val) *val {
+func unescapeSymbolChar(c *Val) *Val {
 	return c
 }
 
-func unescapeStringChar(c *val) *val {
+func unescapeStringChar(c *Val) *Val {
 	switch stringVal(c) {
 	case "b":
 		return fromString("\b")
@@ -188,7 +188,7 @@ func unescapeStringChar(c *val) *val {
 	}
 }
 
-func unescapeChar(tokenType, c *val) *val {
+func unescapeChar(tokenType, c *Val) *Val {
 	switch tokenType {
 	case ttsymbol:
 		return unescapeSymbolChar(c)
@@ -199,36 +199,36 @@ func unescapeChar(tokenType, c *val) *val {
 	}
 }
 
-func appendToken(r *val) *val {
+func appendToken(r *Val) *Val {
 	c := lastChar(r)
 	if isEscaped(r) != vfalse {
 		c = unescapeChar(field(r, sfromString("token-type")), c)
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"current-token": appendString(field(r, sfromString("current-token")), c),
 	}))
 }
 
-func setInvalid(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func setInvalid(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"err": invalidToken,
 	}))
 }
 
-func processSymbol(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func processSymbol(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"value": symbolToken(field(r, sfromString("current-token"))),
 	}))
 }
 
-func processString(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func processString(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"value": field(r, sfromString("current-token")),
 	}))
 }
 
-func closeChar(c *val) *val {
+func closeChar(c *Val) *Val {
 	switch stringVal(c) {
 	case "(":
 		return fromString(")")
@@ -241,89 +241,89 @@ func closeChar(c *val) *val {
 	}
 }
 
-func setClose(r, c *val) *val {
+func setClose(r, c *Val) *Val {
 	if seq(closeChar(field(r, sfromString("in-list"))), c) == vfalse {
 		return setUnexpectedClose(r)
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"close-list": vtrue,
 	}))
 }
 
-func hasCons(r *val) bool {
+func hasCons(r *Val) bool {
 	return greater(field(r, sfromString("cons-items")), fromInt(0)) != vfalse
 }
 
-func consSet(r *val) bool {
+func consSet(r *Val) bool {
 	return field(r, sfromString("cons")) != vfalse
 }
 
-func setCons(r *val) *val {
+func setCons(r *Val) *Val {
 	if hasCons(r) {
 		return setIrregularCons(r)
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"cons": vtrue,
 	}))
 }
 
-func setUnexpectedClose(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func setUnexpectedClose(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"value": unexpectedClose,
 	}))
 }
 
-func setIrregularCons(r *val) *val {
-	return assign(r, fromMap(map[string]*val{
+func setIrregularCons(r *Val) *Val {
+	return assign(r, fromMap(map[string]*Val{
 		"value": irregularCons,
 	}))
 }
 
-func readList(r, c *val) *val {
+func readList(r, c *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
-	lr = assign(lr, fromMap(map[string]*val{
-		"list-items": vnil,
+	lr = assign(lr, fromMap(map[string]*Val{
+		"list-items": Nil,
 		"in-list":    c,
 	}))
 
-	var loop func(*val) *val
-	loop = func(lr *val) *val {
+	var loop func(*Val) *Val
+	loop = func(lr *Val) *Val {
 		lr = read(lr)
 		if readError(lr) {
-			return assign(r, fromMap(map[string]*val{
+			return assign(r, fromMap(map[string]*Val{
 				"in":    field(lr, sfromString("in")),
 				"value": field(lr, sfromString("value")),
 			}))
 		}
 
 		v := field(lr, sfromString("value"))
-		if v != voidError {
-			lr = assign(lr, fromMap(map[string]*val{
+		if v != VoidError {
+			lr = assign(lr, fromMap(map[string]*Val{
 				"list-items": cons(
 					v,
 					field(lr, sfromString("list-items")),
 				),
-				"value": voidError,
+				"value": VoidError,
 			}))
 
 			if hasCons(lr) {
-				lr = assign(lr, fromMap(map[string]*val{
+				lr = assign(lr, fromMap(map[string]*Val{
 					"cons-items": add(field(lr, sfromString("cons-items")), fromInt(1)),
 				}))
 			}
 		}
 
 		if consSet(lr) {
-			if field(lr, sfromString("list-items")) == vnil ||
+			if field(lr, sfromString("list-items")) == Nil ||
 				neq(field(lr, sfromString("cons-items")), fromInt(0)) == vfalse {
-				return setIrregularCons(assign(r, fromMap(map[string]*val{
+				return setIrregularCons(assign(r, fromMap(map[string]*Val{
 					"in": field(lr, sfromString("in")),
 				})))
 			}
 
-			lr = assign(lr, fromMap(map[string]*val{
+			lr = assign(lr, fromMap(map[string]*Val{
 				"cons-items": fromInt(1),
 				"cons":       vfalse,
 			}))
@@ -332,18 +332,18 @@ func readList(r, c *val) *val {
 		if field(lr, sfromString("close-list")) != vfalse {
 			if hasCons(lr) {
 				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == vfalse {
-					return setIrregularCons(assign(r, fromMap(map[string]*val{
+					return setIrregularCons(assign(r, fromMap(map[string]*Val{
 						"in": field(lr, sfromString("in")),
 					})))
 				}
 
-				return assign(r, fromMap(map[string]*val{
+				return assign(r, fromMap(map[string]*Val{
 					"in":    field(lr, sfromString("in")),
 					"value": reverseIrregular(field(lr, sfromString("list-items"))),
 				}))
 			}
 
-			return assign(r, fromMap(map[string]*val{
+			return assign(r, fromMap(map[string]*Val{
 				"in":    field(lr, sfromString("in")),
 				"value": reverse(field(lr, sfromString("list-items"))),
 			}))
@@ -355,52 +355,52 @@ func readList(r, c *val) *val {
 	return loop(lr)
 }
 
-func readQuote(r *val) *val {
+func readQuote(r *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
 	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == vfalse {
-		lr = assign(lr, fromMap(map[string]*val{
+		lr = assign(lr, fromMap(map[string]*Val{
 			"in-list": field(r, sfromString("in-list")),
 		}))
 	}
 
 	lr = read(lr)
 	if readError(lr) {
-		return assign(r, fromMap(map[string]*val{
+		return assign(r, fromMap(map[string]*Val{
 			"in":    field(lr, sfromString("in")),
 			"value": field(lr, sfromString("value")),
 		}))
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"in":         field(lr, sfromString("in")),
 		"value":      list(sfromString("quote"), field(lr, sfromString("value"))),
 		"close-list": field(lr, sfromString("close-list")),
 	}))
 }
 
-func readVector(r *val) *val {
+func readVector(r *Val) *Val {
 	r = readList(r, fromString("["))
 	if readError(r) {
 		return r
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"value": cons(sfromString("vector:"), field(r, sfromString("value"))),
 	}))
 }
 
-func readStruct(r *val) *val {
+func readStruct(r *Val) *Val {
 	r = readList(r, fromString("{"))
 	if readError(r) {
 		return r
 	}
 
-	return assign(r, fromMap(map[string]*val{
+	return assign(r, fromMap(map[string]*Val{
 		"value": cons(sfromString("struct:"), field(r, sfromString("value"))),
 	}))
 }
 
-func read(r *val) *val {
+func read(r *Val) *Val {
 	t := currentTokenType(r)
 	if isTList(t) {
 		return setNone(readList(r, fromString("(")))
@@ -511,7 +511,5 @@ func read(r *val) *val {
 	}
 }
 
-func Reader(in *Val) *Val { return (*Val)(reader((*val)(in))) }
-func Read(r *Val) *Val    { return (*Val)(read((*val)(r))) }
-
-var VoidError = (*Val)(voidError)
+func Reader(in *Val) *Val { return reader(in) }
+func Read(r *Val) *Val    { return read(r) }

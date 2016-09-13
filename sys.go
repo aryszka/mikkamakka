@@ -15,55 +15,55 @@ type file struct {
 	sys      interface{}
 	buf      []byte
 	err      error
-	original *val
+	original *Val
 }
 
-var eof = &val{merror, "EOF"}
+var eof = &Val{merror, "EOF"}
 
-func isSys(a *val) *val {
+func isSys(a *Val) *Val {
 	return is(a, sys)
 }
 
-func fopen(a *val) *val {
+func fopen(a *Val) *Val {
 	checkType(a, mstring)
 
 	f, err := os.Open(stringVal(a))
 	if err != nil {
-		return &val{merror, err}
+		return &Val{merror, err}
 	}
 
-	return &val{sys, &file{sys: f}}
+	return &Val{sys, &file{sys: f}}
 }
 
-func bfopen(a []*val) *val {
+func bfopen(a []*Val) *Val {
 	return fopen(a[0])
 }
 
-func stdin() *val {
-	return &val{sys, &file{sys: os.Stdin}}
+func stdin() *Val {
+	return &Val{sys, &file{sys: os.Stdin}}
 }
 
-func bstdin([]*val) *val {
+func bstdin([]*Val) *Val {
 	return stdin()
 }
 
-func stdout() *val {
-	return &val{sys, &file{sys: os.Stdout}}
+func stdout() *Val {
+	return &Val{sys, &file{sys: os.Stdout}}
 }
 
-func bstdout([]*val) *val {
+func bstdout([]*Val) *Val {
 	return stdout()
 }
 
-func stderr() *val {
-	return &val{sys, &file{sys: os.Stderr}}
+func stderr() *Val {
+	return &Val{sys, &file{sys: os.Stderr}}
 }
 
-func bstderr([]*val) *val {
+func bstderr([]*Val) *Val {
 	return stderr()
 }
 
-func fstate(f *val) *val {
+func fstate(f *Val) *Val {
 	checkType(f, sys)
 
 	ft, ok := f.value.(*file)
@@ -76,7 +76,7 @@ func fstate(f *val) *val {
 	}
 
 	if ft.err != nil && ft.err != io.EOF {
-		return &val{merror, ft.err}
+		return &Val{merror, ft.err}
 	}
 
 	if ft.err == io.EOF && len(ft.buf) == 0 {
@@ -86,11 +86,11 @@ func fstate(f *val) *val {
 	return fromBytes(ft.buf)
 }
 
-func bfstate(a []*val) *val {
+func bfstate(a []*Val) *Val {
 	return fstate(a[0])
 }
 
-func fread(f *val, n *val) *val {
+func fread(f *Val, n *Val) *Val {
 	checkType(f, sys)
 	checkType(n, number)
 
@@ -115,14 +115,14 @@ func fread(f *val, n *val) *val {
 	rn, err := r.Read(ft.buf)
 	ft.buf = ft.buf[:rn]
 
-	return &val{sys, &file{sys: sv, buf: ft.buf, err: err, original: f}}
+	return &Val{sys, &file{sys: sv, buf: ft.buf, err: err, original: f}}
 }
 
-func bfread(a []*val) *val {
+func bfread(a []*Val) *Val {
 	return fread(a[0], a[1])
 }
 
-func fwrite(f *val, s *val) *val {
+func fwrite(f *Val, s *Val) *Val {
 	checkType(f, sys)
 	checkType(s, mstring)
 
@@ -144,14 +144,14 @@ func fwrite(f *val, s *val) *val {
 	ft.sys = nil
 
 	_, err := w.Write(byteVal(s))
-	return &val{sys, &file{sys: sv, err: err, original: f}}
+	return &Val{sys, &file{sys: sv, err: err, original: f}}
 }
 
-func bfwrite(a []*val) *val {
+func bfwrite(a []*Val) *Val {
 	return fwrite(a[0], a[1])
 }
 
-func fclose(f *val) *val {
+func fclose(f *Val) *Val {
 	checkType(f, sys)
 
 	ft, ok := f.value.(*file)
@@ -170,31 +170,31 @@ func fclose(f *val) *val {
 		err = c.Close()
 	}
 
-	return &val{sys, &file{sys: sv, err: err, original: f}}
+	return &Val{sys, &file{sys: sv, err: err, original: f}}
 }
 
-func bfclose(a []*val) *val {
+func bfclose(a []*Val) *Val {
 	return fclose(a[0])
 }
 
-func sstring(f *val) *val {
+func sstring(f *Val) *Val {
 	checkType(f, sys)
 	return fromString("<file>")
 }
 
-func bsstring(a []*val) *val {
+func bsstring(a []*Val) *Val {
 	return sstring(a[0])
 }
 
-func buffer() *val {
-	return &val{sys, &file{sys: bytes.NewBuffer(nil)}}
+func buffer() *Val {
+	return &Val{sys, &file{sys: bytes.NewBuffer(nil)}}
 }
 
-func bbuffer([]*val) *val {
+func bbuffer([]*Val) *Val {
 	return buffer()
 }
 
-func derivedObject(a []*val) *val {
+func derivedObject(a []*Val) *Val {
 	checkType(a[0], sys)
 	checkType(a[1], sys)
 
@@ -206,11 +206,11 @@ func derivedObject(a []*val) *val {
 		return vfalse
 	}
 
-	return derivedObject([]*val{a[0], a[1].value.(*file).original})
+	return derivedObject([]*Val{a[0], a[1].value.(*file).original})
 }
 
-func argv([]*val) *val {
-	argv := vnil
+func argv([]*Val) *Val {
+	argv := Nil
 	for i := len(os.Args) - 1; i >= 0; i-- {
 		argv = cons(fromString(os.Args[i]), argv)
 	}
@@ -218,12 +218,12 @@ func argv([]*val) *val {
 	return argv
 }
 
-var Eof = (*Val)(eof)
+var Eof = eof
 
 func Stdin() *Val {
-	return (*Val)(stdin())
+	return stdin()
 }
 
 func Stdout() *Val {
-	return (*Val)(stdout())
+	return stdout()
 }
