@@ -67,13 +67,14 @@ func is(v *Val, t mtype) *Val {
 	return False
 }
 
-func unexpectedType(got mtype, expected ...mtype) {
+func unexpectedType(got mtype, v *Val, expected ...mtype) {
 	s := make([]string, len(expected))
 	for i, e := range expected {
 		s[i] = typeString(e)
 	}
 
-	panic(fmt.Sprintf("expected: %s, got: %s", strings.Join(s, ", "), typeString(got)))
+	panic(fmt.Sprintf("expected: %s, got: %s, with value: %v",
+		strings.Join(s, ", "), typeString(got), v.value))
 }
 
 func checkType(v *Val, expected ...mtype) {
@@ -83,7 +84,7 @@ func checkType(v *Val, expected ...mtype) {
 		}
 	}
 
-	unexpectedType(v.mtype, expected...)
+	unexpectedType(v.mtype, v, expected...)
 }
 
 func eq(v ...*Val) *Val {

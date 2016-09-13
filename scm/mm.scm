@@ -739,9 +739,7 @@
 
 (def (compile-application v)
   (string-append " mm.Apply("
-                 (compile-exp (car v))
-                 ", "
-                 (compile-value-list (cdr v))
+                 (compile-value-list v)
                  ")"))
 
 

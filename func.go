@@ -121,7 +121,10 @@ func NewCompiled(p Function, argCount int, varArgs bool) *Val {
 	return newBuiltin(toBuiltin(p), argCount, varArgs)
 }
 
-func Apply(p, a *Val) *Val {
+func Apply(a *Val) *Val {
+	p := car(a)
+	a = cdr(a)
+
 	av := Nil
 	for {
 		if isNil(a) != False {
