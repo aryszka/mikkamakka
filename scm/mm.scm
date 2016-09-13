@@ -153,6 +153,16 @@
     (= next:token "abc")))
 
 
+(def (append-token-escaped r)
+  (assign r {token (string-append r:token (cond ((= r:char "b") "\b")
+                                                ((= r:char "f") "\f")
+                                                ((= r:char "n") "\n")
+                                                ((= r:char "r") "\r")
+                                                ((= r:char "t") "\t")
+                                                ((= r:char "v") "\v")
+                                                (else r:char)))}))
+
+
 (def (clear-token r) (assign r {token-type token-type:none token ""}))
 
 
@@ -368,7 +378,7 @@
 
               ((= next:token-type token-type:symbol)
                (cond (next:escaped?
-                      (read (assign (append-token next) {escaped? false})))
+                      (read (assign (append-token-escaped next) {escaped? false})))
                      ((whitespace? next:char) (finalize-token next))
                      ((escape-char? next:char) (read (set-escaped next)))
                      ((string-delimiter? next:char)
@@ -388,7 +398,7 @@
                      (else (read (append-token next)))))
 
               ((= next:token-type token-type:string)
-               (cond (next:escaped? (read (assign (append-token next) {escaped? false})))
+               (cond (next:escaped? (read (assign (append-token-escaped next) {escaped? false})))
                      ((escape-char? next:char) (read (set-escaped next)))
                      ((string-delimiter? next:char) (finalize-token next))
                      (else (read (append-token next)))))
@@ -693,6 +703,27 @@
 (def (compile-lookup v)
   (string-append " mm.LookupDef(env, "
                  (compile-symbol v)
+                 ") "))
+
+
+(def (compile-vector v)
+  (string-append " mm.VectorFromList("
+                 (compile-literal (cdr v))
+                 " )"))
+
+
+(def (compile-struct v)
+  (def (compile-struct-values v)
+    (cond ((nil? v) " mm.Vnil ")
+          (else (string-append " mm.Cons( "
+                               (compile-literal (car v))
+                               ", mm.Cons( "
+                               (compile-exp (car (cdr v)))
+                               ", "
+                               (compile-struct-values (cdr (cdr v)))
+                               ")) "))))
+  (string-append " mm.StructFromList("
+                 (compile-struct-values (cdr v))
                  ") "))
 
 

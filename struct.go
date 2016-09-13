@@ -113,3 +113,7 @@ func FromMap(m map[string]*Val) *Val {
 
 	return (*Val)(fromMap(mv))
 }
+
+func StructFromList(l *Val) *Val {
+	return (*Val)(structFromList((*val)(l)))
+}

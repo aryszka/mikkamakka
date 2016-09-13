@@ -35,3 +35,7 @@ func vectorRef(v, i *val) *val {
 	checkType(i, number)
 	return v.value.(*vect).items[intVal(i)]
 }
+
+func VectorFromList(v *Val) *Val {
+	return (*Val)(vectorFromList((*val)(v)))
+}
