@@ -97,7 +97,7 @@ func defineAll(e, n, a *Val) *Val {
 		}
 
 		if isPair(a) == False && isNil(a) == False {
-			return fatal(invalidArgs)
+			return fatal(InvalidArgs)
 		}
 
 		if isPair(n) == False {
@@ -106,7 +106,7 @@ func defineAll(e, n, a *Val) *Val {
 		}
 
 		if isNil(a) != False {
-			return fatal(invalidArgs)
+			return fatal(InvalidArgs)
 		}
 
 		ni := car(n)

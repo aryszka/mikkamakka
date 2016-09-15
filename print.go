@@ -184,8 +184,8 @@ func mprintq(p, v, q *Val) *Val {
 		return printStruct(p, v)
 	} else if isEnv(v) != False {
 		v = envString(v)
-	} else if isFn(v) != False {
-		v = fnString(v)
+	} else if IsFunction(v) != False {
+		v = FunctionToString(v)
 	} else {
 		return Assign(p, fromMap(map[string]*Val{
 			"state": notImplemented,

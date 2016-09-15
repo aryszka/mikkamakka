@@ -19,6 +19,7 @@ var (
 	invalidApplication   = &Val{merror, "invalid application"}
 	invalidExpression    = &Val{merror, "invalid expression"}
 	definitionExpression = &Val{merror, "definition in expression position"}
+	notFunction          = &Val{merror, "not a function"}
 	testFailed           = &Val{merror, "test failed"}
 )
 
@@ -232,7 +233,7 @@ func evalOr(e, v *Val) *Val {
 	return evalAnd(e, cdr(v))
 }
 
-func isFunction(v *Val) *Val {
+func isFunctionLiteral(v *Val) *Val {
 	return isTaggedBy(v, sfromString("fn"))
 }
 
@@ -254,7 +255,7 @@ func fnBody(v *Val) *Val {
 }
 
 func fnToFunc(e, v *Val) *Val {
-	return newFn(e, fnParams(v), fnBody(v))
+	return NewComposite(Cons(e, Cons(fnParams(v), fnBody(v))))
 }
 
 func isBegin(v *Val) *Val {
@@ -417,6 +418,23 @@ func evalApply(e, v *Val) *Val {
 	return Apply(evalExp(e, car(v)), valueList(e, cdr(v)))
 }
 
+func Apply(f, a *Val) *Val {
+	if isStruct(f) != False {
+		return field(f, car(a))
+	}
+
+	if IsCompiledFunction(f) != False {
+		return ApplyCompiled(f, a)
+	}
+
+	if IsFunction(f) == False {
+		return notFunction
+	}
+
+	cf := Composite(f)
+	return evalSeq(extendEnv(car(cf), car(cdr(cf)), a), cdr(cdr(cf)))
+}
+
 func evalExp(e, v *Val) *Val {
 	switch {
 	case isDef(v) != False:
@@ -452,7 +470,7 @@ func eval(e, v *Val) *Val {
 		return evalAnd(e, cdr(v))
 	case isOr(v) != False:
 		return evalOr(e, cdr(v))
-	case isFunction(v) != False:
+	case isFunctionLiteral(v) != False:
 		return fnToFunc(e, v)
 	case isBegin(v) != False:
 		return evalSeq(e, beginSeq(v))
