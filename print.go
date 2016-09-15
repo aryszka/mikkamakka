@@ -97,7 +97,7 @@ func printVector(p, v *Val) *Val {
 
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p, i, f *Val) *Val {
-		if neq(i, vectorLength(v)) != False {
+		if numberEq(i, vectorLength(v)) != False {
 			return p
 		}
 
@@ -113,10 +113,10 @@ func printVector(p, v *Val) *Val {
 			return p
 		}
 
-		return loop(p, add(i, fromInt(1)), False)
+		return loop(p, Add(i, NumberFromRawInt(1)), False)
 	}
 
-	p = loop(p, fromInt(0), True)
+	p = loop(p, NumberFromRawInt(0), True)
 	return printRaw(p, fromString("]"))
 }
 
@@ -164,8 +164,8 @@ func printStruct(p, v *Val) *Val {
 func mprintq(p, v, q *Val) *Val {
 	if isSymbol(v) != False {
 		return printSymbol(p, v, q)
-	} else if isNumber(v) != False {
-		v = numberToString(v)
+	} else if IsNumber(v) != False {
+		v = NumberToString(v)
 	} else if isString(v) != False {
 		v = appendString(fromString(`"`), v, fromString(`"`))
 	} else if isBool(v) != False {

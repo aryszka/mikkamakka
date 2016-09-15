@@ -91,7 +91,7 @@ func fread(f *Val, n *Val) *Val {
 
 	ft.sys = nil
 
-	ft.buf = make([]byte, intVal(n))
+	ft.buf = make([]byte, RawInt(n))
 	rn, err := r.Read(ft.buf)
 	ft.buf = ft.buf[:rn]
 

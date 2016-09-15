@@ -29,7 +29,7 @@ func reader(in *Val) *Val {
 		"in-list":       fromString(""),
 		"close-list":    False,
 		"cons":          False,
-		"cons-items":    fromInt(0),
+		"cons-items":    NumberFromRawInt(0),
 	})
 }
 
@@ -67,7 +67,7 @@ func isWhitespace(s *Val) *Val {
 }
 
 func symbolToken(t *Val) *Val {
-	v := nfromString(stringVal(t))
+	v := NumberFromString(t)
 	if isError(v) == False {
 		return v
 	}
@@ -81,7 +81,7 @@ func symbolToken(t *Val) *Val {
 }
 
 func readChar(r *Val) *Val {
-	in := fread(field(r, sfromString("in")), fromInt(1))
+	in := fread(field(r, sfromString("in")), NumberFromRawInt(1))
 	st := fstate(in)
 
 	if isError(st) != False {
@@ -252,7 +252,7 @@ func setClose(r, c *Val) *Val {
 }
 
 func hasCons(r *Val) bool {
-	return greater(field(r, sfromString("cons-items")), fromInt(0)) != False
+	return Greater(field(r, sfromString("cons-items")), NumberFromRawInt(0)) != False
 }
 
 func consSet(r *Val) bool {
@@ -339,28 +339,28 @@ func readList(r, c *Val) *Val {
 
 			if hasCons(lr) {
 				lr = Assign(lr, fromMap(map[string]*Val{
-					"cons-items": add(field(lr, sfromString("cons-items")), fromInt(1)),
+					"cons-items": Add(field(lr, sfromString("cons-items")), NumberFromRawInt(1)),
 				}))
 			}
 		}
 
 		if consSet(lr) {
 			if field(lr, sfromString("list-items")) == Nil ||
-				neq(field(lr, sfromString("cons-items")), fromInt(0)) == False {
+				numberEq(field(lr, sfromString("cons-items")), NumberFromRawInt(0)) == False {
 				return setIrregularCons(Assign(r, fromMap(map[string]*Val{
 					"in": field(lr, sfromString("in")),
 				})))
 			}
 
 			lr = Assign(lr, fromMap(map[string]*Val{
-				"cons-items": fromInt(1),
+				"cons-items": NumberFromRawInt(1),
 				"cons":       False,
 			}))
 		}
 
 		if field(lr, sfromString("close-list")) != False {
 			if hasCons(lr) {
-				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == False {
+				if numberEq(field(lr, sfromString("cons-items")), NumberFromRawInt(2)) == False {
 					return setIrregularCons(Assign(r, fromMap(map[string]*Val{
 						"in": field(lr, sfromString("in")),
 					})))

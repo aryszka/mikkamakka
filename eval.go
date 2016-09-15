@@ -466,7 +466,7 @@ func evalExp(e, v *Val) *Val {
 
 func eval(e, v *Val) *Val {
 	switch {
-	case isNumber(v) != False:
+	case IsNumber(v) != False:
 		return v
 	case isString(v) != False:
 		return v

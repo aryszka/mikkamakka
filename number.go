@@ -2,86 +2,88 @@ package mikkamakka
 
 import "strconv"
 
-func intVal(n *Val) int {
-	return n.value.(int)
-}
+var InvalidNumberString = &Val{merror, "invalid number string"}
 
-func fromInt(i int) *Val {
+func NumberFromRawInt(i int) *Val {
 	return &Val{number, i}
 }
 
-func greater(a ...*Val) *Val {
-	for {
-		if len(a) == 0 {
-			return False
-		}
-
-		checkType(a[0], number)
-
-		if len(a) == 1 {
-			return True
-		}
-
-		checkType(a[1], number)
-
-		if a[0].value.(int) <= a[1].value.(int) {
-			return False
-		}
-
-		a = a[1:]
-	}
-}
-
-func nfromString(s string) *Val {
+func NumberFromRawString(s string) *Val {
 	n, err := strconv.Atoi(s)
 	if err != nil {
-		return invalidToken
+		return InvalidNumberString
 	}
 
-	return fromInt(n)
+	return NumberFromRawInt(n)
 }
 
-func tryNumberFromString(s *Val) *Val {
-	checkType(s, mstring)
-	return nfromString(stringVal(s))
+func NumberFromString(s *Val) *Val {
+	return NumberFromRawString(stringVal(s))
 }
 
-func numberToString(n *Val) *Val {
+func RawInt(n *Val) int {
+	checkType(n, number)
+	return n.value.(int)
+}
+
+func NumberToString(n *Val) *Val {
 	checkType(n, number)
 	return fromString(strconv.Itoa(n.value.(int)))
 }
 
-func isNumber(a *Val) *Val {
+func IsNumber(a *Val) *Val {
 	return is(a, number)
 }
 
-func sub(left, right *Val) *Val {
-	checkType(left, number)
-	checkType(right, number)
-	return fromInt(left.value.(int) - right.value.(int))
-}
-
-func add(a ...*Val) *Val {
-	s := 0
-	for {
-		if len(a) == 0 {
-			return fromInt(s)
-		}
-
-		checkType(a[0], number)
-		s += intVal(a[0])
-		a = a[1:]
-	}
-}
-
-func neq(left, right *Val) *Val {
-	if left.value.(int) == right.value.(int) {
+func numberEq(left, right *Val) *Val {
+	if RawInt(left) == RawInt(right) {
 		return True
 	}
 
 	return False
 }
 
-func FromInt(i int) *Val {
-	return (*Val)(fromInt(i))
+func op(n int, a []*Val, f func(int, int) int) *Val {
+	for {
+		if len(a) == 0 {
+			return NumberFromRawInt(n)
+		}
+
+		n, a = f(n, RawInt(a[0])), a[1:]
+	}
+}
+
+func Sub(a0 *Val, a ...*Val) *Val {
+	if len(a) == 0 {
+		return NumberFromRawInt(0 - RawInt(a0))
+	}
+
+	return op(RawInt(a0), a, func(prev, next int) int {
+		return prev - next
+	})
+}
+
+func Add(a ...*Val) *Val {
+	return op(0, a, func(prev, next int) int {
+		return prev + next
+	})
+}
+
+func Greater(a ...*Val) *Val {
+	for {
+		if len(a) == 0 {
+			return False
+		}
+
+		checkType(a[0], number)
+		if len(a) == 1 {
+			return True
+		}
+
+		if RawInt(a[0]) <= RawInt(a[1]) {
+			return False
+		}
+
+		a = a[1:]
+	}
 }

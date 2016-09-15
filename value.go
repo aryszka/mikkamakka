@@ -116,8 +116,8 @@ func Eq(v ...*Val) *Val {
 		return False
 	}
 
-	if isNumber(v[0]) != False {
-		return eqT(v, isNumber, neq)
+	if IsNumber(v[0]) != False {
+		return eqT(v, IsNumber, numberEq)
 	}
 
 	if isString(v[0]) != False {

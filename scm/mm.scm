@@ -194,7 +194,7 @@
       (string->symbol r:token)
       (let (v ((car parsers) r:token))
         (if (error? v) (apply try-parse (cdr parsers)) v))))
-  (assign r {value (try-parse try-string->number
+  (assign r {value (try-parse string->number
                               try-string->bool)}))
 
 
@@ -511,7 +511,7 @@
 (def (application? v) (pair? v))
 
 
-(def (compile-number v) (string-append " mm.FromInt(" (number->string v) ") "))
+(def (compile-number v) (string-append " mm.NumberFromRawInt(" (number->string v) ") "))
 (def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.True " " mm.False "))
 (def (compile-nil v) " mm.Nil ")

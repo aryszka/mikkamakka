@@ -34,7 +34,7 @@ func appendString(a ...*Val) *Val {
 
 func stringLength(s *Val) *Val {
 	checkType(s, mstring)
-	return fromInt(len(s.value.(*str).sys))
+	return NumberFromRawInt(len(s.value.(*str).sys))
 }
 
 func isString(a *Val) *Val {

@@ -27,13 +27,13 @@ func isVector(a *Val) *Val {
 
 func vectorLength(v *Val) *Val {
 	checkType(v, vector)
-	return fromInt(len(v.value.(*vect).items))
+	return NumberFromRawInt(len(v.value.(*vect).items))
 }
 
 func vectorRef(v, i *Val) *Val {
 	checkType(v, vector)
 	checkType(i, number)
-	return v.value.(*vect).items[intVal(i)]
+	return v.value.(*vect).items[RawInt(i)]
 }
 
 func VectorFromList(v *Val) *Val {

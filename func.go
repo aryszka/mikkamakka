@@ -71,7 +71,6 @@ func listToSlice(l *Val) []*Val {
 
 func ApplyCompiled(f, a *Val) *Val {
 	checkType(f, function)
-	checkType(a, pair, mnil)
 
 	ft := f.value.(*fn)
 	if ft.compiled == nil {
