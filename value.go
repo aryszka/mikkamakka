@@ -111,7 +111,7 @@ func eqT(v []*Val, tc typeCheck, teq typeEq) *Val {
 	return True
 }
 
-func eq(v ...*Val) *Val {
+func Eq(v ...*Val) *Val {
 	if len(v) == 0 {
 		return False
 	}

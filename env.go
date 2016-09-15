@@ -48,7 +48,7 @@ func defineStruct(e, n, s, names *Val) *Val {
 	checkType(s, mstruct)
 	checkType(names, pair, mnil)
 
-	if isNil(names) != False {
+	if IsNil(names) != False {
 		return s
 	}
 
@@ -59,14 +59,14 @@ func defineStruct(e, n, s, names *Val) *Val {
 				appendString(
 					symbolToString(n),
 					fromString(":"),
-					symbolToString(car(names)),
+					symbolToString(Car(names)),
 				),
 			),
 		),
-		structVal(s, car(names)),
+		structVal(s, Car(names)),
 	)
 
-	return defineStruct(e, n, s, cdr(names))
+	return defineStruct(e, n, s, Cdr(names))
 }
 
 func define(e, n, v *Val) *Val {
@@ -92,27 +92,27 @@ func define(e, n, v *Val) *Val {
 
 func defineAll(e, n, a *Val) *Val {
 	for {
-		if isNil(n) != False && isNil(a) != False {
+		if IsNil(n) != False && IsNil(a) != False {
 			break
 		}
 
-		if isPair(a) == False && isNil(a) == False {
+		if IsPair(a) == False && IsNil(a) == False {
 			return fatal(InvalidArgs)
 		}
 
-		if isPair(n) == False {
+		if IsPair(n) == False {
 			define(e, n, a)
 			return e
 		}
 
-		if isNil(a) != False {
+		if IsNil(a) != False {
 			return fatal(InvalidArgs)
 		}
 
-		ni := car(n)
-		ai := car(a)
+		ni := Car(n)
+		ai := Car(a)
 		define(e, ni, ai)
-		n, a = cdr(n), cdr(a)
+		n, a = Cdr(n), Cdr(a)
 	}
 
 	return e
@@ -164,18 +164,18 @@ func InitialEnv() *Val {
 	env := newEnv(nil)
 
 	define(env, sfromString("nil"), Nil)
-	define(env, sfromString("nil?"), newBuiltin1(isNil))
-	define(env, sfromString("pair?"), newBuiltin1(isPair))
+	define(env, sfromString("nil?"), newBuiltin1(IsNil))
+	define(env, sfromString("pair?"), newBuiltin1(IsPair))
 	define(env, sfromString("cons"), newBuiltin2(Cons))
-	define(env, sfromString("car"), newBuiltin1(car))
-	define(env, sfromString("cdr"), newBuiltin1(cdr))
-	define(env, sfromString("list"), newBuiltin0V(list))
+	define(env, sfromString("car"), newBuiltin1(Car))
+	define(env, sfromString("cdr"), newBuiltin1(Cdr))
+	define(env, sfromString("list"), newBuiltin0V(List))
 	define(env, sfromString("apply"), newBuiltin2(Apply))
 	define(env, sfromString("error?"), newBuiltin1(isError))
 	define(env, sfromString("string->error"), newBuiltin1(stringToError))
 	define(env, sfromString("fatal"), newBuiltin1(fatal))
 	define(env, sfromString("not"), newBuiltin1(not))
-	define(env, sfromString("="), newBuiltin0V(eq))
+	define(env, sfromString("="), newBuiltin0V(Eq))
 	define(env, sfromString(">"), newBuiltin0V(greater))
 	define(env, sfromString("+"), newBuiltin0V(add))
 	define(env, sfromString("try-string->number"), newBuiltin1(tryNumberFromString))

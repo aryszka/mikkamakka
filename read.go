@@ -281,6 +281,35 @@ func setIrregularCons(r *Val) *Val {
 	}))
 }
 
+func reverse(l *Val) *Val {
+	checkType(l, pair, mnil)
+
+	r := Nil
+	for {
+		if l == Nil {
+			return r
+		}
+
+		r = Cons(Car(l), r)
+		l = Cdr(l)
+	}
+}
+
+func reverseIrregular(l *Val) *Val {
+	checkType(l, pair, mnil)
+
+	r := Cons(Car(Cdr(l)), Car(l))
+	l = Cdr(Cdr(l))
+	for {
+		if l == Nil {
+			return r
+		}
+
+		r = Cons(Car(l), r)
+		l = Cdr(l)
+	}
+}
+
 func readList(r, c *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
 	lr = Assign(lr, fromMap(map[string]*Val{
@@ -373,7 +402,7 @@ func readQuote(r *Val) *Val {
 
 	return Assign(r, fromMap(map[string]*Val{
 		"in":         field(lr, sfromString("in")),
-		"value":      list(sfromString("quote"), field(lr, sfromString("value"))),
+		"value":      List(sfromString("quote"), field(lr, sfromString("value"))),
 		"close-list": field(lr, sfromString("close-list")),
 	}))
 }

@@ -11,7 +11,7 @@ func vectorFromList(l *Val) *Val {
 			break
 		}
 
-		items, l = append(items, car(l)), cdr(l)
+		items, l = append(items, Car(l)), Cdr(l)
 	}
 
 	return &Val{vector, &vect{items}}

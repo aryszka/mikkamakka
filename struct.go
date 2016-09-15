@@ -40,11 +40,11 @@ func structFromList(l *Val) *Val {
 			break
 		}
 
-		if isPair(l) == False || isPair(cdr(l)) == False || isSymbol(car(l)) == False {
+		if IsPair(l) == False || IsPair(Cdr(l)) == False || isSymbol(Car(l)) == False {
 			return fatal(invalidStruct)
 		}
 
-		sys[sstringVal(car(l))], l = car(cdr(l)), cdr(cdr(l))
+		sys[sstringVal(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
 	}
 
 	return fromMap(sys)
@@ -66,7 +66,7 @@ func structNames(s *Val) *Val {
 		n = Cons(sfromString(k), n)
 	}
 
-	return reverse(n)
+	return n
 }
 
 func structVal(s, n *Val) *Val {

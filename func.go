@@ -56,6 +56,19 @@ func FunctionToString(f *Val) *Val {
 	return fromString("<function>")
 }
 
+func listToSlice(l *Val) []*Val {
+	var s []*Val
+	for {
+		if IsNil(l) != False {
+			break
+		}
+
+		s, l = append(s, Car(l)), Cdr(l)
+	}
+
+	return s
+}
+
 func ApplyCompiled(f, a *Val) *Val {
 	checkType(f, function)
 	checkType(a, pair, mnil)

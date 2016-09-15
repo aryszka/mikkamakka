@@ -33,7 +33,7 @@ func printSymbol(p, v, q *Val) *Val {
 
 func printQuote(p, v *Val) *Val {
 	p = printQuoteSign(p)
-	return mprintq(p, car(cdr(v)), False)
+	return mprintq(p, Car(Cdr(v)), False)
 }
 
 func printPair(p, v, q *Val) *Val {
@@ -48,7 +48,7 @@ func printPair(p, v, q *Val) *Val {
 
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p *Val, v *Val, first *Val) *Val {
-		if isNil(v) != False {
+		if IsNil(v) != False {
 			return printRaw(p, fromString(")"))
 		}
 
@@ -59,8 +59,8 @@ func printPair(p, v, q *Val) *Val {
 			}
 		}
 
-		if isPair(cdr(v)) == False && isNil(cdr(v)) == False {
-			p = mprintq(p, car(v), True)
+		if IsPair(Cdr(v)) == False && IsNil(Cdr(v)) == False {
+			p = mprintq(p, Car(v), True)
 			if st := field(p, sfromString("state")); isError(st) != False {
 				return p
 			}
@@ -70,7 +70,7 @@ func printPair(p, v, q *Val) *Val {
 				return p
 			}
 
-			p = mprintq(p, cdr(v), True)
+			p = mprintq(p, Cdr(v), True)
 			if st := field(p, sfromString("state")); isError(st) != False {
 				return p
 			}
@@ -78,12 +78,12 @@ func printPair(p, v, q *Val) *Val {
 			return printRaw(p, fromString(")"))
 		}
 
-		p = mprintq(p, car(v), True)
+		p = mprintq(p, Car(v), True)
 		if st := field(p, sfromString("state")); isError(st) != False {
 			return p
 		}
 
-		return loop(p, cdr(v), False)
+		return loop(p, Cdr(v), False)
 	}
 
 	return loop(p, v, True)
@@ -139,7 +139,7 @@ func printStruct(p, v *Val) *Val {
 			}
 		}
 
-		p = mprintq(p, car(n), True)
+		p = mprintq(p, Car(n), True)
 		if st := field(p, sfromString("state")); isError(st) != False {
 			return p
 		}
@@ -149,12 +149,12 @@ func printStruct(p, v *Val) *Val {
 			return p
 		}
 
-		p = mprintq(p, field(v, car(n)), True)
+		p = mprintq(p, field(v, Car(n)), True)
 		if st := field(p, sfromString("state")); isError(st) != False {
 			return p
 		}
 
-		return loop(p, cdr(n), False)
+		return loop(p, Cdr(n), False)
 	}
 
 	p = loop(p, structNames(v), True)
@@ -174,9 +174,9 @@ func mprintq(p, v, q *Val) *Val {
 		v = sstring(v)
 	} else if isError(v) != False {
 		v = estring(v)
-	} else if isPair(v) != False && isSymbol(car(v)) != False && smeq(car(v), sfromString("quote")) != False {
+	} else if IsPair(v) != False && isSymbol(Car(v)) != False && smeq(Car(v), sfromString("quote")) != False {
 		return printQuote(p, v)
-	} else if isPair(v) != False || isNil(v) != False {
+	} else if IsPair(v) != False || IsNil(v) != False {
 		return printPair(p, v, q)
 	} else if isVector(v) != False {
 		return printVector(p, v)
