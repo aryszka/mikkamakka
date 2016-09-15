@@ -32,10 +32,6 @@ func appendString(a ...*Val) *Val {
 	return fromBytes(b)
 }
 
-func bappendString(a []*Val) *Val {
-	return appendString(a...)
-}
-
 func stringLength(s *Val) *Val {
 	checkType(s, mstring)
 	return fromInt(len(s.value.(*str).sys))
@@ -43,10 +39,6 @@ func stringLength(s *Val) *Val {
 
 func isString(a *Val) *Val {
 	return is(a, mstring)
-}
-
-func bisString(a []*Val) *Val {
-	return isString(a[0])
 }
 
 func seq(left, right *Val) *Val {
@@ -57,9 +49,9 @@ func seq(left, right *Val) *Val {
 	return False
 }
 
-func escapeCompiled(a []*Val) *Val {
-	checkType(a[0], mstring)
-	return fromString(strconv.Quote(stringVal(a[0])))
+func escapeCompiled(a *Val) *Val {
+	checkType(a, mstring)
+	return fromString(strconv.Quote(stringVal(a)))
 }
 
 func FromString(s string) *Val {

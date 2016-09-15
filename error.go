@@ -9,13 +9,9 @@ func isError(a *Val) *Val {
 	return is(a, merror)
 }
 
-func bisError(a []*Val) *Val {
-	return isError(a[0])
-}
-
-func stringToError(a []*Val) *Val {
-	checkType(a[0], mstring)
-	return &Val{merror, stringVal(a[0])}
+func stringToError(a *Val) *Val {
+	checkType(a, mstring)
+	return &Val{merror, stringVal(a)}
 }
 
 func errorStringRaw(a *Val) string {
@@ -44,10 +40,6 @@ func fatal(a *Val) *Val {
 	println()
 	os.Exit(-1)
 	return a
-}
-
-func bfatal(a []*Val) *Val {
-	return fatal(a[0])
 }
 
 func estring(e *Val) *Val {

@@ -7,20 +7,16 @@ func printer(out *Val) *Val {
 	})
 }
 
-func bprinter(a []*Val) *Val {
-	return printer(a[0])
-}
-
 func printState(p *Val) *Val {
 	return field(p, sfromString("state"))
 }
 
 func printRaw(p *Val, r *Val) *Val {
 	f := fwrite(field(p, sfromString("output")), r)
-	return Assign(list(p, fromMap(map[string]*Val{
+	return Assign(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  fstate(f),
-	})))
+	}))
 }
 
 func printQuoteSign(p *Val) *Val {
@@ -191,29 +187,25 @@ func mprintq(p, v, q *Val) *Val {
 	} else if isFn(v) != False {
 		v = fnString(v)
 	} else {
-		return Assign(list(p, fromMap(map[string]*Val{
+		return Assign(p, fromMap(map[string]*Val{
 			"state": notImplemented,
-		})))
+		}))
 	}
 
 	f := fwrite(field(p, sfromString("output")), v)
 	if st := fstate(f); isError(st) != False {
-		return Assign(list(p, fromMap(map[string]*Val{
+		return Assign(p, fromMap(map[string]*Val{
 			"output": f,
 			"state":  st,
-		})))
+		}))
 	}
 
-	return Assign(list(p, fromMap(map[string]*Val{
+	return Assign(p, fromMap(map[string]*Val{
 		"output": f,
 		"state":  v,
-	})))
+	}))
 }
 
 func mprint(p, v *Val) *Val {
 	return mprintq(p, v, False)
-}
-
-func bprint(a []*Val) *Val {
-	return mprint(a[0], a[1])
 }

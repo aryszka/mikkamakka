@@ -22,31 +22,15 @@ func field(s, f *Val) *Val {
 	return v
 }
 
-func Assign(a *Val) *Val {
-	next := make(map[string]*Val)
-	s := car(a)
-	a = cdr(a)
-	for k, v := range s.value.(*tstruct).sys {
-		next[k] = v
+func Assign(a ...*Val) *Val {
+	m := make(map[string]*Val)
+	for _, ai := range a {
+		for k, v := range ai.value.(*tstruct).sys {
+			m[k] = v
+		}
 	}
 
-	for {
-		if isNil(a) != False {
-			break
-		}
-
-		for k, v := range car(a).value.(*tstruct).sys {
-			next[k] = v
-		}
-
-		a = cdr(a)
-	}
-
-	return fromMap(next)
-}
-
-func bassign(a []*Val) *Val {
-	return Assign(cons(a[0], sliceToList(a[1:])))
+	return fromMap(m)
 }
 
 func structFromList(l *Val) *Val {
@@ -79,7 +63,7 @@ func structNames(s *Val) *Val {
 
 	n := Nil
 	for k, _ := range s.value.(*tstruct).sys {
-		n = cons(sfromString(k), n)
+		n = Cons(sfromString(k), n)
 	}
 
 	return reverse(n)

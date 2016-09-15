@@ -11,10 +11,6 @@ func fromInt(i int) *Val {
 }
 
 func greater(a ...*Val) *Val {
-	return bgreater(a)
-}
-
-func bgreater(a []*Val) *Val {
 	for {
 		if len(a) == 0 {
 			return False
@@ -50,25 +46,13 @@ func tryNumberFromString(s *Val) *Val {
 	return nfromString(stringVal(s))
 }
 
-func btryNumberFromString(a []*Val) *Val {
-	return tryNumberFromString(a[0])
-}
-
 func numberToString(n *Val) *Val {
 	checkType(n, number)
 	return fromString(strconv.Itoa(n.value.(int)))
 }
 
-func bnumberToString(a []*Val) *Val {
-	return numberToString(a[0])
-}
-
 func isNumber(a *Val) *Val {
 	return is(a, number)
-}
-
-func bisNumber(a []*Val) *Val {
-	return isNumber(a[0])
 }
 
 func sub(left, right *Val) *Val {
@@ -77,13 +61,7 @@ func sub(left, right *Val) *Val {
 	return fromInt(left.value.(int) - right.value.(int))
 }
 
-func add(left, right *Val) *Val {
-	checkType(left, number)
-	checkType(right, number)
-	return fromInt(left.value.(int) + right.value.(int))
-}
-
-func badd(a []*Val) *Val {
+func add(a ...*Val) *Val {
 	s := 0
 	for {
 		if len(a) == 0 {

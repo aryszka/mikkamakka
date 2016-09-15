@@ -85,16 +85,16 @@ func readChar(r *Val) *Val {
 	st := fstate(in)
 
 	if isError(st) != False {
-		return Assign(list(r, fromMap(map[string]*Val{
+		return Assign(r, fromMap(map[string]*Val{
 			"in":    in,
 			"value": st,
-		})))
+		}))
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"in":        in,
 		"last-char": st,
-	})))
+	}))
 }
 
 func readError(r *Val) bool {
@@ -112,9 +112,9 @@ func currentTokenType(r *Val) *Val {
 }
 
 func setTokenType(r *Val, t *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"token-type": t,
-	})))
+	}))
 }
 
 func isTNone(t *Val) bool    { return t == ttnone }
@@ -136,9 +136,9 @@ func setVector(r *Val) *Val  { return setTokenType(r, ttvector) }
 func setStruct(r *Val) *Val  { return setTokenType(r, ttstruct) }
 
 func clearToken(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"current-token": fromString(""),
-	})))
+	}))
 }
 
 func closeComment(r *Val) *Val {
@@ -154,11 +154,11 @@ func closeString(r *Val) *Val {
 }
 
 func setEscaped(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{"escaped": True})))
+	return Assign(r, fromMap(map[string]*Val{"escaped": True}))
 }
 
 func unsetEscaped(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{"escaped": False})))
+	return Assign(r, fromMap(map[string]*Val{"escaped": False}))
 }
 
 func isEscaped(r *Val) *Val {
@@ -205,27 +205,27 @@ func appendToken(r *Val) *Val {
 		c = unescapeChar(field(r, sfromString("token-type")), c)
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"current-token": appendString(field(r, sfromString("current-token")), c),
-	})))
+	}))
 }
 
 func setInvalid(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"err": invalidToken,
-	})))
+	}))
 }
 
 func processSymbol(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"value": symbolToken(field(r, sfromString("current-token"))),
-	})))
+	}))
 }
 
 func processString(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"value": field(r, sfromString("current-token")),
-	})))
+	}))
 }
 
 func closeChar(c *Val) *Val {
@@ -246,9 +246,9 @@ func setClose(r, c *Val) *Val {
 		return setUnexpectedClose(r)
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"close-list": True,
-	})))
+	}))
 }
 
 func hasCons(r *Val) bool {
@@ -264,89 +264,89 @@ func setCons(r *Val) *Val {
 		return setIrregularCons(r)
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"cons": True,
-	})))
+	}))
 }
 
 func setUnexpectedClose(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"value": unexpectedClose,
-	})))
+	}))
 }
 
 func setIrregularCons(r *Val) *Val {
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"value": irregularCons,
-	})))
+	}))
 }
 
 func readList(r, c *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
-	lr = Assign(list(lr, fromMap(map[string]*Val{
+	lr = Assign(lr, fromMap(map[string]*Val{
 		"list-items": Nil,
 		"in-list":    c,
-	})))
+	}))
 
 	var loop func(*Val) *Val
 	loop = func(lr *Val) *Val {
 		lr = read(lr)
 		if readError(lr) {
-			return Assign(list(r, fromMap(map[string]*Val{
+			return Assign(r, fromMap(map[string]*Val{
 				"in":    field(lr, sfromString("in")),
 				"value": field(lr, sfromString("value")),
-			})))
+			}))
 		}
 
 		v := field(lr, sfromString("value"))
 		if v != UndefinedReadValue {
-			lr = Assign(list(lr, fromMap(map[string]*Val{
-				"list-items": cons(
+			lr = Assign(lr, fromMap(map[string]*Val{
+				"list-items": Cons(
 					v,
 					field(lr, sfromString("list-items")),
 				),
 				"value": UndefinedReadValue,
-			})))
+			}))
 
 			if hasCons(lr) {
-				lr = Assign(list(lr, fromMap(map[string]*Val{
+				lr = Assign(lr, fromMap(map[string]*Val{
 					"cons-items": add(field(lr, sfromString("cons-items")), fromInt(1)),
-				})))
+				}))
 			}
 		}
 
 		if consSet(lr) {
 			if field(lr, sfromString("list-items")) == Nil ||
 				neq(field(lr, sfromString("cons-items")), fromInt(0)) == False {
-				return setIrregularCons(Assign(list(r, fromMap(map[string]*Val{
+				return setIrregularCons(Assign(r, fromMap(map[string]*Val{
 					"in": field(lr, sfromString("in")),
-				}))))
+				})))
 			}
 
-			lr = Assign(list(lr, fromMap(map[string]*Val{
+			lr = Assign(lr, fromMap(map[string]*Val{
 				"cons-items": fromInt(1),
 				"cons":       False,
-			})))
+			}))
 		}
 
 		if field(lr, sfromString("close-list")) != False {
 			if hasCons(lr) {
 				if neq(field(lr, sfromString("cons-items")), fromInt(2)) == False {
-					return setIrregularCons(Assign(list(r, fromMap(map[string]*Val{
+					return setIrregularCons(Assign(r, fromMap(map[string]*Val{
 						"in": field(lr, sfromString("in")),
-					}))))
+					})))
 				}
 
-				return Assign(list(r, fromMap(map[string]*Val{
+				return Assign(r, fromMap(map[string]*Val{
 					"in":    field(lr, sfromString("in")),
 					"value": reverseIrregular(field(lr, sfromString("list-items"))),
-				})))
+				}))
 			}
 
-			return Assign(list(r, fromMap(map[string]*Val{
+			return Assign(r, fromMap(map[string]*Val{
 				"in":    field(lr, sfromString("in")),
 				"value": reverse(field(lr, sfromString("list-items"))),
-			})))
+			}))
 		}
 
 		return loop(lr)
@@ -358,24 +358,24 @@ func readList(r, c *Val) *Val {
 func readQuote(r *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
 	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == False {
-		lr = Assign(list(lr, fromMap(map[string]*Val{
+		lr = Assign(lr, fromMap(map[string]*Val{
 			"in-list": field(r, sfromString("in-list")),
-		})))
+		}))
 	}
 
 	lr = read(lr)
 	if readError(lr) {
-		return Assign(list(r, fromMap(map[string]*Val{
+		return Assign(r, fromMap(map[string]*Val{
 			"in":    field(lr, sfromString("in")),
 			"value": field(lr, sfromString("value")),
-		})))
+		}))
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
+	return Assign(r, fromMap(map[string]*Val{
 		"in":         field(lr, sfromString("in")),
 		"value":      list(sfromString("quote"), field(lr, sfromString("value"))),
 		"close-list": field(lr, sfromString("close-list")),
-	})))
+	}))
 }
 
 func readVector(r *Val) *Val {
@@ -384,9 +384,9 @@ func readVector(r *Val) *Val {
 		return r
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
-		"value": cons(sfromString("vector:"), field(r, sfromString("value"))),
-	})))
+	return Assign(r, fromMap(map[string]*Val{
+		"value": Cons(sfromString("vector:"), field(r, sfromString("value"))),
+	}))
 }
 
 func readStruct(r *Val) *Val {
@@ -395,9 +395,9 @@ func readStruct(r *Val) *Val {
 		return r
 	}
 
-	return Assign(list(r, fromMap(map[string]*Val{
-		"value": cons(sfromString("struct:"), field(r, sfromString("value"))),
-	})))
+	return Assign(r, fromMap(map[string]*Val{
+		"value": Cons(sfromString("struct:"), field(r, sfromString("value"))),
+	}))
 }
 
 func read(r *Val) *Val {

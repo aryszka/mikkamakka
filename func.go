@@ -1,30 +1,15 @@
 package mikkamakka
 
-type builtin func([]*Val) *Val
-
-type Function func(*Val) *Val
+type Function func(...*Val) *Val
 
 type fn struct {
-	builtin  builtin
-	argCount int
-	varArgs  bool
+	compiled Function
 	params   *Val
 	body     *Val
 	env      *Val
 }
 
-var invalidArguments = &Val{merror, "invalid arguments"}
-
-func newBuiltin(p builtin, argCount int, varArgs bool) *Val {
-	return &Val{
-		function,
-		&fn{
-			builtin:  p,
-			argCount: argCount,
-			varArgs:  varArgs,
-		},
-	}
-}
+var invalidArgs = &Val{merror, "invalid arguments"}
 
 func newFn(e, p, b *Val) *Val {
 	return &Val{
@@ -39,26 +24,7 @@ func fnString(p *Val) *Val {
 }
 
 func applyBuiltin(p *fn, a *Val) *Val {
-	args := make([]*Val, 0, p.argCount)
-
-	for {
-		if isNil(a) != False || !p.varArgs && len(args) == p.argCount {
-			break
-		}
-
-		if isPair(a) == False {
-			return fatal(invalidArguments)
-		}
-
-		args = append(args, car(a))
-		a = cdr(a)
-	}
-
-	if isNil(a) == False || !p.varArgs && len(args) != p.argCount || p.varArgs && len(args) < p.argCount {
-		return fatal(invalidArguments)
-	}
-
-	return p.builtin(args)
+	return p.compiled(listToSlice(a)...)
 }
 
 func applyStruct(s, a *Val) *Val {
@@ -66,7 +32,7 @@ func applyStruct(s, a *Val) *Val {
 	checkType(a, pair)
 
 	if isNil(cdr(a)) == False {
-		return invalidArguments
+		return invalidArgs
 	}
 
 	return field(s, car(a))
@@ -76,7 +42,7 @@ func applyLang(p *fn, a *Val) *Val {
 	return evalSeq(extendEnv(p.env, p.params, a), p.body)
 }
 
-func apply(p, a *Val) *Val {
+func Apply(p, a *Val) *Val {
 	checkType(p, function, mstruct)
 	checkType(a, pair, mnil)
 
@@ -86,15 +52,11 @@ func apply(p, a *Val) *Val {
 
 	pt := p.value.(*fn)
 
-	if pt.builtin != nil {
+	if pt.compiled != nil {
 		return applyBuiltin(pt, a)
 	}
 
 	return applyLang(pt, a)
-}
-
-func bapply(a []*Val) *Val {
-	return apply(a[0], a[1])
 }
 
 func isFn(e *Val) *Val {
@@ -105,38 +67,17 @@ func isFn(e *Val) *Val {
 	return False
 }
 
-func toBuiltin(c Function) builtin {
-	return func(a []*Val) *Val {
-		al := Nil
-		for i := len(a) - 1; i >= 0; i-- {
-			al = cons(a[i], al)
-		}
-
-		return c(al)
-	}
-}
-
 // needs the names
-func NewCompiled(p Function, argCount int, varArgs bool) *Val {
-	return newBuiltin(toBuiltin(p), argCount, varArgs)
-}
-
-func Apply(a *Val) *Val {
-	p := car(a)
-	a = cdr(a)
-
-	av := Nil
-	for {
-		if isNil(a) != False {
-			break
+func NewCompiled(argCount int, variadic bool, f func([]*Val) *Val) *Val {
+	return &Val{function, &fn{compiled: func(a ...*Val) *Val {
+		if len(a) < argCount {
+			return fatal(invalidArgs)
 		}
 
-		if isPair(a) == False {
-			return fatal(invalidArguments)
+		if !variadic && len(a) != argCount {
+			return fatal(invalidArgs)
 		}
 
-		av, a = cons(car(a), av), cdr(a)
-	}
-
-	return apply(p, reverse(av))
+		return f(a)
+	}}}
 }

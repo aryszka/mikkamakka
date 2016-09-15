@@ -21,10 +21,6 @@ func tryBoolFromString(s *Val) *Val {
 	return bfromString(stringVal(s))
 }
 
-func btryBoolFromString(a []*Val) *Val {
-	return tryBoolFromString(a[0])
-}
-
 func boolToString(b *Val) *Val {
 	if b == True {
 		return fromString("true")
@@ -33,20 +29,12 @@ func boolToString(b *Val) *Val {
 	return fromString("false")
 }
 
-func bboolToString(a []*Val) *Val {
-	return boolToString(a[0])
-}
-
 func isBool(a *Val) *Val {
 	if a.mtype == mbool {
 		return True
 	}
 
 	return False
-}
-
-func bisBool(a []*Val) *Val {
-	return isBool(a[0])
 }
 
 func and(v ...*Val) *Val {
@@ -81,9 +69,9 @@ func bor(v []*Val) *Val {
 	return or(v...)
 }
 
-func not(a []*Val) *Val {
-	checkType(a[0], mbool)
-	if a[0] == False {
+func not(a *Val) *Val {
+	checkType(a, mbool)
+	if a == False {
 		return True
 	}
 

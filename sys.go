@@ -35,32 +35,16 @@ func fopen(a *Val) *Val {
 	return &Val{sys, &file{sys: f}}
 }
 
-func bfopen(a []*Val) *Val {
-	return fopen(a[0])
-}
-
 func stdin() *Val {
 	return &Val{sys, &file{sys: os.Stdin}}
-}
-
-func bstdin([]*Val) *Val {
-	return stdin()
 }
 
 func stdout() *Val {
 	return &Val{sys, &file{sys: os.Stdout}}
 }
 
-func bstdout([]*Val) *Val {
-	return stdout()
-}
-
 func stderr() *Val {
 	return &Val{sys, &file{sys: os.Stderr}}
-}
-
-func bstderr([]*Val) *Val {
-	return stderr()
 }
 
 func fstate(f *Val) *Val {
@@ -84,10 +68,6 @@ func fstate(f *Val) *Val {
 	}
 
 	return fromBytes(ft.buf)
-}
-
-func bfstate(a []*Val) *Val {
-	return fstate(a[0])
 }
 
 func fread(f *Val, n *Val) *Val {
@@ -118,10 +98,6 @@ func fread(f *Val, n *Val) *Val {
 	return &Val{sys, &file{sys: sv, buf: ft.buf, err: err, original: f}}
 }
 
-func bfread(a []*Val) *Val {
-	return fread(a[0], a[1])
-}
-
 func fwrite(f *Val, s *Val) *Val {
 	checkType(f, sys)
 	checkType(s, mstring)
@@ -147,10 +123,6 @@ func fwrite(f *Val, s *Val) *Val {
 	return &Val{sys, &file{sys: sv, err: err, original: f}}
 }
 
-func bfwrite(a []*Val) *Val {
-	return fwrite(a[0], a[1])
-}
-
 func fclose(f *Val) *Val {
 	checkType(f, sys)
 
@@ -173,46 +145,34 @@ func fclose(f *Val) *Val {
 	return &Val{sys, &file{sys: sv, err: err, original: f}}
 }
 
-func bfclose(a []*Val) *Val {
-	return fclose(a[0])
-}
-
 func sstring(f *Val) *Val {
 	checkType(f, sys)
 	return fromString("<file>")
-}
-
-func bsstring(a []*Val) *Val {
-	return sstring(a[0])
 }
 
 func buffer() *Val {
 	return &Val{sys, &file{sys: bytes.NewBuffer(nil)}}
 }
 
-func bbuffer([]*Val) *Val {
-	return buffer()
-}
+func derivedObject(o, from *Val) *Val {
+	checkType(o, sys)
+	checkType(from, sys)
 
-func derivedObject(a []*Val) *Val {
-	checkType(a[0], sys)
-	checkType(a[1], sys)
-
-	if a[0].value.(*file).original == a[1] {
+	if o.value.(*file).original == from {
 		return True
 	}
 
-	if a[1].value.(*file).original == nil {
+	if from.value.(*file).original == nil {
 		return False
 	}
 
-	return derivedObject([]*Val{a[0], a[1].value.(*file).original})
+	return derivedObject(o, from.value.(*file).original)
 }
 
-func argv([]*Val) *Val {
+func argv() *Val {
 	argv := Nil
 	for i := len(os.Args) - 1; i >= 0; i-- {
-		argv = cons(fromString(os.Args[i]), argv)
+		argv = Cons(fromString(os.Args[i]), argv)
 	}
 
 	return argv

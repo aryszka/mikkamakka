@@ -43,7 +43,7 @@ func evalQuote(e, v *Val) *Val {
 }
 
 func makeFn(a, b *Val) *Val {
-	return cons(sfromString("fn"), cons(a, b))
+	return Cons(sfromString("fn"), Cons(a, b))
 }
 
 func isDef(v *Val) *Val {
@@ -75,9 +75,9 @@ func evalStructValues(e, v *Val) *Val {
 		return fatal(invalidStruct)
 	}
 
-	return cons(
+	return Cons(
 		car(v),
-		cons(
+		Cons(
 			evalExp(e, car(cdr(v))),
 			evalStructValues(e, cdr(cdr(v))),
 		),
@@ -295,7 +295,7 @@ func seqToExp(v *Val) *Val {
 		return car(v)
 	}
 
-	return cons(sfromString("begin"), v)
+	return Cons(sfromString("begin"), v)
 }
 
 func expandCond(v *Val) *Val {
@@ -349,7 +349,7 @@ func letDefs(v *Val) *Val {
 		return fatal(invalidLet)
 	}
 
-	return cons(
+	return Cons(
 		list(sfromString("def"), car(v), car(cdr(v))),
 		letDefs(cdr(cdr(v))),
 	)
@@ -406,7 +406,7 @@ func valueList(e, v *Val) *Val {
 		return fatal(invalidApplication)
 	}
 
-	return cons(evalExp(e, car(v)), valueList(e, cdr(v)))
+	return Cons(evalExp(e, car(v)), valueList(e, cdr(v)))
 }
 
 func evalApply(e, v *Val) *Val {
@@ -414,7 +414,7 @@ func evalApply(e, v *Val) *Val {
 		return fatal(invalidApplication)
 	}
 
-	return apply(evalExp(e, car(v)), valueList(e, cdr(v)))
+	return Apply(evalExp(e, car(v)), valueList(e, cdr(v)))
 }
 
 func evalExp(e, v *Val) *Val {

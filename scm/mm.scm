@@ -587,15 +587,15 @@
           (let (signature (fn-signature (car (cdr v)))
                 body      (cdr (cdr v)))
             (string-append
-              "mm.NewCompiled(func(a *mm.Val) *mm.Val { env := mm.ExtendEnv(env, "
-              (compile-literal signature:names)
-              ", a); env = env; "
-              (compile-seq body)
-              "}, "
+              " mm.NewCompiled("
               (number->string signature:count)
               ", "
-              (if signature:var? "true" "false")
-              ")")))))
+              (bool->string signature:var?)
+              ", func(a []*mm.Val) *mm.Val { env := mm.ExtendEnv(env, "
+              (compile-literal signature:names)
+              ", mm.List(a...)); env = env; "
+              (compile-seq body)
+              "})")))))
 
 
 (def (compile-if v)
@@ -739,7 +739,9 @@
 
 (def (compile-application v)
   (string-append " mm.Apply("
-                 (compile-value-list v)
+                 (compile-exp (car v))
+                 ", "
+                 (compile-value-list (cdr v))
                  ")"))
 
 

@@ -22,13 +22,9 @@ func symbolToString(s *Val) *Val {
 	return fromString(sstringVal(s))
 }
 
-func bsymbolToString(a []*Val) *Val {
-	return symbolToString(a[0])
-}
-
-func stringToSymbol(a []*Val) *Val {
-	checkType(a[0], mstring)
-	return sfromString(stringVal(a[0]))
+func stringToSymbol(a *Val) *Val {
+	checkType(a, mstring)
+	return sfromString(stringVal(a))
 }
 
 func isSymbol(a *Val) *Val {
@@ -37,10 +33,6 @@ func isSymbol(a *Val) *Val {
 	}
 
 	return False
-}
-
-func bisSymbol(a []*Val) *Val {
-	return isSymbol(a[0])
 }
 
 func smeq(left, right *Val) *Val {

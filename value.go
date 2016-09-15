@@ -114,7 +114,3 @@ func eq(v ...*Val) *Val {
 		return eq(v[1:]...)
 	}
 }
-
-func beq(v []*Val) *Val {
-	return eq(v...)
-}
