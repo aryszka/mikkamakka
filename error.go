@@ -30,6 +30,8 @@ func errorString(a *Val) *Val {
 }
 
 func fatal(a *Val) *Val {
+	// panic(errorString(a))
+
 	switch a.mtype {
 	case mstring:
 		fwrite(stderr(), a)

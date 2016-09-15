@@ -202,7 +202,7 @@ func evalAnd(e, v *Val) *Val {
 	}
 
 	if r == False {
-		return False
+		return r
 	}
 
 	return evalAnd(e, cdr(v))

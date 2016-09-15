@@ -12,21 +12,26 @@ const (
 	symbol
 	number
 	mstring
-	mbool // sure that needed? better needed
+	mbool
 	pair
 	mnil
 	vector
 	mstruct
-	sys
-	merror // true or false?
-	environment
 	function
+	sys
+	merror // true or false? turn into false
+	environment
 )
 
 type Val struct {
 	mtype mtype
 	value interface{}
 }
+
+type (
+	typeCheck func(*Val) *Val
+	typeEq    func(*Val, *Val) *Val
+)
 
 func typeString(t mtype) string {
 	switch t {
@@ -67,24 +72,43 @@ func is(v *Val, t mtype) *Val {
 	return False
 }
 
-func unexpectedType(got mtype, v *Val, expected ...mtype) {
+func unexpectedType(got mtype, v *Val, expected ...mtype) *Val {
 	s := make([]string, len(expected))
 	for i, e := range expected {
 		s[i] = typeString(e)
 	}
 
-	panic(fmt.Sprintf("expected: %s, got: %s, with value: %v",
-		strings.Join(s, ", "), typeString(got), v.value))
+	msg := fmt.Sprintf(
+		"expected: %s, got: %s, with value: %v",
+		strings.Join(s, ", "),
+		typeString(got), v.value)
+	return fatal(fromString(msg))
 }
 
-func checkType(v *Val, expected ...mtype) {
+func checkType(v *Val, expected ...mtype) *Val {
 	for _, t := range expected {
 		if v.mtype == t {
-			return
+			return True
 		}
 	}
 
-	unexpectedType(v.mtype, v, expected...)
+	return unexpectedType(v.mtype, v, expected...)
+}
+
+func eqT(v []*Val, tc typeCheck, teq typeEq) *Val {
+	if len(v) == 1 {
+		return True
+	}
+
+	if tc(v[1]) == False {
+		return False
+	}
+
+	if teq(v[0], v[1]) == False || eqT(v[1:], tc, teq) == False {
+		return False
+	}
+
+	return True
 }
 
 func eq(v ...*Val) *Val {
@@ -92,25 +116,21 @@ func eq(v ...*Val) *Val {
 		return False
 	}
 
-	if len(v) == 1 {
+	if isNumber(v[0]) != False {
+		return eqT(v, isNumber, neq)
+	}
+
+	if isString(v[0]) != False {
+		return eqT(v, isString, seq)
+	}
+
+	if isSymbol(v[0]) != False {
+		return eqT(v, isSymbol, smeq)
+	}
+
+	if v[0] == v[1] {
 		return True
 	}
 
-	a := v[0]
-	b := v[1]
-
-	switch {
-	case isNumber(a) != False && isNumber(b) != False:
-		return and(neq(a, b), eq(v[1:]...))
-	case isString(a) != False && isString(b) != False:
-		return and(seq(a, b), eq(v[1:]...))
-	case isSymbol(a) != False && isSymbol(b) != False:
-		return and(smeq(a, b), eq(v[1:]...))
-	default:
-		if a != b {
-			return False
-		}
-
-		return eq(v[1:]...)
-	}
+	return False
 }
