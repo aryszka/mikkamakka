@@ -468,7 +468,7 @@ func eval(e, v *Val) *Val {
 	switch {
 	case IsNumber(v) != False:
 		return v
-	case isString(v) != False:
+	case IsString(v) != False:
 		return v
 	case isBool(v) != False:
 		return v

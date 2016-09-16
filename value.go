@@ -82,7 +82,7 @@ func unexpectedType(got mtype, v *Val, expected ...mtype) *Val {
 		"expected: %s, got: %s, with value: %v",
 		strings.Join(s, ", "),
 		typeString(got), v.value)
-	return fatal(fromString(msg))
+	return fatal(StringFromRaw(msg))
 }
 
 func checkType(v *Val, expected ...mtype) *Val {
@@ -120,8 +120,8 @@ func Eq(v ...*Val) *Val {
 		return eqT(v, IsNumber, numberEq)
 	}
 
-	if isString(v[0]) != False {
-		return eqT(v, isString, seq)
+	if IsString(v[0]) != False {
+		return eqT(v, IsString, stringEq)
 	}
 
 	if isSymbol(v[0]) != False {

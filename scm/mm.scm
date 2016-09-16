@@ -512,7 +512,7 @@
 
 
 (def (compile-number v) (string-append " mm.NumberFromRawInt(" (number->string v) ") "))
-(def (compile-string v) (string-append " mm.FromString(" (escape-compiled-string v) ") "))
+(def (compile-string v) (string-append " mm.StringFromRaw(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.True " " mm.False "))
 (def (compile-nil v) " mm.Nil ")
 (def (compile-quote-literal v) (string-append " mm.List(mm.SfromString("

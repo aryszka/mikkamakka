@@ -20,7 +20,7 @@ func printRaw(p *Val, r *Val) *Val {
 }
 
 func printQuoteSign(p *Val) *Val {
-	return printRaw(p, fromString("'"))
+	return printRaw(p, StringFromRaw("'"))
 }
 
 func printSymbol(p, v, q *Val) *Val {
@@ -41,7 +41,7 @@ func printPair(p, v, q *Val) *Val {
 		p = printQuoteSign(p)
 	}
 
-	p = printRaw(p, fromString("("))
+	p = printRaw(p, StringFromRaw("("))
 	if st := printState(p); isError(st) != False {
 		return p
 	}
@@ -49,11 +49,11 @@ func printPair(p, v, q *Val) *Val {
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p *Val, v *Val, first *Val) *Val {
 		if IsNil(v) != False {
-			return printRaw(p, fromString(")"))
+			return printRaw(p, StringFromRaw(")"))
 		}
 
 		if first == False {
-			p = printRaw(p, fromString(" "))
+			p = printRaw(p, StringFromRaw(" "))
 			if st := printState(p); isError(st) != False {
 				return p
 			}
@@ -65,7 +65,7 @@ func printPair(p, v, q *Val) *Val {
 				return p
 			}
 
-			p = printRaw(p, fromString(" . "))
+			p = printRaw(p, StringFromRaw(" . "))
 			if st := printState(p); isError(st) != False {
 				return p
 			}
@@ -75,7 +75,7 @@ func printPair(p, v, q *Val) *Val {
 				return p
 			}
 
-			return printRaw(p, fromString(")"))
+			return printRaw(p, StringFromRaw(")"))
 		}
 
 		p = mprintq(p, Car(v), True)
@@ -90,7 +90,7 @@ func printPair(p, v, q *Val) *Val {
 }
 
 func printVector(p, v *Val) *Val {
-	p = printRaw(p, fromString("["))
+	p = printRaw(p, StringFromRaw("["))
 	if st := field(p, sfromString("state")); isError(st) != False {
 		return p
 	}
@@ -102,7 +102,7 @@ func printVector(p, v *Val) *Val {
 		}
 
 		if f == False {
-			p = printRaw(p, fromString(" "))
+			p = printRaw(p, StringFromRaw(" "))
 			if st := field(p, sfromString("state")); isError(st) != False {
 				return p
 			}
@@ -117,11 +117,11 @@ func printVector(p, v *Val) *Val {
 	}
 
 	p = loop(p, NumberFromRawInt(0), True)
-	return printRaw(p, fromString("]"))
+	return printRaw(p, StringFromRaw("]"))
 }
 
 func printStruct(p, v *Val) *Val {
-	p = printRaw(p, fromString("{"))
+	p = printRaw(p, StringFromRaw("{"))
 	if st := field(p, sfromString("state")); isError(st) != False {
 		return p
 	}
@@ -133,7 +133,7 @@ func printStruct(p, v *Val) *Val {
 		}
 
 		if f == False {
-			p = printRaw(p, fromString(" "))
+			p = printRaw(p, StringFromRaw(" "))
 			if st := field(p, sfromString("state")); isError(st) != False {
 				return p
 			}
@@ -144,7 +144,7 @@ func printStruct(p, v *Val) *Val {
 			return p
 		}
 
-		p = printRaw(p, fromString(" "))
+		p = printRaw(p, StringFromRaw(" "))
 		if st := field(p, sfromString("state")); isError(st) != False {
 			return p
 		}
@@ -158,7 +158,7 @@ func printStruct(p, v *Val) *Val {
 	}
 
 	p = loop(p, structNames(v), True)
-	return printRaw(p, fromString("}"))
+	return printRaw(p, StringFromRaw("}"))
 }
 
 func mprintq(p, v, q *Val) *Val {
@@ -166,8 +166,8 @@ func mprintq(p, v, q *Val) *Val {
 		return printSymbol(p, v, q)
 	} else if IsNumber(v) != False {
 		v = NumberToString(v)
-	} else if isString(v) != False {
-		v = appendString(fromString(`"`), v, fromString(`"`))
+	} else if IsString(v) != False {
+		v = AppendString(StringFromRaw(`"`), v, StringFromRaw(`"`))
 	} else if isBool(v) != False {
 		v = boolToString(v)
 	} else if isSys(v) != False {

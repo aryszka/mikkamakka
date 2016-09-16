@@ -53,7 +53,7 @@ func IsFunction(v *Val) *Val {
 
 func FunctionToString(f *Val) *Val {
 	checkType(f, function)
-	return fromString("<function>")
+	return StringFromRaw("<function>")
 }
 
 func listToSlice(l *Val) []*Val {

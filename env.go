@@ -55,10 +55,10 @@ func defineStruct(e, n, s, names *Val) *Val {
 	define(
 		e,
 		sfromString(
-			stringVal(
-				appendString(
+			RawString(
+				AppendString(
 					symbolToString(n),
-					fromString(":"),
+					StringFromRaw(":"),
 					symbolToString(Car(names)),
 				),
 			),
@@ -125,7 +125,7 @@ func extendEnv(e, n, a *Val) *Val {
 
 func envString(e *Val) *Val {
 	checkType(e, environment)
-	return fromString("<environment>")
+	return StringFromRaw("<environment>")
 }
 
 func isEnv(e *Val) *Val {
@@ -187,7 +187,7 @@ func InitialEnv() *Val {
 	define(env, sfromString("number->string"), newBuiltin1(NumberToString))
 	define(env, sfromString("bool?"), newBuiltin1(isBool))
 	define(env, sfromString("bool->string"), newBuiltin1(boolToString))
-	define(env, sfromString("string?"), newBuiltin1(isString))
+	define(env, sfromString("string?"), newBuiltin1(IsString))
 	define(env, sfromString("assign"), newBuiltin0V(Assign))
 	define(env, sfromString("fopen"), newBuiltin1(fopen))
 	define(env, sfromString("fclose"), newBuiltin1(fclose))
@@ -203,8 +203,8 @@ func InitialEnv() *Val {
 	define(env, sfromString("buffer"), newBuiltin0(buffer))
 	define(env, sfromString("argv"), newBuiltin0(argv))
 	define(env, sfromString("invalid-token"), invalidToken)
-	define(env, sfromString("string-append"), newBuiltin0V(appendString))
-	define(env, sfromString("escape-compiled-string"), newBuiltin1(escapeCompiled))
+	define(env, sfromString("string-append"), newBuiltin0V(AppendString))
+	define(env, sfromString("escape-compiled-string"), newBuiltin1(EscapeCompiled))
 	define(env, sfromString("printer"), newBuiltin1(printer))
 	define(env, sfromString("print"), newBuiltin2(mprint))
 

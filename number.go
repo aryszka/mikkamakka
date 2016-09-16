@@ -18,7 +18,7 @@ func NumberFromRawString(s string) *Val {
 }
 
 func NumberFromString(s *Val) *Val {
-	return NumberFromRawString(stringVal(s))
+	return NumberFromRawString(RawString(s))
 }
 
 func RawInt(n *Val) int {
@@ -28,7 +28,7 @@ func RawInt(n *Val) int {
 
 func NumberToString(n *Val) *Val {
 	checkType(n, number)
-	return fromString(strconv.Itoa(n.value.(int)))
+	return StringFromRaw(strconv.Itoa(n.value.(int)))
 }
 
 func IsNumber(a *Val) *Val {

@@ -27,7 +27,7 @@ func isSys(a *Val) *Val {
 func fopen(a *Val) *Val {
 	checkType(a, mstring)
 
-	f, err := os.Open(stringVal(a))
+	f, err := os.Open(RawString(a))
 	if err != nil {
 		return &Val{merror, err}
 	}
@@ -67,7 +67,7 @@ func fstate(f *Val) *Val {
 		return Eof
 	}
 
-	return fromBytes(ft.buf)
+	return StringFromRaw(string(ft.buf))
 }
 
 func fread(f *Val, n *Val) *Val {
@@ -119,7 +119,7 @@ func fwrite(f *Val, s *Val) *Val {
 
 	ft.sys = nil
 
-	_, err := w.Write(byteVal(s))
+	_, err := w.Write(RawBytes(s))
 	return &Val{sys, &file{sys: sv, err: err, original: f}}
 }
 
@@ -147,7 +147,7 @@ func fclose(f *Val) *Val {
 
 func sstring(f *Val) *Val {
 	checkType(f, sys)
-	return fromString("<file>")
+	return StringFromRaw("<file>")
 }
 
 func buffer() *Val {
@@ -172,7 +172,7 @@ func derivedObject(o, from *Val) *Val {
 func argv() *Val {
 	argv := Nil
 	for i := len(os.Args) - 1; i >= 0; i-- {
-		argv = Cons(fromString(os.Args[i]), argv)
+		argv = Cons(StringFromRaw(os.Args[i]), argv)
 	}
 
 	return argv

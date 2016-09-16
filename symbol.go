@@ -19,12 +19,12 @@ func sstringVal(s *Val) string {
 }
 
 func symbolToString(s *Val) *Val {
-	return fromString(sstringVal(s))
+	return StringFromRaw(sstringVal(s))
 }
 
 func stringToSymbol(a *Val) *Val {
 	checkType(a, mstring)
-	return sfromString(stringVal(a))
+	return sfromString(RawString(a))
 }
 
 func isSymbol(a *Val) *Val {

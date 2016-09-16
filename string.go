@@ -1,59 +1,56 @@
 package mikkamakka
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
 
-type str struct {
-	sys string
+func StringFromRaw(s string) *Val {
+	return &Val{mstring, s}
 }
 
-func fromBytes(b []byte) *Val {
-	return &Val{mstring, &str{string(b)}}
+func RawString(s *Val) string {
+	checkType(s, mstring)
+	return s.value.(string)
 }
 
-func fromString(s string) *Val {
-	return &Val{mstring, &str{s}}
+func RawBytes(s *Val) []byte {
+	return []byte(RawString(s))
 }
 
-func stringVal(s *Val) string {
-	return s.value.(*str).sys
+func StringLen(s *Val) *Val {
+	checkType(s, mstring)
+	return NumberFromRawInt(utf8.RuneCount(RawBytes(s)))
 }
 
-func byteVal(s *Val) []byte {
-	return []byte(s.value.(*str).sys)
+func ByteLen(s *Val) *Val {
+	checkType(s, mstring)
+	return NumberFromRawInt(len(RawString(s)))
 }
 
-func appendString(a ...*Val) *Val {
-	var b []byte
+func AppendString(a ...*Val) *Val {
+	var s []string
 	for _, ai := range a {
-		checkType(ai, mstring)
-		b = append(b, byteVal(ai)...)
+		s = append(s, RawString(ai))
 	}
 
-	return fromBytes(b)
+	return StringFromRaw(strings.Join(s, ""))
 }
 
-func stringLength(s *Val) *Val {
-	checkType(s, mstring)
-	return NumberFromRawInt(len(s.value.(*str).sys))
-}
-
-func isString(a *Val) *Val {
+func IsString(a *Val) *Val {
 	return is(a, mstring)
 }
 
-func seq(left, right *Val) *Val {
-	if stringVal(left) == stringVal(right) {
+func stringEq(left, right *Val) *Val {
+	if RawString(left) == RawString(right) {
 		return True
 	}
 
 	return False
 }
 
-func escapeCompiled(a *Val) *Val {
+func EscapeCompiled(a *Val) *Val {
 	checkType(a, mstring)
-	return fromString(strconv.Quote(stringVal(a)))
-}
-
-func FromString(s string) *Val {
-	return (*Val)(fromString(s))
+	return StringFromRaw(strconv.Quote(RawString(a)))
 }

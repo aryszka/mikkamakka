@@ -24,9 +24,9 @@ func reader(in *Val) *Val {
 		"token-type":    ttnone,
 		"value":         UndefinedReadValue,
 		"escaped":       False,
-		"last-char":     fromString(""),
-		"current-token": fromString(""),
-		"in-list":       fromString(""),
+		"last-char":     StringFromRaw(""),
+		"current-token": StringFromRaw(""),
+		"in-list":       StringFromRaw(""),
 		"close-list":    False,
 		"cons":          False,
 		"cons-items":    NumberFromRawInt(0),
@@ -35,7 +35,7 @@ func reader(in *Val) *Val {
 
 func charCheck(c string) func(*Val) *Val {
 	return func(s *Val) *Val {
-		if stringVal(s) == c {
+		if RawString(s) == c {
 			return True
 		}
 
@@ -59,7 +59,7 @@ var (
 )
 
 func isWhitespace(s *Val) *Val {
-	if unicode.IsSpace(rune(stringVal(s)[0])) {
+	if unicode.IsSpace(rune(RawString(s)[0])) {
 		return True
 	}
 
@@ -72,12 +72,12 @@ func symbolToken(t *Val) *Val {
 		return v
 	}
 
-	v = bfromString(stringVal(t))
+	v = bfromString(RawString(t))
 	if isError(v) == False {
 		return v
 	}
 
-	return sfromString(stringVal(t))
+	return sfromString(RawString(t))
 }
 
 func readChar(r *Val) *Val {
@@ -137,7 +137,7 @@ func setStruct(r *Val) *Val  { return setTokenType(r, ttstruct) }
 
 func clearToken(r *Val) *Val {
 	return Assign(r, fromMap(map[string]*Val{
-		"current-token": fromString(""),
+		"current-token": StringFromRaw(""),
 	}))
 }
 
@@ -170,19 +170,19 @@ func unescapeSymbolChar(c *Val) *Val {
 }
 
 func unescapeStringChar(c *Val) *Val {
-	switch stringVal(c) {
+	switch RawString(c) {
 	case "b":
-		return fromString("\b")
+		return StringFromRaw("\b")
 	case "f":
-		return fromString("\f")
+		return StringFromRaw("\f")
 	case "n":
-		return fromString("\n")
+		return StringFromRaw("\n")
 	case "r":
-		return fromString("\r")
+		return StringFromRaw("\r")
 	case "t":
-		return fromString("\t")
+		return StringFromRaw("\t")
 	case "v":
-		return fromString("\v")
+		return StringFromRaw("\v")
 	default:
 		return c
 	}
@@ -206,7 +206,7 @@ func appendToken(r *Val) *Val {
 	}
 
 	return Assign(r, fromMap(map[string]*Val{
-		"current-token": appendString(field(r, sfromString("current-token")), c),
+		"current-token": AppendString(field(r, sfromString("current-token")), c),
 	}))
 }
 
@@ -229,20 +229,20 @@ func processString(r *Val) *Val {
 }
 
 func closeChar(c *Val) *Val {
-	switch stringVal(c) {
+	switch RawString(c) {
 	case "(":
-		return fromString(")")
+		return StringFromRaw(")")
 	case "[":
-		return fromString("]")
+		return StringFromRaw("]")
 	case "{":
-		return fromString("}")
+		return StringFromRaw("}")
 	default:
-		return fromString("")
+		return StringFromRaw("")
 	}
 }
 
 func setClose(r, c *Val) *Val {
-	if seq(closeChar(field(r, sfromString("in-list"))), c) == False {
+	if stringEq(closeChar(field(r, sfromString("in-list"))), c) == False {
 		return setUnexpectedClose(r)
 	}
 
@@ -386,7 +386,7 @@ func readList(r, c *Val) *Val {
 
 func readQuote(r *Val) *Val {
 	lr := reader(field(r, sfromString("in")))
-	if seq(closeChar(field(r, sfromString("in-list"))), fromString("")) == False {
+	if stringEq(closeChar(field(r, sfromString("in-list"))), StringFromRaw("")) == False {
 		lr = Assign(lr, fromMap(map[string]*Val{
 			"in-list": field(r, sfromString("in-list")),
 		}))
@@ -408,7 +408,7 @@ func readQuote(r *Val) *Val {
 }
 
 func readVector(r *Val) *Val {
-	r = readList(r, fromString("["))
+	r = readList(r, StringFromRaw("["))
 	if readError(r) {
 		return r
 	}
@@ -419,7 +419,7 @@ func readVector(r *Val) *Val {
 }
 
 func readStruct(r *Val) *Val {
-	r = readList(r, fromString("{"))
+	r = readList(r, StringFromRaw("{"))
 	if readError(r) {
 		return r
 	}
@@ -432,7 +432,7 @@ func readStruct(r *Val) *Val {
 func read(r *Val) *Val {
 	t := currentTokenType(r)
 	if isTList(t) {
-		return setNone(readList(r, fromString("(")))
+		return setNone(readList(r, StringFromRaw("(")))
 	}
 
 	if isTQuote(t) {

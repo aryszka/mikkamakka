@@ -18,15 +18,15 @@ func bfromString(s string) *Val {
 
 func tryBoolFromString(s *Val) *Val {
 	checkType(s, mstring)
-	return bfromString(stringVal(s))
+	return bfromString(RawString(s))
 }
 
 func boolToString(b *Val) *Val {
 	if b == True {
-		return fromString("true")
+		return StringFromRaw("true")
 	}
 
-	return fromString("false")
+	return StringFromRaw("false")
 }
 
 func isBool(a *Val) *Val {

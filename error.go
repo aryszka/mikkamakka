@@ -11,7 +11,7 @@ func isError(a *Val) *Val {
 
 func stringToError(a *Val) *Val {
 	checkType(a, mstring)
-	return &Val{merror, stringVal(a)}
+	return &Val{merror, RawString(a)}
 }
 
 func errorStringRaw(a *Val) string {
@@ -26,7 +26,7 @@ func errorStringRaw(a *Val) string {
 }
 
 func errorString(a *Val) *Val {
-	return fromString(errorStringRaw(a))
+	return StringFromRaw(errorStringRaw(a))
 }
 
 func fatal(a *Val) *Val {
@@ -46,7 +46,7 @@ func fatal(a *Val) *Val {
 
 func estring(e *Val) *Val {
 	checkType(e, merror)
-	return fromString(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
+	return StringFromRaw(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
 }
 
 func IsError(a *Val) *Val {
