@@ -1,99 +1,65 @@
 package mikkamakka
 
-type tstruct struct {
-	sys map[string]*Val
-}
+type Struct map[string]*Val
 
-var invalidStruct = &Val{merror, "invalid struct"}
+var InvalidStruct = &Val{merror, "invalid struct"}
 
-func fromMap(m map[string]*Val) *Val {
-	return &Val{mstruct, &tstruct{m}}
-}
-
-func field(s, f *Val) *Val {
-	checkType(s, mstruct)
-	checkType(f, symbol)
-	name := RawSymbolString(f)
-	v, ok := s.value.(*tstruct).sys[name]
-	if !ok {
-		panic("undefined field name: " + name)
-	}
-
-	return v
+func FromMap(m Struct) *Val {
+	return &Val{mstruct, m}
 }
 
 func Assign(a ...*Val) *Val {
-	m := make(map[string]*Val)
+	m := make(Struct)
 	for _, ai := range a {
-		for k, v := range ai.value.(*tstruct).sys {
+		checkType(ai, mstruct)
+		for k, v := range ai.value.(Struct) {
 			m[k] = v
 		}
 	}
 
-	return fromMap(m)
+	return FromMap(m)
 }
 
-func structFromList(l *Val) *Val {
-	sys := make(map[string]*Val)
+func StructFromList(l *Val) *Val {
+	m := make(Struct)
 	for {
 		if l == Nil {
 			break
 		}
 
 		if IsPair(l) == False || IsPair(Cdr(l)) == False || IsSymbol(Car(l)) == False {
-			return fatal(invalidStruct)
+			return fatal(InvalidStruct)
 		}
 
-		sys[RawSymbolString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
+		m[RawSymbolString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
 	}
 
-	return fromMap(sys)
+	return FromMap(m)
 }
 
-func isStruct(a *Val) *Val {
-	if a.mtype == mstruct {
-		return True
+func IsStruct(a *Val) *Val {
+	return is(a, mstruct)
+}
+
+func Field(s, f *Val) *Val {
+	checkType(s, mstruct)
+
+	name := RawSymbolString(f)
+	v, ok := s.value.(Struct)[name]
+	if !ok {
+		return fatal(&Val{merror, "undefined field name: " + name})
 	}
 
-	return False
+	return v
 }
 
-func structNames(s *Val) *Val {
+func StructNames(s *Val) *Val {
 	checkType(s, mstruct)
 
 	n := Nil
-	for k, _ := range s.value.(*tstruct).sys {
+	for k, _ := range s.value.(Struct) {
 		n = Cons(SymbolFromRawString(k), n)
 	}
 
 	return n
-}
-
-func structVal(s, n *Val) *Val {
-	checkType(s, mstruct)
-	checkType(n, symbol)
-	ns := RawSymbolString(n)
-
-	if v, ok := s.value.(*tstruct).sys[ns]; !ok {
-		return fatal(undefined)
-	} else {
-		return v
-	}
-}
-
-func Field(s, f *Val) *Val {
-	return field(s, f)
-}
-
-func FromMap(m map[string]*Val) *Val {
-	mv := make(map[string]*Val)
-	for k, v := range m {
-		mv[k] = v
-	}
-
-	return fromMap(mv)
-}
-
-func StructFromList(l *Val) *Val {
-	return structFromList(l)
 }

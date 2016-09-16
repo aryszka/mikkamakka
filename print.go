@@ -1,19 +1,19 @@
 package mikkamakka
 
 func printer(out *Val) *Val {
-	return fromMap(map[string]*Val{
+	return FromMap(Struct{
 		"output": out,
 		"state":  Nil,
 	})
 }
 
 func printState(p *Val) *Val {
-	return field(p, SymbolFromRawString("state"))
+	return Field(p, SymbolFromRawString("state"))
 }
 
 func printRaw(p *Val, r *Val) *Val {
-	f := fwrite(field(p, SymbolFromRawString("output")), r)
-	return Assign(p, fromMap(map[string]*Val{
+	f := fwrite(Field(p, SymbolFromRawString("output")), r)
+	return Assign(p, FromMap(Struct{
 		"output": f,
 		"state":  fstate(f),
 	}))
@@ -61,7 +61,7 @@ func printPair(p, v, q *Val) *Val {
 
 		if IsPair(Cdr(v)) == False && IsNil(Cdr(v)) == False {
 			p = mprintq(p, Car(v), True)
-			if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 				return p
 			}
 
@@ -71,7 +71,7 @@ func printPair(p, v, q *Val) *Val {
 			}
 
 			p = mprintq(p, Cdr(v), True)
-			if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 				return p
 			}
 
@@ -79,7 +79,7 @@ func printPair(p, v, q *Val) *Val {
 		}
 
 		p = mprintq(p, Car(v), True)
-		if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
 
@@ -91,7 +91,7 @@ func printPair(p, v, q *Val) *Val {
 
 func printVector(p, v *Val) *Val {
 	p = printRaw(p, StringFromRaw("["))
-	if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+	if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 		return p
 	}
 
@@ -103,13 +103,13 @@ func printVector(p, v *Val) *Val {
 
 		if f == False {
 			p = printRaw(p, StringFromRaw(" "))
-			if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 				return p
 			}
 		}
 
 		p = mprintq(p, vectorRef(v, i), True)
-		if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
 
@@ -122,7 +122,7 @@ func printVector(p, v *Val) *Val {
 
 func printStruct(p, v *Val) *Val {
 	p = printRaw(p, StringFromRaw("{"))
-	if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+	if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 		return p
 	}
 
@@ -134,30 +134,30 @@ func printStruct(p, v *Val) *Val {
 
 		if f == False {
 			p = printRaw(p, StringFromRaw(" "))
-			if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 				return p
 			}
 		}
 
 		p = mprintq(p, Car(n), True)
-		if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
 
 		p = printRaw(p, StringFromRaw(" "))
-		if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
 
-		p = mprintq(p, field(v, Car(n)), True)
-		if st := field(p, SymbolFromRawString("state")); isError(st) != False {
+		p = mprintq(p, Field(v, Car(n)), True)
+		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
 
 		return loop(p, Cdr(n), False)
 	}
 
-	p = loop(p, structNames(v), True)
+	p = loop(p, StructNames(v), True)
 	return printRaw(p, StringFromRaw("}"))
 }
 
@@ -180,27 +180,27 @@ func mprintq(p, v, q *Val) *Val {
 		return printPair(p, v, q)
 	} else if isVector(v) != False {
 		return printVector(p, v)
-	} else if isStruct(v) != False {
+	} else if IsStruct(v) != False {
 		return printStruct(p, v)
 	} else if isEnv(v) != False {
 		v = envString(v)
 	} else if IsFunction(v) != False {
 		v = FunctionToString(v)
 	} else {
-		return Assign(p, fromMap(map[string]*Val{
+		return Assign(p, FromMap(Struct{
 			"state": notImplemented,
 		}))
 	}
 
-	f := fwrite(field(p, SymbolFromRawString("output")), v)
+	f := fwrite(Field(p, SymbolFromRawString("output")), v)
 	if st := fstate(f); isError(st) != False {
-		return Assign(p, fromMap(map[string]*Val{
+		return Assign(p, FromMap(Struct{
 			"output": f,
 			"state":  st,
 		}))
 	}
 
-	return Assign(p, fromMap(map[string]*Val{
+	return Assign(p, FromMap(Struct{
 		"output": f,
 		"state":  v,
 	}))

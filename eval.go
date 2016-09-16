@@ -93,7 +93,7 @@ func evalStructValues(e, v *Val) *Val {
 	}
 
 	if IsPair(v) == False || IsPair(Cdr(v)) == False {
-		return fatal(invalidStruct)
+		return fatal(InvalidStruct)
 	}
 
 	return Cons(
@@ -107,10 +107,10 @@ func evalStructValues(e, v *Val) *Val {
 
 func evalStruct(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidStruct)
+		return fatal(InvalidStruct)
 	}
 
-	return structFromList(evalStructValues(e, Cdr(v)))
+	return StructFromList(evalStructValues(e, Cdr(v)))
 }
 
 func nameOfDef(v *Val) *Val {
@@ -439,8 +439,8 @@ func evalApply(e, v *Val) *Val {
 }
 
 func Apply(f, a *Val) *Val {
-	if isStruct(f) != False {
-		return field(f, Car(a))
+	if IsStruct(f) != False {
+		return Field(f, Car(a))
 	}
 
 	if IsCompiledFunction(f) != False {

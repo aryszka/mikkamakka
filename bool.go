@@ -31,11 +31,7 @@ func BoolToString(b *Val) *Val {
 }
 
 func IsBool(a *Val) *Val {
-	if a.mtype == mbool {
-		return True
-	}
-
-	return False
+	return is(a, mbool)
 }
 
 func Not(a *Val) *Val {

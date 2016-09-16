@@ -1,7 +1,7 @@
 package mikkamakka
 
 type env struct {
-	current map[string]*Val
+	current Struct
 	parent  *Val
 }
 
@@ -15,7 +15,7 @@ func newEnv(p *Val) *Val {
 	return &Val{
 		environment,
 		&env{
-			current: make(map[string]*Val),
+			current: make(Struct),
 			parent:  p,
 		},
 	}
@@ -63,7 +63,7 @@ func defineStruct(e, n, s, names *Val) *Val {
 				),
 			),
 		),
-		structVal(s, Car(names)),
+		Field(s, Car(names)),
 	)
 
 	return defineStruct(e, n, s, Cdr(names))
@@ -83,8 +83,8 @@ func define(e, n, v *Val) *Val {
 	}
 
 	et.current[ns] = v
-	if isStruct(v) != False {
-		return defineStruct(e, n, v, structNames(v))
+	if IsStruct(v) != False {
+		return defineStruct(e, n, v, StructNames(v))
 	}
 
 	return v

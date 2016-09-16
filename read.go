@@ -19,7 +19,7 @@ var (
 )
 
 func reader(in *Val) *Val {
-	return fromMap(map[string]*Val{
+	return FromMap(Struct{
 		"in":            in,
 		"token-type":    ttnone,
 		"value":         UndefinedReadValue,
@@ -81,38 +81,38 @@ func symbolToken(t *Val) *Val {
 }
 
 func readChar(r *Val) *Val {
-	in := fread(field(r, SymbolFromRawString("in")), NumberFromRawInt(1))
+	in := fread(Field(r, SymbolFromRawString("in")), NumberFromRawInt(1))
 	st := fstate(in)
 
 	if isError(st) != False {
-		return Assign(r, fromMap(map[string]*Val{
+		return Assign(r, FromMap(Struct{
 			"in":    in,
 			"value": st,
 		}))
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"in":        in,
 		"last-char": st,
 	}))
 }
 
 func readError(r *Val) bool {
-	v := field(r, SymbolFromRawString("value"))
+	v := Field(r, SymbolFromRawString("value"))
 	return isError(v) != False && v != UndefinedReadValue
 
 }
 
 func lastChar(r *Val) *Val {
-	return field(r, SymbolFromRawString("last-char"))
+	return Field(r, SymbolFromRawString("last-char"))
 }
 
 func currentTokenType(r *Val) *Val {
-	return field(r, SymbolFromRawString("token-type"))
+	return Field(r, SymbolFromRawString("token-type"))
 }
 
 func setTokenType(r *Val, t *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"token-type": t,
 	}))
 }
@@ -136,7 +136,7 @@ func setVector(r *Val) *Val  { return setTokenType(r, ttvector) }
 func setStruct(r *Val) *Val  { return setTokenType(r, ttstruct) }
 
 func clearToken(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"current-token": StringFromRaw(""),
 	}))
 }
@@ -154,15 +154,15 @@ func closeString(r *Val) *Val {
 }
 
 func setEscaped(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{"escaped": True}))
+	return Assign(r, FromMap(Struct{"escaped": True}))
 }
 
 func unsetEscaped(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{"escaped": False}))
+	return Assign(r, FromMap(Struct{"escaped": False}))
 }
 
 func isEscaped(r *Val) *Val {
-	return field(r, SymbolFromRawString("escaped"))
+	return Field(r, SymbolFromRawString("escaped"))
 }
 
 func unescapeSymbolChar(c *Val) *Val {
@@ -202,29 +202,29 @@ func unescapeChar(tokenType, c *Val) *Val {
 func appendToken(r *Val) *Val {
 	c := lastChar(r)
 	if isEscaped(r) != False {
-		c = unescapeChar(field(r, SymbolFromRawString("token-type")), c)
+		c = unescapeChar(Field(r, SymbolFromRawString("token-type")), c)
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
-		"current-token": AppendString(field(r, SymbolFromRawString("current-token")), c),
+	return Assign(r, FromMap(Struct{
+		"current-token": AppendString(Field(r, SymbolFromRawString("current-token")), c),
 	}))
 }
 
 func setInvalid(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"err": invalidToken,
 	}))
 }
 
 func processSymbol(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
-		"value": symbolToken(field(r, SymbolFromRawString("current-token"))),
+	return Assign(r, FromMap(Struct{
+		"value": symbolToken(Field(r, SymbolFromRawString("current-token"))),
 	}))
 }
 
 func processString(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
-		"value": field(r, SymbolFromRawString("current-token")),
+	return Assign(r, FromMap(Struct{
+		"value": Field(r, SymbolFromRawString("current-token")),
 	}))
 }
 
@@ -242,21 +242,21 @@ func closeChar(c *Val) *Val {
 }
 
 func setClose(r, c *Val) *Val {
-	if stringEq(closeChar(field(r, SymbolFromRawString("in-list"))), c) == False {
+	if stringEq(closeChar(Field(r, SymbolFromRawString("in-list"))), c) == False {
 		return setUnexpectedClose(r)
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"close-list": True,
 	}))
 }
 
 func hasCons(r *Val) bool {
-	return Greater(field(r, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) != False
+	return Greater(Field(r, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) != False
 }
 
 func consSet(r *Val) bool {
-	return field(r, SymbolFromRawString("cons")) != False
+	return Field(r, SymbolFromRawString("cons")) != False
 }
 
 func setCons(r *Val) *Val {
@@ -264,19 +264,19 @@ func setCons(r *Val) *Val {
 		return setIrregularCons(r)
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"cons": True,
 	}))
 }
 
 func setUnexpectedClose(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"value": unexpectedClose,
 	}))
 }
 
 func setIrregularCons(r *Val) *Val {
-	return Assign(r, fromMap(map[string]*Val{
+	return Assign(r, FromMap(Struct{
 		"value": irregularCons,
 	}))
 }
@@ -311,8 +311,8 @@ func reverseIrregular(l *Val) *Val {
 }
 
 func readList(r, c *Val) *Val {
-	lr := reader(field(r, SymbolFromRawString("in")))
-	lr = Assign(lr, fromMap(map[string]*Val{
+	lr := reader(Field(r, SymbolFromRawString("in")))
+	lr = Assign(lr, FromMap(Struct{
 		"list-items": Nil,
 		"in-list":    c,
 	}))
@@ -321,60 +321,60 @@ func readList(r, c *Val) *Val {
 	loop = func(lr *Val) *Val {
 		lr = read(lr)
 		if readError(lr) {
-			return Assign(r, fromMap(map[string]*Val{
-				"in":    field(lr, SymbolFromRawString("in")),
-				"value": field(lr, SymbolFromRawString("value")),
+			return Assign(r, FromMap(Struct{
+				"in":    Field(lr, SymbolFromRawString("in")),
+				"value": Field(lr, SymbolFromRawString("value")),
 			}))
 		}
 
-		v := field(lr, SymbolFromRawString("value"))
+		v := Field(lr, SymbolFromRawString("value"))
 		if v != UndefinedReadValue {
-			lr = Assign(lr, fromMap(map[string]*Val{
+			lr = Assign(lr, FromMap(Struct{
 				"list-items": Cons(
 					v,
-					field(lr, SymbolFromRawString("list-items")),
+					Field(lr, SymbolFromRawString("list-items")),
 				),
 				"value": UndefinedReadValue,
 			}))
 
 			if hasCons(lr) {
-				lr = Assign(lr, fromMap(map[string]*Val{
-					"cons-items": Add(field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(1)),
+				lr = Assign(lr, FromMap(Struct{
+					"cons-items": Add(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(1)),
 				}))
 			}
 		}
 
 		if consSet(lr) {
-			if field(lr, SymbolFromRawString("list-items")) == Nil ||
-				numberEq(field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) == False {
-				return setIrregularCons(Assign(r, fromMap(map[string]*Val{
-					"in": field(lr, SymbolFromRawString("in")),
+			if Field(lr, SymbolFromRawString("list-items")) == Nil ||
+				numberEq(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) == False {
+				return setIrregularCons(Assign(r, FromMap(Struct{
+					"in": Field(lr, SymbolFromRawString("in")),
 				})))
 			}
 
-			lr = Assign(lr, fromMap(map[string]*Val{
+			lr = Assign(lr, FromMap(Struct{
 				"cons-items": NumberFromRawInt(1),
 				"cons":       False,
 			}))
 		}
 
-		if field(lr, SymbolFromRawString("close-list")) != False {
+		if Field(lr, SymbolFromRawString("close-list")) != False {
 			if hasCons(lr) {
-				if numberEq(field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(2)) == False {
-					return setIrregularCons(Assign(r, fromMap(map[string]*Val{
-						"in": field(lr, SymbolFromRawString("in")),
+				if numberEq(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(2)) == False {
+					return setIrregularCons(Assign(r, FromMap(Struct{
+						"in": Field(lr, SymbolFromRawString("in")),
 					})))
 				}
 
-				return Assign(r, fromMap(map[string]*Val{
-					"in":    field(lr, SymbolFromRawString("in")),
-					"value": reverseIrregular(field(lr, SymbolFromRawString("list-items"))),
+				return Assign(r, FromMap(Struct{
+					"in":    Field(lr, SymbolFromRawString("in")),
+					"value": reverseIrregular(Field(lr, SymbolFromRawString("list-items"))),
 				}))
 			}
 
-			return Assign(r, fromMap(map[string]*Val{
-				"in":    field(lr, SymbolFromRawString("in")),
-				"value": reverse(field(lr, SymbolFromRawString("list-items"))),
+			return Assign(r, FromMap(Struct{
+				"in":    Field(lr, SymbolFromRawString("in")),
+				"value": reverse(Field(lr, SymbolFromRawString("list-items"))),
 			}))
 		}
 
@@ -385,25 +385,25 @@ func readList(r, c *Val) *Val {
 }
 
 func readQuote(r *Val) *Val {
-	lr := reader(field(r, SymbolFromRawString("in")))
-	if stringEq(closeChar(field(r, SymbolFromRawString("in-list"))), StringFromRaw("")) == False {
-		lr = Assign(lr, fromMap(map[string]*Val{
-			"in-list": field(r, SymbolFromRawString("in-list")),
+	lr := reader(Field(r, SymbolFromRawString("in")))
+	if stringEq(closeChar(Field(r, SymbolFromRawString("in-list"))), StringFromRaw("")) == False {
+		lr = Assign(lr, FromMap(Struct{
+			"in-list": Field(r, SymbolFromRawString("in-list")),
 		}))
 	}
 
 	lr = read(lr)
 	if readError(lr) {
-		return Assign(r, fromMap(map[string]*Val{
-			"in":    field(lr, SymbolFromRawString("in")),
-			"value": field(lr, SymbolFromRawString("value")),
+		return Assign(r, FromMap(Struct{
+			"in":    Field(lr, SymbolFromRawString("in")),
+			"value": Field(lr, SymbolFromRawString("value")),
 		}))
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
-		"in":         field(lr, SymbolFromRawString("in")),
-		"value":      List(SymbolFromRawString("quote"), field(lr, SymbolFromRawString("value"))),
-		"close-list": field(lr, SymbolFromRawString("close-list")),
+	return Assign(r, FromMap(Struct{
+		"in":         Field(lr, SymbolFromRawString("in")),
+		"value":      List(SymbolFromRawString("quote"), Field(lr, SymbolFromRawString("value"))),
+		"close-list": Field(lr, SymbolFromRawString("close-list")),
 	}))
 }
 
@@ -413,8 +413,8 @@ func readVector(r *Val) *Val {
 		return r
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
-		"value": Cons(SymbolFromRawString("vector:"), field(r, SymbolFromRawString("value"))),
+	return Assign(r, FromMap(Struct{
+		"value": Cons(SymbolFromRawString("vector:"), Field(r, SymbolFromRawString("value"))),
 	}))
 }
 
@@ -424,8 +424,8 @@ func readStruct(r *Val) *Val {
 		return r
 	}
 
-	return Assign(r, fromMap(map[string]*Val{
-		"value": Cons(SymbolFromRawString("struct:"), field(r, SymbolFromRawString("value"))),
+	return Assign(r, FromMap(Struct{
+		"value": Cons(SymbolFromRawString("struct:"), Field(r, SymbolFromRawString("value"))),
 	}))
 }
 

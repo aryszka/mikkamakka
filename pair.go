@@ -21,11 +21,7 @@ func Cdr(p *Val) *Val {
 }
 
 func IsPair(a *Val) *Val {
-	if a.mtype == pair {
-		return True
-	}
-
-	return False
+	return is(a, pair)
 }
 
 func IsNil(a *Val) *Val {
