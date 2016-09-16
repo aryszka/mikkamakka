@@ -124,8 +124,8 @@ func Eq(v ...*Val) *Val {
 		return eqT(v, IsString, stringEq)
 	}
 
-	if isSymbol(v[0]) != False {
-		return eqT(v, isSymbol, smeq)
+	if IsSymbol(v[0]) != False {
+		return eqT(v, IsSymbol, symbolEq)
 	}
 
 	if v[0] == v[1] {

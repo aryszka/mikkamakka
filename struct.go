@@ -13,7 +13,7 @@ func fromMap(m map[string]*Val) *Val {
 func field(s, f *Val) *Val {
 	checkType(s, mstruct)
 	checkType(f, symbol)
-	name := sstringVal(f)
+	name := RawSymbolString(f)
 	v, ok := s.value.(*tstruct).sys[name]
 	if !ok {
 		panic("undefined field name: " + name)
@@ -40,11 +40,11 @@ func structFromList(l *Val) *Val {
 			break
 		}
 
-		if IsPair(l) == False || IsPair(Cdr(l)) == False || isSymbol(Car(l)) == False {
+		if IsPair(l) == False || IsPair(Cdr(l)) == False || IsSymbol(Car(l)) == False {
 			return fatal(invalidStruct)
 		}
 
-		sys[sstringVal(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
+		sys[RawSymbolString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
 	}
 
 	return fromMap(sys)
@@ -63,7 +63,7 @@ func structNames(s *Val) *Val {
 
 	n := Nil
 	for k, _ := range s.value.(*tstruct).sys {
-		n = Cons(sfromString(k), n)
+		n = Cons(SymbolFromRawString(k), n)
 	}
 
 	return n
@@ -72,7 +72,7 @@ func structNames(s *Val) *Val {
 func structVal(s, n *Val) *Val {
 	checkType(s, mstruct)
 	checkType(n, symbol)
-	ns := sstringVal(n)
+	ns := RawSymbolString(n)
 
 	if v, ok := s.value.(*tstruct).sys[ns]; !ok {
 		return fatal(undefined)

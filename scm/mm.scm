@@ -515,13 +515,13 @@
 (def (compile-string v) (string-append " mm.StringFromRaw(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.True " " mm.False "))
 (def (compile-nil v) " mm.Nil ")
-(def (compile-quote-literal v) (string-append " mm.List(mm.SfromString("
+(def (compile-quote-literal v) (string-append " mm.List(mm.SymbolFromRawString("
                                       (escape-compiled-string (symbol->string 'quote))
                                       "), "
                                       (compile-literal (car (cdr v)))
                                       ") "))
 (def (compile-quote v) (compile-literal (car (cdr v))))
-(def (compile-symbol v) (string-append " mm.SfromString("
+(def (compile-symbol v) (string-append " mm.SymbolFromRawString("
                                        (escape-compiled-string (symbol->string v))
                                        ") "))
 

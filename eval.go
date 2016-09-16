@@ -44,7 +44,7 @@ func mappend(left, right *Val) *Val {
 }
 
 func isTaggedBy(v, s *Val) *Val {
-	if IsPair(v) != False && isSymbol(Car(v)) != False && smeq(Car(v), s) != False {
+	if IsPair(v) != False && IsSymbol(Car(v)) != False && Eq(Car(v), s) != False {
 		return True
 	}
 
@@ -52,7 +52,7 @@ func isTaggedBy(v, s *Val) *Val {
 }
 
 func isQuote(v *Val) *Val {
-	return isTaggedBy(v, sfromString("quote"))
+	return isTaggedBy(v, SymbolFromRawString("quote"))
 }
 
 func evalQuote(e, v *Val) *Val {
@@ -64,15 +64,15 @@ func evalQuote(e, v *Val) *Val {
 }
 
 func makeFn(a, b *Val) *Val {
-	return Cons(sfromString("fn"), Cons(a, b))
+	return Cons(SymbolFromRawString("fn"), Cons(a, b))
 }
 
 func isDef(v *Val) *Val {
-	return isTaggedBy(v, sfromString("def"))
+	return isTaggedBy(v, SymbolFromRawString("def"))
 }
 
 func isVectorForm(v *Val) *Val {
-	return isTaggedBy(v, sfromString("vector:"))
+	return isTaggedBy(v, SymbolFromRawString("vector:"))
 }
 
 func evalVector(e, v *Val) *Val {
@@ -84,7 +84,7 @@ func evalVector(e, v *Val) *Val {
 }
 
 func isStructForm(v *Val) *Val {
-	return isTaggedBy(v, sfromString("struct:"))
+	return isTaggedBy(v, SymbolFromRawString("struct:"))
 }
 
 func evalStructValues(e, v *Val) *Val {
@@ -118,7 +118,7 @@ func nameOfDef(v *Val) *Val {
 }
 
 func nameOfFunctionDef(v *Val) *Val {
-	if IsPair(Car(Cdr(v))) == False || isSymbol(Car(Car(Cdr(v)))) == False {
+	if IsPair(Car(Cdr(v))) == False || IsSymbol(Car(Car(Cdr(v)))) == False {
 		return fatal(invalidDef)
 	}
 
@@ -130,7 +130,7 @@ func defName(v *Val) *Val {
 		return fatal(invalidDef)
 	}
 
-	if isSymbol(Car(Cdr(v))) != False {
+	if IsSymbol(Car(Cdr(v))) != False {
 		return nameOfDef(v)
 	}
 
@@ -150,7 +150,7 @@ func defValue(v *Val) *Val {
 		return fatal(invalidDef)
 	}
 
-	if isSymbol(Car(Cdr(v))) != False {
+	if IsSymbol(Car(Cdr(v))) != False {
 		return valueOfDef(v)
 	}
 
@@ -166,7 +166,7 @@ func evalDef(e, v *Val) *Val {
 }
 
 func isIf(v *Val) *Val {
-	return isTaggedBy(v, sfromString("if"))
+	return isTaggedBy(v, SymbolFromRawString("if"))
 }
 
 func ifPredicate(v *Val) *Val {
@@ -204,7 +204,7 @@ func evalIf(e, v *Val) *Val {
 }
 
 func isAnd(v *Val) *Val {
-	return isTaggedBy(v, sfromString("and"))
+	return isTaggedBy(v, SymbolFromRawString("and"))
 }
 
 func evalAnd(e, v *Val) *Val {
@@ -229,7 +229,7 @@ func evalAnd(e, v *Val) *Val {
 }
 
 func isOr(v *Val) *Val {
-	return isTaggedBy(v, sfromString("or"))
+	return isTaggedBy(v, SymbolFromRawString("or"))
 }
 
 func evalOr(e, v *Val) *Val {
@@ -254,12 +254,12 @@ func evalOr(e, v *Val) *Val {
 }
 
 func isFunctionLiteral(v *Val) *Val {
-	return isTaggedBy(v, sfromString("fn"))
+	return isTaggedBy(v, SymbolFromRawString("fn"))
 }
 
 func fnParams(v *Val) *Val {
 	if IsPair(v) == False || IsPair(Cdr(v)) == False ||
-		isSymbol(Car(Cdr(v))) == False && IsPair(Car(Cdr(v))) == False && IsNil(Car(Cdr(v))) == False {
+		IsSymbol(Car(Cdr(v))) == False && IsPair(Car(Cdr(v))) == False && IsNil(Car(Cdr(v))) == False {
 		return fatal(invalidFn)
 	}
 
@@ -279,7 +279,7 @@ func fnToFunc(e, v *Val) *Val {
 }
 
 func isBegin(v *Val) *Val {
-	return isTaggedBy(v, sfromString("begin"))
+	return isTaggedBy(v, SymbolFromRawString("begin"))
 }
 
 func beginSeq(v *Val) *Val {
@@ -304,7 +304,7 @@ func evalSeq(e, v *Val) *Val {
 }
 
 func isCond(v *Val) *Val {
-	return isTaggedBy(v, sfromString("cond"))
+	return isTaggedBy(v, SymbolFromRawString("cond"))
 }
 
 func seqToExp(v *Val) *Val {
@@ -316,7 +316,7 @@ func seqToExp(v *Val) *Val {
 		return Car(v)
 	}
 
-	return Cons(sfromString("begin"), v)
+	return Cons(SymbolFromRawString("begin"), v)
 }
 
 func expandCond(v *Val) *Val {
@@ -333,7 +333,7 @@ func expandCond(v *Val) *Val {
 
 	pred := Car(cond)
 
-	if isSymbol(pred) != False && smeq(pred, sfromString("else")) != False {
+	if IsSymbol(pred) != False && Eq(pred, SymbolFromRawString("else")) != False {
 		if IsNil(rest) == False {
 			return fatal(invalidCond)
 		}
@@ -342,7 +342,7 @@ func expandCond(v *Val) *Val {
 	}
 
 	return List(
-		sfromString("if"),
+		SymbolFromRawString("if"),
 		pred,
 		seqToExp(Cdr(cond)),
 		expandCond(rest),
@@ -358,7 +358,7 @@ func condToIf(v *Val) *Val {
 }
 
 func isLet(v *Val) *Val {
-	return isTaggedBy(v, sfromString("let"))
+	return isTaggedBy(v, SymbolFromRawString("let"))
 }
 
 func letDefs(v *Val) *Val {
@@ -371,7 +371,7 @@ func letDefs(v *Val) *Val {
 	}
 
 	return Cons(
-		List(sfromString("def"), Car(v), Car(Cdr(v))),
+		List(SymbolFromRawString("def"), Car(v), Car(Cdr(v))),
 		letDefs(Cdr(Cdr(v))),
 	)
 }
@@ -389,7 +389,7 @@ func expandLet(v *Val) *Val {
 }
 
 func isTest(v *Val) *Val {
-	return isTaggedBy(v, sfromString("test"))
+	return isTaggedBy(v, SymbolFromRawString("test"))
 }
 
 // TODO: should be and
@@ -411,7 +411,7 @@ func evalTest(e, v *Val) *Val {
 		return fatal(result)
 	}
 
-	return sfromString("test-complete")
+	return SymbolFromRawString("test-complete")
 }
 
 func isApplication(v *Val) *Val {
@@ -476,7 +476,7 @@ func eval(e, v *Val) *Val {
 		return v
 	case isQuote(v) != False:
 		return evalQuote(e, v)
-	case isSymbol(v) != False:
+	case IsSymbol(v) != False:
 		return lookupDef(e, v)
 	case isDef(v) != False:
 		return evalDef(e, v)

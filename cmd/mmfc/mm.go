@@ -12,7 +12,7 @@ func loop(env, in *mm.Val) {
 	// - display errors
 
 	in = mm.Read(in)
-	v := mm.Field(in, mm.SfromString("value"))
+	v := mm.Field(in, mm.SymbolFromRawString("value"))
 	if mm.IsError(v) != mm.False {
 		if v == mm.Eof {
 			return

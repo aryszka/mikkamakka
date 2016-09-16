@@ -29,7 +29,7 @@ func lookupDef(e, n *Val) *Val {
 		return fatal(notAnEnvironment)
 	}
 
-	ns := sstringVal(n)
+	ns := RawSymbolString(n)
 	if v, ok := et.current[ns]; ok {
 		return v
 	}
@@ -54,12 +54,12 @@ func defineStruct(e, n, s, names *Val) *Val {
 
 	define(
 		e,
-		sfromString(
+		SymbolFromRawString(
 			RawString(
 				AppendString(
-					symbolToString(n),
+					SymbolToString(n),
 					StringFromRaw(":"),
-					symbolToString(Car(names)),
+					SymbolToString(Car(names)),
 				),
 			),
 		),
@@ -77,7 +77,7 @@ func define(e, n, v *Val) *Val {
 		return fatal(notAnEnvironment)
 	}
 
-	ns := sstringVal(n)
+	ns := RawSymbolString(n)
 	if _, has := et.current[ns]; has {
 		return fatal(definitionExists)
 	}
@@ -163,50 +163,50 @@ func newBuiltin2(f func(*Val, *Val) *Val) *Val {
 func InitialEnv() *Val {
 	env := newEnv(nil)
 
-	define(env, sfromString("nil"), Nil)
-	define(env, sfromString("nil?"), newBuiltin1(IsNil))
-	define(env, sfromString("pair?"), newBuiltin1(IsPair))
-	define(env, sfromString("cons"), newBuiltin2(Cons))
-	define(env, sfromString("car"), newBuiltin1(Car))
-	define(env, sfromString("cdr"), newBuiltin1(Cdr))
-	define(env, sfromString("list"), newBuiltin0V(List))
-	define(env, sfromString("apply"), newBuiltin2(Apply))
-	define(env, sfromString("error?"), newBuiltin1(isError))
-	define(env, sfromString("string->error"), newBuiltin1(stringToError))
-	define(env, sfromString("fatal"), newBuiltin1(fatal))
-	define(env, sfromString("not"), newBuiltin1(Not))
-	define(env, sfromString("="), newBuiltin0V(Eq))
-	define(env, sfromString(">"), newBuiltin0V(Greater))
-	define(env, sfromString("+"), newBuiltin0V(Add))
-	define(env, sfromString("string->number"), newBuiltin1(NumberFromString))
-	define(env, sfromString("string->bool"), newBuiltin1(BoolFromString))
-	define(env, sfromString("symbol?"), newBuiltin1(isSymbol))
-	define(env, sfromString("symbol->string"), newBuiltin1(symbolToString))
-	define(env, sfromString("string->symbol"), newBuiltin1(stringToSymbol))
-	define(env, sfromString("number?"), newBuiltin1(IsNumber))
-	define(env, sfromString("number->string"), newBuiltin1(NumberToString))
-	define(env, sfromString("bool?"), newBuiltin1(IsBool))
-	define(env, sfromString("bool->string"), newBuiltin1(BoolToString))
-	define(env, sfromString("string?"), newBuiltin1(IsString))
-	define(env, sfromString("assign"), newBuiltin0V(Assign))
-	define(env, sfromString("fopen"), newBuiltin1(fopen))
-	define(env, sfromString("fclose"), newBuiltin1(fclose))
-	define(env, sfromString("fread"), newBuiltin2(fread))
-	define(env, sfromString("fwrite"), newBuiltin2(fwrite))
-	define(env, sfromString("fstate"), newBuiltin1(fstate))
-	define(env, sfromString("derived-object?"), newBuiltin2(derivedObject))
-	define(env, sfromString("failing-reader"), newBuiltin0(failingReader))
-	define(env, sfromString("eof"), Eof)
-	define(env, sfromString("stdin"), newBuiltin0(stdin))
-	define(env, sfromString("stderr"), newBuiltin0(stderr))
-	define(env, sfromString("stdout"), newBuiltin0(stdout))
-	define(env, sfromString("buffer"), newBuiltin0(buffer))
-	define(env, sfromString("argv"), newBuiltin0(argv))
-	define(env, sfromString("invalid-token"), invalidToken)
-	define(env, sfromString("string-append"), newBuiltin0V(AppendString))
-	define(env, sfromString("escape-compiled-string"), newBuiltin1(EscapeCompiled))
-	define(env, sfromString("printer"), newBuiltin1(printer))
-	define(env, sfromString("print"), newBuiltin2(mprint))
+	define(env, SymbolFromRawString("nil"), Nil)
+	define(env, SymbolFromRawString("nil?"), newBuiltin1(IsNil))
+	define(env, SymbolFromRawString("pair?"), newBuiltin1(IsPair))
+	define(env, SymbolFromRawString("cons"), newBuiltin2(Cons))
+	define(env, SymbolFromRawString("car"), newBuiltin1(Car))
+	define(env, SymbolFromRawString("cdr"), newBuiltin1(Cdr))
+	define(env, SymbolFromRawString("list"), newBuiltin0V(List))
+	define(env, SymbolFromRawString("apply"), newBuiltin2(Apply))
+	define(env, SymbolFromRawString("error?"), newBuiltin1(isError))
+	define(env, SymbolFromRawString("string->error"), newBuiltin1(stringToError))
+	define(env, SymbolFromRawString("fatal"), newBuiltin1(fatal))
+	define(env, SymbolFromRawString("not"), newBuiltin1(Not))
+	define(env, SymbolFromRawString("="), newBuiltin0V(Eq))
+	define(env, SymbolFromRawString(">"), newBuiltin0V(Greater))
+	define(env, SymbolFromRawString("+"), newBuiltin0V(Add))
+	define(env, SymbolFromRawString("string->number"), newBuiltin1(NumberFromString))
+	define(env, SymbolFromRawString("string->bool"), newBuiltin1(BoolFromString))
+	define(env, SymbolFromRawString("symbol?"), newBuiltin1(IsSymbol))
+	define(env, SymbolFromRawString("symbol->string"), newBuiltin1(SymbolToString))
+	define(env, SymbolFromRawString("string->symbol"), newBuiltin1(SymbolFromString))
+	define(env, SymbolFromRawString("number?"), newBuiltin1(IsNumber))
+	define(env, SymbolFromRawString("number->string"), newBuiltin1(NumberToString))
+	define(env, SymbolFromRawString("bool?"), newBuiltin1(IsBool))
+	define(env, SymbolFromRawString("bool->string"), newBuiltin1(BoolToString))
+	define(env, SymbolFromRawString("string?"), newBuiltin1(IsString))
+	define(env, SymbolFromRawString("assign"), newBuiltin0V(Assign))
+	define(env, SymbolFromRawString("fopen"), newBuiltin1(fopen))
+	define(env, SymbolFromRawString("fclose"), newBuiltin1(fclose))
+	define(env, SymbolFromRawString("fread"), newBuiltin2(fread))
+	define(env, SymbolFromRawString("fwrite"), newBuiltin2(fwrite))
+	define(env, SymbolFromRawString("fstate"), newBuiltin1(fstate))
+	define(env, SymbolFromRawString("derived-object?"), newBuiltin2(derivedObject))
+	define(env, SymbolFromRawString("failing-reader"), newBuiltin0(failingReader))
+	define(env, SymbolFromRawString("eof"), Eof)
+	define(env, SymbolFromRawString("stdin"), newBuiltin0(stdin))
+	define(env, SymbolFromRawString("stderr"), newBuiltin0(stderr))
+	define(env, SymbolFromRawString("stdout"), newBuiltin0(stdout))
+	define(env, SymbolFromRawString("buffer"), newBuiltin0(buffer))
+	define(env, SymbolFromRawString("argv"), newBuiltin0(argv))
+	define(env, SymbolFromRawString("invalid-token"), invalidToken)
+	define(env, SymbolFromRawString("string-append"), newBuiltin0V(AppendString))
+	define(env, SymbolFromRawString("escape-compiled-string"), newBuiltin1(EscapeCompiled))
+	define(env, SymbolFromRawString("printer"), newBuiltin1(printer))
+	define(env, SymbolFromRawString("print"), newBuiltin2(mprint))
 
 	return (*Val)(env)
 }

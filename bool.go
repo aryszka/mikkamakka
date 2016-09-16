@@ -19,7 +19,6 @@ func BoolFromRawString(s string) *Val {
 }
 
 func BoolFromString(s *Val) *Val {
-	checkType(s, mstring)
 	return BoolFromRawString(RawString(s))
 }
 
