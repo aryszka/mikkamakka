@@ -5,23 +5,25 @@ var (
 	True  = &Val{mbool, true}
 )
 
-func bfromString(s string) *Val {
+var InvalidBoolString = &Val{merror, "invalid bool string"}
+
+func BoolFromRawString(s string) *Val {
 	switch s {
 	case "true":
 		return True
 	case "false":
 		return False
 	default:
-		return invalidToken
+		return InvalidBoolString
 	}
 }
 
-func tryBoolFromString(s *Val) *Val {
+func BoolFromString(s *Val) *Val {
 	checkType(s, mstring)
-	return bfromString(RawString(s))
+	return BoolFromRawString(RawString(s))
 }
 
-func boolToString(b *Val) *Val {
+func BoolToString(b *Val) *Val {
 	if b == True {
 		return StringFromRaw("true")
 	}
@@ -29,7 +31,7 @@ func boolToString(b *Val) *Val {
 	return StringFromRaw("false")
 }
 
-func isBool(a *Val) *Val {
+func IsBool(a *Val) *Val {
 	if a.mtype == mbool {
 		return True
 	}
@@ -37,40 +39,9 @@ func isBool(a *Val) *Val {
 	return False
 }
 
-func and(v ...*Val) *Val {
-	if len(v) == 0 {
-		return True
-	}
-
-	if len(v) == 1 || v[0] == False {
-		return v[0]
-	}
-
-	return and(v[1:]...)
-}
-
-func band(v []*Val) *Val {
-	return and(v...)
-}
-
-func or(v ...*Val) *Val {
-	if len(v) == 0 {
-		return False
-	}
-
-	if len(v) == 1 || v[0] != False {
-		return v[0]
-	}
-
-	return or(v[1:]...)
-}
-
-func bor(v []*Val) *Val {
-	return or(v...)
-}
-
-func not(a *Val) *Val {
+func Not(a *Val) *Val {
 	checkType(a, mbool)
+
 	if a == False {
 		return True
 	}

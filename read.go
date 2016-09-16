@@ -72,7 +72,7 @@ func symbolToken(t *Val) *Val {
 		return v
 	}
 
-	v = bfromString(RawString(t))
+	v = BoolFromRawString(RawString(t))
 	if isError(v) == False {
 		return v
 	}

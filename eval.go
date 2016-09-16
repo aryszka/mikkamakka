@@ -470,7 +470,7 @@ func eval(e, v *Val) *Val {
 		return v
 	case IsString(v) != False:
 		return v
-	case isBool(v) != False:
+	case IsBool(v) != False:
 		return v
 	case IsNil(v) != False:
 		return v

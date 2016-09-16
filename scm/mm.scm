@@ -195,7 +195,7 @@
       (let (v ((car parsers) r:token))
         (if (error? v) (apply try-parse (cdr parsers)) v))))
   (assign r {value (try-parse string->number
-                              try-string->bool)}))
+                              string->bool)}))
 
 
 (test "symbol-token"

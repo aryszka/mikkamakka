@@ -168,8 +168,8 @@ func mprintq(p, v, q *Val) *Val {
 		v = NumberToString(v)
 	} else if IsString(v) != False {
 		v = AppendString(StringFromRaw(`"`), v, StringFromRaw(`"`))
-	} else if isBool(v) != False {
-		v = boolToString(v)
+	} else if IsBool(v) != False {
+		v = BoolToString(v)
 	} else if isSys(v) != False {
 		v = sstring(v)
 	} else if isError(v) != False {
