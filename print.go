@@ -97,7 +97,7 @@ func printVector(p, v *Val) *Val {
 
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p, i, f *Val) *Val {
-		if numberEq(i, vectorLength(v)) != False {
+		if numberEq(i, VectorLength(v)) != False {
 			return p
 		}
 
@@ -108,7 +108,7 @@ func printVector(p, v *Val) *Val {
 			}
 		}
 
-		p = mprintq(p, vectorRef(v, i), True)
+		p = mprintq(p, VectorRef(v, i), True)
 		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
 			return p
 		}
@@ -178,7 +178,7 @@ func mprintq(p, v, q *Val) *Val {
 		return printQuote(p, v)
 	} else if IsPair(v) != False || IsNil(v) != False {
 		return printPair(p, v, q)
-	} else if isVector(v) != False {
+	} else if IsVector(v) != False {
 		return printVector(p, v)
 	} else if IsStruct(v) != False {
 		return printStruct(p, v)

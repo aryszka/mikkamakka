@@ -1,11 +1,13 @@
 package mikkamakka
 
-type vect struct {
-	items []*Val
+type Vector []*Val
+
+func VectorFromSlice(s Vector) *Val {
+	return &Val{vector, s}
 }
 
-func vectorFromList(l *Val) *Val {
-	var items []*Val
+func VectorFromList(l *Val) *Val {
+	var items Vector
 	for {
 		if l == Nil {
 			break
@@ -14,28 +16,19 @@ func vectorFromList(l *Val) *Val {
 		items, l = append(items, Car(l)), Cdr(l)
 	}
 
-	return &Val{vector, &vect{items}}
+	return VectorFromSlice(items)
 }
 
-func isVector(a *Val) *Val {
-	if a.mtype == vector {
-		return True
-	}
-
-	return False
+func IsVector(a *Val) *Val {
+	return is(a, vector)
 }
 
-func vectorLength(v *Val) *Val {
+func VectorLength(v *Val) *Val {
 	checkType(v, vector)
-	return NumberFromRawInt(len(v.value.(*vect).items))
+	return NumberFromRawInt(len(v.value.(Vector)))
 }
 
-func vectorRef(v, i *Val) *Val {
+func VectorRef(v, i *Val) *Val {
 	checkType(v, vector)
-	checkType(i, number)
-	return v.value.(*vect).items[RawInt(i)]
-}
-
-func VectorFromList(v *Val) *Val {
-	return vectorFromList(v)
+	return v.value.(Vector)[RawInt(i)]
 }

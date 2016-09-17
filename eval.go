@@ -80,7 +80,7 @@ func evalVector(e, v *Val) *Val {
 		return fatal(invalidVector)
 	}
 
-	return vectorFromList(valueList(e, Cdr(v)))
+	return VectorFromList(valueList(e, Cdr(v)))
 }
 
 func isStructForm(v *Val) *Val {
