@@ -1,15 +1,13 @@
 package mikkamakka
 
-type Vector []*Val
-
-func VectorFromSlice(s Vector) *Val {
-	return &Val{vector, s}
+func VectorFromSlice(s []*Val) *Val {
+	return newVal(Vector, s)
 }
 
 func VectorFromList(l *Val) *Val {
-	var items Vector
+	var items []*Val
 	for {
-		if l == Nil {
+		if l == NilVal {
 			break
 		}
 
@@ -20,15 +18,15 @@ func VectorFromList(l *Val) *Val {
 }
 
 func IsVector(a *Val) *Val {
-	return is(a, vector)
+	return is(a, Vector)
 }
 
 func VectorLen(v *Val) *Val {
-	checkType(v, vector)
-	return NumberFromRawInt(len(v.value.(Vector)))
+	checkType(v, Vector)
+	return SysIntToNumber(len(v.value.([]*Val)))
 }
 
 func VectorRef(v, i *Val) *Val {
-	checkType(v, vector)
-	return v.value.(Vector)[RawInt(i)]
+	checkType(v, Vector)
+	return v.value.([]*Val)[NumberToSysInt(i)]
 }

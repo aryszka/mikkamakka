@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-const (
-	IncompatibleResource = "incompatible resource"
-	DiscardedResource    = "discarded resource"
+var (
+	IncompatibleResource = SysStringToError("incompatible resource")
+	DiscardedResource    = SysStringToError("discarded resource")
 )
 
 type file struct {
@@ -17,50 +17,50 @@ type file struct {
 	err *Val
 }
 
-var Eof = ErrorFromRawString("EOF")
+var Eof = SysStringToError("EOF")
 
 func IsSys(a *Val) *Val {
-	return is(a, sys)
+	return is(a, Sys)
 }
 
 func Fopen(a *Val) *Val {
-	f, err := os.Open(RawString(a))
+	f, err := os.Open(StringToSysString(a))
 	if err != nil {
-		return ErrorFromSysError(err)
+		return SysErrorToError(err)
 	}
 
-	return &Val{sys, &file{sys: f}}
+	return newVal(Sys, &file{sys: f})
 }
 
 func Stdin() *Val {
-	return &Val{sys, &file{sys: os.Stdin}}
+	return newVal(Sys, &file{sys: os.Stdin})
 }
 
 func Stdout() *Val {
-	return &Val{sys, &file{sys: os.Stdout}}
+	return newVal(Sys, &file{sys: os.Stdout})
 }
 
 func Stderr() *Val {
-	return &Val{sys, &file{sys: os.Stderr}}
+	return newVal(Sys, &file{sys: os.Stderr})
 }
 
 func Fstate(f *Val) *Val {
-	checkType(f, sys)
+	checkType(f, Sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(DiscardedResource)
+		Fatal(DiscardedResource)
 	}
 
 	if ft.err != nil {
 		return ft.err
 	}
 
-	return StringFromRaw(string(ft.buf))
+	return SysStringToString(string(ft.buf))
 }
 
 func sysErr(err error) *Val {
@@ -68,75 +68,75 @@ func sysErr(err error) *Val {
 	if err == io.EOF {
 		v = Eof
 	} else if err != nil {
-		v = ErrorFromSysError(err)
+		v = SysErrorToError(err)
 	}
 
 	return v
 }
 
 func Fread(f *Val, n *Val) *Val {
-	checkType(f, sys)
+	checkType(f, Sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(DiscardedResource)
+		Fatal(DiscardedResource)
 	}
 
 	sv := ft.sys
 	r, ok := sv.(io.Reader)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	ft.sys = nil
 
-	buf := make([]byte, RawInt(n))
+	buf := make([]byte, NumberToSysInt(n))
 	rn, err := r.Read(buf)
 	buf = buf[:rn]
 	serr := sysErr(err)
 
-	return &Val{sys, &file{sys: sv, buf: buf, err: serr}}
+	return newVal(Sys, &file{sys: sv, buf: buf, err: serr})
 }
 
 func Fwrite(f *Val, s *Val) *Val {
-	checkType(f, sys)
+	checkType(f, Sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(DiscardedResource)
+		Fatal(DiscardedResource)
 	}
 
 	sv := ft.sys
 	w, ok := sv.(io.Writer)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	ft.sys = nil
 
-	_, err := w.Write(RawBytes(s))
+	_, err := w.Write(StringToBytes(s))
 	serr := sysErr(err)
-	return &Val{sys, &file{sys: sv, err: serr}}
+	return newVal(Sys, &file{sys: sv, err: serr})
 }
 
 func Fclose(f *Val) *Val {
-	checkType(f, sys)
+	checkType(f, Sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(IncompatibleResource)
+		Fatal(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(DiscardedResource)
+		Fatal(DiscardedResource)
 	}
 
 	sv := ft.sys
@@ -147,22 +147,22 @@ func Fclose(f *Val) *Val {
 		serr = sysErr(err)
 	}
 
-	return &Val{sys, &file{sys: sv, err: serr}}
+	return newVal(Sys, &file{sys: sv, err: serr})
 }
 
 func SysToString(f *Val) *Val {
-	checkType(f, sys)
-	return StringFromRaw("<file>")
+	checkType(f, Sys)
+	return SysStringToString("<file>")
 }
 
 func Buffer() *Val {
-	return &Val{sys, &file{sys: bytes.NewBuffer(nil)}}
+	return newVal(Sys, &file{sys: bytes.NewBuffer(nil)})
 }
 
 func Argv() *Val {
-	argv := Nil
+	argv := NilVal
 	for i := len(os.Args) - 1; i >= 0; i-- {
-		argv = Cons(StringFromRaw(os.Args[i]), argv)
+		argv = Cons(SysStringToString(os.Args[i]), argv)
 	}
 
 	return argv

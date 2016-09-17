@@ -1,26 +1,26 @@
 package mikkamakka
 
-type Function func([]*Val) *Val
+type function func([]*Val) *Val
 
 type fn struct {
-	compiled  Function
+	compiled  function
 	composite *Val
 }
 
 var (
-	InvalidArgs  = ErrorFromRawString("invalid arguments")
-	NotCompiled  = ErrorFromRawString("not a compiled function")
-	NotComposite = ErrorFromRawString("not a composite function")
+	InvalidArgs  = SysStringToError("invalid arguments")
+	NotCompiled  = SysStringToError("not a compiled function")
+	NotComposite = SysStringToError("not a composite function")
 )
 
 func NewComposite(v *Val) *Val {
-	return &Val{function, &fn{composite: v}}
+	return newVal(Function, &fn{composite: v})
 }
 
 // needs the names
-func NewCompiled(argCount int, variadic bool, f Function) *Val {
-	return &Val{
-		function,
+func NewCompiled(argCount int, variadic bool, f func([]*Val) *Val) *Val {
+	return newVal(
+		Function,
 		&fn{
 			compiled: func(a []*Val) *Val {
 				if len(a) < argCount {
@@ -32,11 +32,11 @@ func NewCompiled(argCount int, variadic bool, f Function) *Val {
 				}
 
 				return f(a)
-			}}}
+			}})
 }
 
 func IsCompiledFunction(e *Val) *Val {
-	if e.mtype == function && e.value.(*fn).compiled != nil {
+	if e.typ == Function && e.value.(*fn).compiled != nil {
 		return True
 	}
 
@@ -44,7 +44,7 @@ func IsCompiledFunction(e *Val) *Val {
 }
 
 func IsFunction(v *Val) *Val {
-	if v.mtype == function {
+	if v.typ == Function {
 		return True
 	}
 
@@ -52,8 +52,8 @@ func IsFunction(v *Val) *Val {
 }
 
 func FunctionToString(f *Val) *Val {
-	checkType(f, function)
-	return StringFromRaw("<function>")
+	checkType(f, Function)
+	return SysStringToString("<function>")
 }
 
 func listToSlice(l *Val) []*Val {
@@ -70,7 +70,7 @@ func listToSlice(l *Val) []*Val {
 }
 
 func ApplyCompiled(f, a *Val) *Val {
-	checkType(f, function)
+	checkType(f, Function)
 
 	ft := f.value.(*fn)
 	if ft.compiled == nil {
@@ -81,7 +81,7 @@ func ApplyCompiled(f, a *Val) *Val {
 }
 
 func Composite(f *Val) *Val {
-	checkType(f, function)
+	checkType(f, Function)
 
 	ft := f.value.(*fn)
 	if ft.composite == nil {

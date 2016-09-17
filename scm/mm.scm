@@ -506,10 +506,10 @@
 (def (application? v) (pair? v))
 
 
-(def (compile-number v) (string-append " mm.NumberFromRawInt(" (number->string v) ") "))
-(def (compile-string v) (string-append " mm.StringFromRaw(" (escape-compiled-string v) ") "))
+(def (compile-number v) (string-append " mm.SysIntToNumber(" (number->string v) ") "))
+(def (compile-string v) (string-append " mm.SysStringToString(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.True " " mm.False "))
-(def (compile-nil v) " mm.Nil ")
+(def (compile-nil v) " mm.NilVal ")
 (def (compile-quote-literal v) (string-append " mm.List(mm.SymbolFromRawString("
                                       (escape-compiled-string (symbol->string 'quote))
                                       "), "
@@ -690,7 +690,7 @@
                                " { return mm.Fatal(result) }; "
                                (compile-test-seq (cdr v))))))
   (string-append " func() *mm.Val { "
-                 " env := mm.ExtendEnv(env, mm.Nil, mm.Nil); env = env; "
+                 " env := mm.ExtendEnv(env, mm.NilVal, mm.NilVal); env = env; "
                  (compile-test-seq (cdr v))
                  " }() "))
 
@@ -709,7 +709,7 @@
 
 (def (compile-struct v)
   (def (compile-struct-values v)
-    (cond ((nil? v) " mm.Nil ")
+    (cond ((nil? v) " mm.NilVal ")
           (else (string-append " mm.Cons( "
                                (compile-literal (car v))
                                ", mm.Cons( "
@@ -717,13 +717,13 @@
                                ", "
                                (compile-struct-values (cdr (cdr v)))
                                ")) "))))
-  (string-append " mm.StructFromList("
+  (string-append " mm.ListToStruct("
                  (compile-struct-values (cdr v))
                  ") "))
 
 
 (def (compile-value-list v)
-  (cond ((nil? v) " mm.Nil ")
+  (cond ((nil? v) " mm.NilVal ")
         ((not (pair? v)) (fatal invalid-application))
         (else (string-append " mm.Cons( "
                              (compile-exp (car v))

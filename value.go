@@ -5,26 +5,26 @@ import (
 	"strings"
 )
 
-type mtype int
+type Type int
 
 const (
-	notype mtype = iota
-	symbol
-	number
-	mstring
-	mbool
-	pair
-	mnil
-	vector
-	mstruct
-	function
-	sys
-	merror // true or false? turn into false
-	environment
+	Notype Type = iota
+	Symbol
+	Number
+	String
+	Bool
+	Pair
+	Nil
+	Vector
+	Struct
+	Function
+	Sys
+	Error // true or false? turn into false
+	Environment
 )
 
 type Val struct {
-	mtype mtype
+	typ   Type
 	value interface{}
 }
 
@@ -33,46 +33,50 @@ type (
 	typeEq    func(*Val, *Val) *Val
 )
 
-func typeString(t mtype) string {
+func newVal(t Type, v interface{}) *Val {
+	return &Val{t, v}
+}
+
+func typeString(t Type) string {
 	switch t {
-	case symbol:
+	case Symbol:
 		return "symbol"
-	case number:
+	case Number:
 		return "number"
-	case mstring:
+	case String:
 		return "string"
-	case mbool:
+	case Bool:
 		return "bool"
-	case pair:
+	case Pair:
 		return "pair"
-	case mnil:
+	case Nil:
 		return "nil"
-	case vector:
+	case Vector:
 		return "vector"
-	case mstruct:
+	case Struct:
 		return "struct"
-	case sys:
+	case Sys:
 		return "sys"
-	case merror:
+	case Error:
 		return "error"
-	case environment:
+	case Environment:
 		return "environment"
-	case function:
+	case Function:
 		return "function"
 	default:
 		panic("invalid type")
 	}
 }
 
-func is(v *Val, t mtype) *Val {
-	if v.mtype == t {
+func is(v *Val, t Type) *Val {
+	if v.typ == t {
 		return True
 	}
 
 	return False
 }
 
-func unexpectedType(got mtype, v *Val, expected ...mtype) *Val {
+func unexpectedType(got Type, v *Val, expected ...Type) *Val {
 	s := make([]string, len(expected))
 	for i, e := range expected {
 		s[i] = typeString(e)
@@ -82,17 +86,17 @@ func unexpectedType(got mtype, v *Val, expected ...mtype) *Val {
 		"expected: %s, got: %s, with value: %v",
 		strings.Join(s, ", "),
 		typeString(got), v.value)
-	return Fatal(StringFromRaw(msg))
+	return Fatal(SysStringToString(msg))
 }
 
-func checkType(v *Val, expected ...mtype) *Val {
+func checkType(v *Val, expected ...Type) *Val {
 	for _, t := range expected {
-		if v.mtype == t {
+		if v.typ == t {
 			return True
 		}
 	}
 
-	return unexpectedType(v.mtype, v, expected...)
+	return unexpectedType(v.typ, v, expected...)
 }
 
 func eqT(v []*Val, tc typeCheck, teq typeEq) *Val {

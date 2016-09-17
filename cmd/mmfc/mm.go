@@ -19,7 +19,7 @@ func loop(env, in *mm.Val) {
 		}
 
 		if v == mm.UndefinedReadValue {
-			mm.Fatal(mm.StringFromRaw("failed to read value"))
+			mm.Fatal(mm.SysStringToString("failed to read value"))
 			return
 		}
 

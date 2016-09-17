@@ -1,29 +1,27 @@
 package mikkamakka
 
-type Struct map[string]*Val
+var InvalidStruct = SysStringToError("invalid struct")
 
-var InvalidStruct = ErrorFromRawString("invalid struct")
-
-func FromMap(m Struct) *Val {
-	return &Val{mstruct, m}
+func SysMapToStruct(m map[string]*Val) *Val {
+	return newVal(Struct, m)
 }
 
 func Assign(a ...*Val) *Val {
-	m := make(Struct)
+	m := make(map[string]*Val)
 	for _, ai := range a {
-		checkType(ai, mstruct)
-		for k, v := range ai.value.(Struct) {
+		checkType(ai, Struct)
+		for k, v := range ai.value.(map[string]*Val) {
 			m[k] = v
 		}
 	}
 
-	return FromMap(m)
+	return SysMapToStruct(m)
 }
 
-func StructFromList(l *Val) *Val {
-	m := make(Struct)
+func ListToStruct(l *Val) *Val {
+	m := make(map[string]*Val)
 	for {
-		if l == Nil {
+		if l == NilVal {
 			break
 		}
 
@@ -31,33 +29,33 @@ func StructFromList(l *Val) *Val {
 			return Fatal(InvalidStruct)
 		}
 
-		m[RawSymbolString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
+		m[SymbolToSysString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
 	}
 
-	return FromMap(m)
+	return SysMapToStruct(m)
 }
 
 func IsStruct(a *Val) *Val {
-	return is(a, mstruct)
+	return is(a, Struct)
 }
 
 func Field(s, f *Val) *Val {
-	checkType(s, mstruct)
+	checkType(s, Struct)
 
-	name := RawSymbolString(f)
-	v, ok := s.value.(Struct)[name]
+	name := SymbolToSysString(f)
+	v, ok := s.value.(map[string]*Val)[name]
 	if !ok {
-		return Fatal(ErrorFromRawString("undefined field name: " + name))
+		return Fatal(SysStringToError("undefined field name: " + name))
 	}
 
 	return v
 }
 
 func StructNames(s *Val) *Val {
-	checkType(s, mstruct)
+	checkType(s, Struct)
 
-	n := Nil
-	for k, _ := range s.value.(Struct) {
+	n := NilVal
+	for k, _ := range s.value.(map[string]*Val) {
 		n = Cons(SymbolFromRawString(k), n)
 	}
 

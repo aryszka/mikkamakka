@@ -1,13 +1,13 @@
 package mikkamakka
 
 var (
-	False = &Val{mbool, false}
-	True  = &Val{mbool, true}
+	False = newVal(Bool, false)
+	True  = newVal(Bool, true)
 )
 
-var InvalidBoolString = ErrorFromRawString("invalid bool string")
+var InvalidBoolString = SysStringToError("invalid bool string")
 
-func BoolFromRawString(s string) *Val {
+func SysStringToBool(s string) *Val {
 	switch s {
 	case "true":
 		return True
@@ -18,24 +18,24 @@ func BoolFromRawString(s string) *Val {
 	}
 }
 
-func BoolFromString(s *Val) *Val {
-	return BoolFromRawString(RawString(s))
+func StringToBool(s *Val) *Val {
+	return SysStringToBool(StringToSysString(s))
 }
 
 func BoolToString(b *Val) *Val {
 	if b == True {
-		return StringFromRaw("true")
+		return SysStringToString("true")
 	}
 
-	return StringFromRaw("false")
+	return SysStringToString("false")
 }
 
 func IsBool(a *Val) *Val {
-	return is(a, mbool)
+	return is(a, Bool)
 }
 
 func Not(a *Val) *Val {
-	checkType(a, mbool)
+	checkType(a, Bool)
 
 	if a == False {
 		return True

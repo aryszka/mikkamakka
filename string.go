@@ -6,44 +6,43 @@ import (
 	"unicode/utf8"
 )
 
-func StringFromRaw(s string) *Val {
-	return &Val{mstring, s}
+func SysStringToString(s string) *Val {
+	return newVal(String, s)
 }
 
-func RawString(s *Val) string {
-	checkType(s, mstring)
+func StringToSysString(s *Val) string {
+	checkType(s, String)
 	return s.value.(string)
 }
 
-func RawBytes(s *Val) []byte {
-	return []byte(RawString(s))
+func StringToBytes(s *Val) []byte {
+	return []byte(StringToSysString(s))
 }
 
 func StringLen(s *Val) *Val {
-	checkType(s, mstring)
-	return NumberFromRawInt(utf8.RuneCount(RawBytes(s)))
+	return SysIntToNumber(utf8.RuneCount(StringToBytes(s)))
 }
 
 func ByteLen(s *Val) *Val {
-	checkType(s, mstring)
-	return NumberFromRawInt(len(RawString(s)))
+	checkType(s, String)
+	return SysIntToNumber(len(StringToSysString(s)))
 }
 
 func AppendString(a ...*Val) *Val {
 	var s []string
 	for _, ai := range a {
-		s = append(s, RawString(ai))
+		s = append(s, StringToSysString(ai))
 	}
 
-	return StringFromRaw(strings.Join(s, ""))
+	return SysStringToString(strings.Join(s, ""))
 }
 
 func IsString(a *Val) *Val {
-	return is(a, mstring)
+	return is(a, String)
 }
 
 func stringEq(left, right *Val) *Val {
-	if RawString(left) == RawString(right) {
+	if StringToSysString(left) == StringToSysString(right) {
 		return True
 	}
 
@@ -51,6 +50,5 @@ func stringEq(left, right *Val) *Val {
 }
 
 func EscapeCompiled(a *Val) *Val {
-	checkType(a, mstring)
-	return StringFromRaw(strconv.Quote(RawString(a)))
+	return SysStringToString(strconv.Quote(StringToSysString(a)))
 }

@@ -5,26 +5,26 @@ when panic, when error?
 */
 
 var (
-	invalidQuote         = ErrorFromRawString("invalid quote")
-	invalidDef           = ErrorFromRawString("invalid definition")
-	invalidIf            = ErrorFromRawString("invalid if expression")
-	invalidAnd           = ErrorFromRawString("invalid and expression")
-	invalidOr            = ErrorFromRawString("invalid or expression")
-	invalidFn            = ErrorFromRawString("invalid function expression")
-	invalidSequence      = ErrorFromRawString("invalid sequence")
-	invalidVector        = ErrorFromRawString("invalid vector")
-	invalidCond          = ErrorFromRawString("invalid cond expression")
-	invalidLet           = ErrorFromRawString("invalid let expression")
-	invalidTest          = ErrorFromRawString("invalid test")
-	invalidApplication   = ErrorFromRawString("invalid application")
-	invalidExpression    = ErrorFromRawString("invalid expression")
-	definitionExpression = ErrorFromRawString("definition in expression position")
-	notFunction          = ErrorFromRawString("not a function")
-	testFailed           = ErrorFromRawString("test failed")
+	invalidQuote         = SysStringToError("invalid quote")
+	invalidDef           = SysStringToError("invalid definition")
+	invalidIf            = SysStringToError("invalid if expression")
+	invalidAnd           = SysStringToError("invalid and expression")
+	invalidOr            = SysStringToError("invalid or expression")
+	invalidFn            = SysStringToError("invalid function expression")
+	invalidSequence      = SysStringToError("invalid sequence")
+	invalidVector        = SysStringToError("invalid vector")
+	invalidCond          = SysStringToError("invalid cond expression")
+	invalidLet           = SysStringToError("invalid let expression")
+	invalidTest          = SysStringToError("invalid test")
+	invalidApplication   = SysStringToError("invalid application")
+	invalidExpression    = SysStringToError("invalid expression")
+	definitionExpression = SysStringToError("definition in expression position")
+	notFunction          = SysStringToError("not a function")
+	testFailed           = SysStringToError("test failed")
 )
 
 func List(a ...*Val) *Val {
-	l := Nil
+	l := NilVal
 	for i := len(a) - 1; i >= 0; i-- {
 		l = Cons(a[i], l)
 	}
@@ -33,8 +33,8 @@ func List(a ...*Val) *Val {
 }
 
 func mappend(left, right *Val) *Val {
-	checkType(left, pair, mnil)
-	checkType(right, pair, mnil)
+	checkType(left, Pair, Nil)
+	checkType(right, Pair, Nil)
 
 	if IsNil(left) != False {
 		return right
@@ -56,7 +56,7 @@ func isQuote(v *Val) *Val {
 }
 
 func evalQuote(e, v *Val) *Val {
-	if IsPair(Cdr(v)) == False || Cdr(Cdr(v)) != Nil {
+	if IsPair(Cdr(v)) == False || Cdr(Cdr(v)) != NilVal {
 		Fatal(invalidQuote)
 	}
 
@@ -89,7 +89,7 @@ func isStructForm(v *Val) *Val {
 
 func evalStructValues(e, v *Val) *Val {
 	if IsNil(v) != False {
-		return Nil
+		return NilVal
 	}
 
 	if IsPair(v) == False || IsPair(Cdr(v)) == False {
@@ -110,7 +110,7 @@ func evalStruct(e, v *Val) *Val {
 		return Fatal(InvalidStruct)
 	}
 
-	return StructFromList(evalStructValues(e, Cdr(v)))
+	return ListToStruct(evalStructValues(e, Cdr(v)))
 }
 
 func nameOfDef(v *Val) *Val {
@@ -138,7 +138,7 @@ func defName(v *Val) *Val {
 }
 
 func valueOfDef(v *Val) *Val {
-	if IsPair(Cdr(Cdr(v))) == False || Cdr(Cdr(Cdr(v))) != Nil {
+	if IsPair(Cdr(Cdr(v))) == False || Cdr(Cdr(Cdr(v))) != NilVal {
 		return Fatal(invalidDef)
 	}
 
@@ -295,7 +295,7 @@ func evalSeq(e, v *Val) *Val {
 		return Fatal(invalidSequence)
 	}
 
-	if Cdr(v) == Nil {
+	if Cdr(v) == NilVal {
 		return evalExp(e, Car(v))
 	}
 
@@ -363,7 +363,7 @@ func isLet(v *Val) *Val {
 
 func letDefs(v *Val) *Val {
 	if IsNil(v) != False {
-		return Nil
+		return NilVal
 	}
 
 	if IsPair(v) == False || IsPair(Cdr(v)) == False {
@@ -385,7 +385,7 @@ func letFnBody(v *Val) *Val {
 }
 
 func expandLet(v *Val) *Val {
-	return List(makeFn(Nil, letFnBody(v)))
+	return List(makeFn(NilVal, letFnBody(v)))
 }
 
 func isTest(v *Val) *Val {
@@ -402,7 +402,7 @@ func evalTest(e, v *Val) *Val {
 		return True
 	}
 
-	result := evalSeq(ExtendEnv(e, Nil, Nil), Cdr(v))
+	result := evalSeq(ExtendEnv(e, NilVal, NilVal), Cdr(v))
 	if result == False {
 		return Fatal(testFailed)
 	}
@@ -420,7 +420,7 @@ func isApplication(v *Val) *Val {
 
 func valueList(e, v *Val) *Val {
 	if IsNil(v) != False {
-		return Nil
+		return NilVal
 	}
 
 	if IsPair(v) == False {
@@ -503,7 +503,7 @@ func eval(e, v *Val) *Val {
 	case isApplication(v) != False:
 		return evalApply(e, v)
 	default:
-		println(v.mtype)
+		println(v.typ)
 		return Fatal(invalidExpression)
 	}
 }

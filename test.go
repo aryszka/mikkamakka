@@ -19,5 +19,5 @@ func (fr readerFail) Close([]byte) error {
 }
 
 func FailingIO() *Val {
-	return &Val{sys, &file{sys: readerFail{}}}
+	return newVal(Sys, &file{sys: readerFail{}})
 }

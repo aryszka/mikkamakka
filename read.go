@@ -3,39 +3,39 @@ package mikkamakka
 import "unicode"
 
 var (
-	invalidToken       = ErrorFromRawString("invalid token")
-	notImplemented     = ErrorFromRawString("not implemented")
-	unexpectedClose    = ErrorFromRawString("unexpected close")
-	irregularCons      = ErrorFromRawString("irregular cons")
-	UndefinedReadValue = &Val{symbol, "undefined read value"}
-	ttnone             = &Val{number, 0}
-	ttcomment          = &Val{number, 1}
-	ttsymbol           = &Val{number, 2}
-	ttstring           = &Val{number, 3}
-	ttlist             = &Val{number, 4}
-	ttquote            = &Val{number, 5}
-	ttvector           = &Val{number, 7}
-	ttstruct           = &Val{number, 8}
+	invalidToken       = SysStringToError("invalid token")
+	notImplemented     = SysStringToError("not implemented")
+	unexpectedClose    = SysStringToError("unexpected close")
+	irregularCons      = SysStringToError("irregular cons")
+	UndefinedReadValue = SysStringToError("undefined read value")
+	ttnone             = SysIntToNumber(0)
+	ttcomment          = SysIntToNumber(1)
+	ttsymbol           = SysIntToNumber(2)
+	ttstring           = SysIntToNumber(3)
+	ttlist             = SysIntToNumber(4)
+	ttquote            = SysIntToNumber(5)
+	ttvector           = SysIntToNumber(7)
+	ttstruct           = SysIntToNumber(8)
 )
 
 func reader(in *Val) *Val {
-	return FromMap(Struct{
+	return SysMapToStruct(map[string]*Val{
 		"in":            in,
 		"token-type":    ttnone,
 		"value":         UndefinedReadValue,
 		"escaped":       False,
-		"last-char":     StringFromRaw(""),
-		"current-token": StringFromRaw(""),
-		"in-list":       StringFromRaw(""),
+		"last-char":     SysStringToString(""),
+		"current-token": SysStringToString(""),
+		"in-list":       SysStringToString(""),
 		"close-list":    False,
 		"cons":          False,
-		"cons-items":    NumberFromRawInt(0),
+		"cons-items":    SysIntToNumber(0),
 	})
 }
 
 func charCheck(c string) func(*Val) *Val {
 	return func(s *Val) *Val {
-		if RawString(s) == c {
+		if StringToSysString(s) == c {
 			return True
 		}
 
@@ -59,7 +59,7 @@ var (
 )
 
 func isWhitespace(s *Val) *Val {
-	if unicode.IsSpace(rune(RawString(s)[0])) {
+	if unicode.IsSpace(rune(StringToSysString(s)[0])) {
 		return True
 	}
 
@@ -67,31 +67,31 @@ func isWhitespace(s *Val) *Val {
 }
 
 func symbolToken(t *Val) *Val {
-	v := NumberFromString(t)
+	v := StringToNumber(t)
 	if IsError(v) == False {
 		return v
 	}
 
-	v = BoolFromRawString(RawString(t))
+	v = SysStringToBool(StringToSysString(t))
 	if IsError(v) == False {
 		return v
 	}
 
-	return SymbolFromRawString(RawString(t))
+	return SymbolFromRawString(StringToSysString(t))
 }
 
 func readChar(r *Val) *Val {
-	in := Fread(Field(r, SymbolFromRawString("in")), NumberFromRawInt(1))
+	in := Fread(Field(r, SymbolFromRawString("in")), SysIntToNumber(1))
 	st := Fstate(in)
 
 	if IsError(st) != False {
-		return Assign(r, FromMap(Struct{
+		return Assign(r, SysMapToStruct(map[string]*Val{
 			"in":    in,
 			"value": st,
 		}))
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"in":        in,
 		"last-char": st,
 	}))
@@ -112,7 +112,7 @@ func currentTokenType(r *Val) *Val {
 }
 
 func setTokenType(r *Val, t *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"token-type": t,
 	}))
 }
@@ -136,8 +136,8 @@ func setVector(r *Val) *Val  { return setTokenType(r, ttvector) }
 func setStruct(r *Val) *Val  { return setTokenType(r, ttstruct) }
 
 func clearToken(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
-		"current-token": StringFromRaw(""),
+	return Assign(r, SysMapToStruct(map[string]*Val{
+		"current-token": SysStringToString(""),
 	}))
 }
 
@@ -154,11 +154,11 @@ func closeString(r *Val) *Val {
 }
 
 func setEscaped(r *Val) *Val {
-	return Assign(r, FromMap(Struct{"escaped": True}))
+	return Assign(r, SysMapToStruct(map[string]*Val{"escaped": True}))
 }
 
 func unsetEscaped(r *Val) *Val {
-	return Assign(r, FromMap(Struct{"escaped": False}))
+	return Assign(r, SysMapToStruct(map[string]*Val{"escaped": False}))
 }
 
 func isEscaped(r *Val) *Val {
@@ -170,19 +170,19 @@ func unescapeSymbolChar(c *Val) *Val {
 }
 
 func unescapeStringChar(c *Val) *Val {
-	switch RawString(c) {
+	switch StringToSysString(c) {
 	case "b":
-		return StringFromRaw("\b")
+		return SysStringToString("\b")
 	case "f":
-		return StringFromRaw("\f")
+		return SysStringToString("\f")
 	case "n":
-		return StringFromRaw("\n")
+		return SysStringToString("\n")
 	case "r":
-		return StringFromRaw("\r")
+		return SysStringToString("\r")
 	case "t":
-		return StringFromRaw("\t")
+		return SysStringToString("\t")
 	case "v":
-		return StringFromRaw("\v")
+		return SysStringToString("\v")
 	default:
 		return c
 	}
@@ -205,39 +205,39 @@ func appendToken(r *Val) *Val {
 		c = unescapeChar(Field(r, SymbolFromRawString("token-type")), c)
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"current-token": AppendString(Field(r, SymbolFromRawString("current-token")), c),
 	}))
 }
 
 func setInvalid(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"err": invalidToken,
 	}))
 }
 
 func processSymbol(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": symbolToken(Field(r, SymbolFromRawString("current-token"))),
 	}))
 }
 
 func processString(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": Field(r, SymbolFromRawString("current-token")),
 	}))
 }
 
 func closeChar(c *Val) *Val {
-	switch RawString(c) {
+	switch StringToSysString(c) {
 	case "(":
-		return StringFromRaw(")")
+		return SysStringToString(")")
 	case "[":
-		return StringFromRaw("]")
+		return SysStringToString("]")
 	case "{":
-		return StringFromRaw("}")
+		return SysStringToString("}")
 	default:
-		return StringFromRaw("")
+		return SysStringToString("")
 	}
 }
 
@@ -246,13 +246,13 @@ func setClose(r, c *Val) *Val {
 		return setUnexpectedClose(r)
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"close-list": True,
 	}))
 }
 
 func hasCons(r *Val) bool {
-	return Greater(Field(r, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) != False
+	return Greater(Field(r, SymbolFromRawString("cons-items")), SysIntToNumber(0)) != False
 }
 
 func consSet(r *Val) bool {
@@ -264,29 +264,29 @@ func setCons(r *Val) *Val {
 		return setIrregularCons(r)
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"cons": True,
 	}))
 }
 
 func setUnexpectedClose(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": unexpectedClose,
 	}))
 }
 
 func setIrregularCons(r *Val) *Val {
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": irregularCons,
 	}))
 }
 
 func reverse(l *Val) *Val {
-	checkType(l, pair, mnil)
+	checkType(l, Pair, Nil)
 
-	r := Nil
+	r := NilVal
 	for {
-		if l == Nil {
+		if l == NilVal {
 			return r
 		}
 
@@ -296,12 +296,12 @@ func reverse(l *Val) *Val {
 }
 
 func reverseIrregular(l *Val) *Val {
-	checkType(l, pair, mnil)
+	checkType(l, Pair, Nil)
 
 	r := Cons(Car(Cdr(l)), Car(l))
 	l = Cdr(Cdr(l))
 	for {
-		if l == Nil {
+		if l == NilVal {
 			return r
 		}
 
@@ -312,8 +312,8 @@ func reverseIrregular(l *Val) *Val {
 
 func readList(r, c *Val) *Val {
 	lr := reader(Field(r, SymbolFromRawString("in")))
-	lr = Assign(lr, FromMap(Struct{
-		"list-items": Nil,
+	lr = Assign(lr, SysMapToStruct(map[string]*Val{
+		"list-items": NilVal,
 		"in-list":    c,
 	}))
 
@@ -321,7 +321,7 @@ func readList(r, c *Val) *Val {
 	loop = func(lr *Val) *Val {
 		lr = read(lr)
 		if readError(lr) {
-			return Assign(r, FromMap(Struct{
+			return Assign(r, SysMapToStruct(map[string]*Val{
 				"in":    Field(lr, SymbolFromRawString("in")),
 				"value": Field(lr, SymbolFromRawString("value")),
 			}))
@@ -329,7 +329,7 @@ func readList(r, c *Val) *Val {
 
 		v := Field(lr, SymbolFromRawString("value"))
 		if v != UndefinedReadValue {
-			lr = Assign(lr, FromMap(Struct{
+			lr = Assign(lr, SysMapToStruct(map[string]*Val{
 				"list-items": Cons(
 					v,
 					Field(lr, SymbolFromRawString("list-items")),
@@ -338,41 +338,41 @@ func readList(r, c *Val) *Val {
 			}))
 
 			if hasCons(lr) {
-				lr = Assign(lr, FromMap(Struct{
-					"cons-items": Add(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(1)),
+				lr = Assign(lr, SysMapToStruct(map[string]*Val{
+					"cons-items": Add(Field(lr, SymbolFromRawString("cons-items")), SysIntToNumber(1)),
 				}))
 			}
 		}
 
 		if consSet(lr) {
-			if Field(lr, SymbolFromRawString("list-items")) == Nil ||
-				numberEq(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(0)) == False {
-				return setIrregularCons(Assign(r, FromMap(Struct{
+			if Field(lr, SymbolFromRawString("list-items")) == NilVal ||
+				numberEq(Field(lr, SymbolFromRawString("cons-items")), SysIntToNumber(0)) == False {
+				return setIrregularCons(Assign(r, SysMapToStruct(map[string]*Val{
 					"in": Field(lr, SymbolFromRawString("in")),
 				})))
 			}
 
-			lr = Assign(lr, FromMap(Struct{
-				"cons-items": NumberFromRawInt(1),
+			lr = Assign(lr, SysMapToStruct(map[string]*Val{
+				"cons-items": SysIntToNumber(1),
 				"cons":       False,
 			}))
 		}
 
 		if Field(lr, SymbolFromRawString("close-list")) != False {
 			if hasCons(lr) {
-				if numberEq(Field(lr, SymbolFromRawString("cons-items")), NumberFromRawInt(2)) == False {
-					return setIrregularCons(Assign(r, FromMap(Struct{
+				if numberEq(Field(lr, SymbolFromRawString("cons-items")), SysIntToNumber(2)) == False {
+					return setIrregularCons(Assign(r, SysMapToStruct(map[string]*Val{
 						"in": Field(lr, SymbolFromRawString("in")),
 					})))
 				}
 
-				return Assign(r, FromMap(Struct{
+				return Assign(r, SysMapToStruct(map[string]*Val{
 					"in":    Field(lr, SymbolFromRawString("in")),
 					"value": reverseIrregular(Field(lr, SymbolFromRawString("list-items"))),
 				}))
 			}
 
-			return Assign(r, FromMap(Struct{
+			return Assign(r, SysMapToStruct(map[string]*Val{
 				"in":    Field(lr, SymbolFromRawString("in")),
 				"value": reverse(Field(lr, SymbolFromRawString("list-items"))),
 			}))
@@ -386,21 +386,21 @@ func readList(r, c *Val) *Val {
 
 func readQuote(r *Val) *Val {
 	lr := reader(Field(r, SymbolFromRawString("in")))
-	if stringEq(closeChar(Field(r, SymbolFromRawString("in-list"))), StringFromRaw("")) == False {
-		lr = Assign(lr, FromMap(Struct{
+	if stringEq(closeChar(Field(r, SymbolFromRawString("in-list"))), SysStringToString("")) == False {
+		lr = Assign(lr, SysMapToStruct(map[string]*Val{
 			"in-list": Field(r, SymbolFromRawString("in-list")),
 		}))
 	}
 
 	lr = read(lr)
 	if readError(lr) {
-		return Assign(r, FromMap(Struct{
+		return Assign(r, SysMapToStruct(map[string]*Val{
 			"in":    Field(lr, SymbolFromRawString("in")),
 			"value": Field(lr, SymbolFromRawString("value")),
 		}))
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"in":         Field(lr, SymbolFromRawString("in")),
 		"value":      List(SymbolFromRawString("quote"), Field(lr, SymbolFromRawString("value"))),
 		"close-list": Field(lr, SymbolFromRawString("close-list")),
@@ -408,23 +408,23 @@ func readQuote(r *Val) *Val {
 }
 
 func readVector(r *Val) *Val {
-	r = readList(r, StringFromRaw("["))
+	r = readList(r, SysStringToString("["))
 	if readError(r) {
 		return r
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": Cons(SymbolFromRawString("vector:"), Field(r, SymbolFromRawString("value"))),
 	}))
 }
 
 func readStruct(r *Val) *Val {
-	r = readList(r, StringFromRaw("{"))
+	r = readList(r, SysStringToString("{"))
 	if readError(r) {
 		return r
 	}
 
-	return Assign(r, FromMap(Struct{
+	return Assign(r, SysMapToStruct(map[string]*Val{
 		"value": Cons(SymbolFromRawString("struct:"), Field(r, SymbolFromRawString("value"))),
 	}))
 }
@@ -432,7 +432,7 @@ func readStruct(r *Val) *Val {
 func read(r *Val) *Val {
 	t := currentTokenType(r)
 	if isTList(t) {
-		return setNone(readList(r, StringFromRaw("(")))
+		return setNone(readList(r, SysStringToString("(")))
 	}
 
 	if isTQuote(t) {

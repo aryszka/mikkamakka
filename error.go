@@ -6,23 +6,23 @@ import (
 )
 
 func IsError(a *Val) *Val {
-	return is(a, merror)
+	return is(a, Error)
 }
 
-func ErrorFromRawString(s string) *Val {
-	return &Val{merror, s}
+func SysStringToError(s string) *Val {
+	return newVal(Error, s)
 }
 
-func ErrorFromSysError(err error) *Val {
-	return &Val{merror, err}
+func SysErrorToError(err error) *Val {
+	return newVal(Error, err)
 }
 
 func StringToError(a *Val) *Val {
-	return ErrorFromRawString(RawString(a))
+	return SysStringToError(StringToSysString(a))
 }
 
-func RawErrorString(a *Val) string {
-	checkType(a, merror)
+func ErrorToSysString(a *Val) string {
+	checkType(a, Error)
 	switch v := a.value.(type) {
 	case error:
 		return v.Error()
@@ -34,16 +34,16 @@ func RawErrorString(a *Val) string {
 }
 
 func ErrorToString(a *Val) *Val {
-	return StringFromRaw(fmt.Sprintf("<error:%s>", RawErrorString(a)))
+	return SysStringToString(fmt.Sprintf("<error:%s>", ErrorToSysString(a)))
 }
 
 func Fatal(a *Val) *Val {
 	// panic(errorString(a))
 
-	switch a.mtype {
-	case mstring:
+	switch a.typ {
+	case String:
 		Fwrite(Stderr(), a)
-	case merror:
+	case Error:
 		Fwrite(Stderr(), ErrorToString(a))
 	}
 

@@ -1,38 +1,34 @@
 package mikkamakka
 
-var EmptySymbol = ErrorFromRawString("empty symbol not allowed")
+var EmptySymbol = SysStringToError("empty symbol not allowed")
 
 func SymbolFromRawString(s string) *Val {
 	if s == "" {
 		return EmptySymbol
 	}
 
-	return &Val{symbol, s}
+	return newVal(Symbol, s)
 }
 
 func SymbolFromString(a *Val) *Val {
-	return SymbolFromRawString(RawString(a))
+	return SymbolFromRawString(StringToSysString(a))
 }
 
-func RawSymbolString(s *Val) string {
-	checkType(s, symbol)
+func SymbolToSysString(s *Val) string {
+	checkType(s, Symbol)
 	return s.value.(string)
 }
 
 func SymbolToString(s *Val) *Val {
-	return StringFromRaw(RawSymbolString(s))
+	return SysStringToString(SymbolToSysString(s))
 }
 
 func IsSymbol(a *Val) *Val {
-	if a.mtype == symbol {
-		return True
-	}
-
-	return False
+	return is(a, Symbol)
 }
 
 func symbolEq(left, right *Val) *Val {
-	if RawSymbolString(left) == RawSymbolString(right) {
+	if SymbolToSysString(left) == SymbolToSysString(right) {
 		return True
 	}
 

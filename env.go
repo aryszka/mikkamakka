@@ -1,35 +1,35 @@
 package mikkamakka
 
 type env struct {
-	current Struct
+	current map[string]*Val
 	parent  *Val
 }
 
 var (
-	Undefined        = ErrorFromRawString("undefined")
-	NotAnEnvironment = ErrorFromRawString("not an environment")
-	DefinitionExists = ErrorFromRawString("definition exists")
+	Undefined        = SysStringToError("undefined")
+	NotAnEnvironment = SysStringToError("not an environment")
+	DefinitionExists = SysStringToError("definition exists")
 )
 
 func NewEnv() *Val {
-	return &Val{
-		environment,
+	return newVal(
+		Environment,
 		&env{
-			current: make(Struct),
+			current: make(map[string]*Val),
 			parent:  nil,
 		},
-	}
+	)
 }
 
 func IsEnv(e *Val) *Val {
-	return is(e, environment)
+	return is(e, Environment)
 }
 
 func LookupDef(e, n *Val) *Val {
-	checkType(e, environment)
+	checkType(e, Environment)
 
 	et := e.value.(*env)
-	ns := RawSymbolString(n)
+	ns := SymbolToSysString(n)
 	if v, ok := et.current[ns]; ok {
 		return v
 	}
@@ -46,10 +46,10 @@ func defineDerived(e, n, k, v *Val) *Val {
 	return Define(
 		e,
 		SymbolFromRawString(
-			RawString(
+			StringToSysString(
 				AppendString(
 					SymbolToString(n),
-					StringFromRaw(":"),
+					SysStringToString(":"),
 					k))),
 		v,
 	)
@@ -66,23 +66,20 @@ func defineStruct(e, n, s, names *Val) *Val {
 }
 
 func defineVector(e, n, v, l *Val) *Val {
-	if Eq(l, NumberFromRawInt(0)) != False {
+	if Eq(l, SysIntToNumber(0)) != False {
 		return v
 	}
 
-	i := Sub(l, NumberFromRawInt(1))
+	i := Sub(l, SysIntToNumber(1))
 	defineDerived(e, n, i, VectorRef(v, i))
 	return defineVector(e, n, v, i)
 }
 
 func Define(e, n, v *Val) *Val {
-	checkType(e, environment)
-	et, ok := e.value.(*env)
-	if !ok {
-		return Fatal(NotAnEnvironment)
-	}
+	checkType(e, Environment)
 
-	ns := RawSymbolString(n)
+	et := e.value.(*env)
+	ns := SymbolToSysString(n)
 	if _, has := et.current[ns]; has {
 		return Fatal(DefinitionExists)
 	}
@@ -129,19 +126,19 @@ func defineAll(e, n, a *Val) *Val {
 }
 
 func ExtendEnv(e, n, a *Val) *Val {
-	e = &Val{
-		environment,
+	e = newVal(
+		Environment,
 		&env{
-			current: make(Struct),
+			current: make(map[string]*Val),
 			parent:  e,
 		},
-	}
+	)
 	return defineAll(e, n, a)
 }
 
 func envString(e *Val) *Val {
-	checkType(e, environment)
-	return StringFromRaw("<environment>")
+	checkType(e, Environment)
+	return SysStringToString("<environment>")
 }
 
 func newBuiltin0(f func() *Val) *Val {
@@ -172,7 +169,7 @@ func InitialEnv() *Val {
 	env := NewEnv()
 
 	defs := map[string]*Val{
-		"nil":                    Nil,
+		"nil":                    NilVal,
 		"nil?":                   newBuiltin1(IsNil),
 		"pair?":                  newBuiltin1(IsPair),
 		"cons":                   newBuiltin2(Cons),
@@ -187,8 +184,8 @@ func InitialEnv() *Val {
 		"=":                      newBuiltin0V(Eq),
 		">":                      newBuiltin0V(Greater),
 		"+":                      newBuiltin0V(Add),
-		"string->number":         newBuiltin1(NumberFromString),
-		"string->bool":           newBuiltin1(BoolFromString),
+		"string->number":         newBuiltin1(StringToNumber),
+		"string->bool":           newBuiltin1(StringToBool),
 		"symbol?":                newBuiltin1(IsSymbol),
 		"symbol->string":         newBuiltin1(SymbolToString),
 		"string->symbol":         newBuiltin1(SymbolFromString),

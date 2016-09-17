@@ -1,33 +1,29 @@
 package mikkamakka
 
-type tpair struct {
+type pair struct {
 	car, cdr *Val
 }
 
-var Nil = &Val{mtype: mnil}
+var NilVal = newVal(Nil, nil)
 
 func Cons(car, cdr *Val) *Val {
-	return &Val{pair, &tpair{car, cdr}}
+	return newVal(Pair, &pair{car, cdr})
 }
 
 func Car(p *Val) *Val {
-	checkType(p, pair)
-	return p.value.(*tpair).car
+	checkType(p, Pair)
+	return p.value.(*pair).car
 }
 
 func Cdr(p *Val) *Val {
-	checkType(p, pair)
-	return p.value.(*tpair).cdr
+	checkType(p, Pair)
+	return p.value.(*pair).cdr
 }
 
 func IsPair(a *Val) *Val {
-	return is(a, pair)
+	return is(a, Pair)
 }
 
 func IsNil(a *Val) *Val {
-	if a == Nil {
-		return True
-	}
-
-	return False
+	return is(a, Nil)
 }

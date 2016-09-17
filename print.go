@@ -1,9 +1,9 @@
 package mikkamakka
 
 func printer(out *Val) *Val {
-	return FromMap(Struct{
+	return SysMapToStruct(map[string]*Val{
 		"output": out,
-		"state":  Nil,
+		"state":  NilVal,
 	})
 }
 
@@ -13,14 +13,14 @@ func printState(p *Val) *Val {
 
 func printRaw(p *Val, r *Val) *Val {
 	f := Fwrite(Field(p, SymbolFromRawString("output")), r)
-	return Assign(p, FromMap(Struct{
+	return Assign(p, SysMapToStruct(map[string]*Val{
 		"output": f,
 		"state":  Fstate(f),
 	}))
 }
 
 func printQuoteSign(p *Val) *Val {
-	return printRaw(p, StringFromRaw("'"))
+	return printRaw(p, SysStringToString("'"))
 }
 
 func printSymbol(p, v, q *Val) *Val {
@@ -41,7 +41,7 @@ func printPair(p, v, q *Val) *Val {
 		p = printQuoteSign(p)
 	}
 
-	p = printRaw(p, StringFromRaw("("))
+	p = printRaw(p, SysStringToString("("))
 	if st := printState(p); IsError(st) != False {
 		return p
 	}
@@ -49,11 +49,11 @@ func printPair(p, v, q *Val) *Val {
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p *Val, v *Val, first *Val) *Val {
 		if IsNil(v) != False {
-			return printRaw(p, StringFromRaw(")"))
+			return printRaw(p, SysStringToString(")"))
 		}
 
 		if first == False {
-			p = printRaw(p, StringFromRaw(" "))
+			p = printRaw(p, SysStringToString(" "))
 			if st := printState(p); IsError(st) != False {
 				return p
 			}
@@ -65,7 +65,7 @@ func printPair(p, v, q *Val) *Val {
 				return p
 			}
 
-			p = printRaw(p, StringFromRaw(" . "))
+			p = printRaw(p, SysStringToString(" . "))
 			if st := printState(p); IsError(st) != False {
 				return p
 			}
@@ -75,7 +75,7 @@ func printPair(p, v, q *Val) *Val {
 				return p
 			}
 
-			return printRaw(p, StringFromRaw(")"))
+			return printRaw(p, SysStringToString(")"))
 		}
 
 		p = mprintq(p, Car(v), True)
@@ -90,7 +90,7 @@ func printPair(p, v, q *Val) *Val {
 }
 
 func printVector(p, v *Val) *Val {
-	p = printRaw(p, StringFromRaw("["))
+	p = printRaw(p, SysStringToString("["))
 	if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 		return p
 	}
@@ -102,7 +102,7 @@ func printVector(p, v *Val) *Val {
 		}
 
 		if f == False {
-			p = printRaw(p, StringFromRaw(" "))
+			p = printRaw(p, SysStringToString(" "))
 			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
@@ -113,27 +113,27 @@ func printVector(p, v *Val) *Val {
 			return p
 		}
 
-		return loop(p, Add(i, NumberFromRawInt(1)), False)
+		return loop(p, Add(i, SysIntToNumber(1)), False)
 	}
 
-	p = loop(p, NumberFromRawInt(0), True)
-	return printRaw(p, StringFromRaw("]"))
+	p = loop(p, SysIntToNumber(0), True)
+	return printRaw(p, SysStringToString("]"))
 }
 
 func printStruct(p, v *Val) *Val {
-	p = printRaw(p, StringFromRaw("{"))
+	p = printRaw(p, SysStringToString("{"))
 	if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 		return p
 	}
 
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p, n, f *Val) *Val {
-		if n == Nil {
+		if n == NilVal {
 			return p
 		}
 
 		if f == False {
-			p = printRaw(p, StringFromRaw(" "))
+			p = printRaw(p, SysStringToString(" "))
 			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
@@ -144,7 +144,7 @@ func printStruct(p, v *Val) *Val {
 			return p
 		}
 
-		p = printRaw(p, StringFromRaw(" "))
+		p = printRaw(p, SysStringToString(" "))
 		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
@@ -158,7 +158,7 @@ func printStruct(p, v *Val) *Val {
 	}
 
 	p = loop(p, StructNames(v), True)
-	return printRaw(p, StringFromRaw("}"))
+	return printRaw(p, SysStringToString("}"))
 }
 
 func mprintq(p, v, q *Val) *Val {
@@ -167,7 +167,7 @@ func mprintq(p, v, q *Val) *Val {
 	} else if IsNumber(v) != False {
 		v = NumberToString(v)
 	} else if IsString(v) != False {
-		v = AppendString(StringFromRaw(`"`), v, StringFromRaw(`"`))
+		v = AppendString(SysStringToString(`"`), v, SysStringToString(`"`))
 	} else if IsBool(v) != False {
 		v = BoolToString(v)
 	} else if IsSys(v) != False {
@@ -187,20 +187,20 @@ func mprintq(p, v, q *Val) *Val {
 	} else if IsFunction(v) != False {
 		v = FunctionToString(v)
 	} else {
-		return Assign(p, FromMap(Struct{
+		return Assign(p, SysMapToStruct(map[string]*Val{
 			"state": notImplemented,
 		}))
 	}
 
 	f := Fwrite(Field(p, SymbolFromRawString("output")), v)
 	if st := Fstate(f); IsError(st) != False {
-		return Assign(p, FromMap(Struct{
+		return Assign(p, SysMapToStruct(map[string]*Val{
 			"output": f,
 			"state":  st,
 		}))
 	}
 
-	return Assign(p, FromMap(Struct{
+	return Assign(p, SysMapToStruct(map[string]*Val{
 		"output": f,
 		"state":  v,
 	}))
