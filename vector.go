@@ -23,7 +23,7 @@ func IsVector(a *Val) *Val {
 	return is(a, vector)
 }
 
-func VectorLength(v *Val) *Val {
+func VectorLen(v *Val) *Val {
 	checkType(v, vector)
 	return NumberFromRawInt(len(v.value.(Vector)))
 }

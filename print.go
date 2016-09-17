@@ -97,7 +97,7 @@ func printVector(p, v *Val) *Val {
 
 	var loop func(*Val, *Val, *Val) *Val
 	loop = func(p, i, f *Val) *Val {
-		if numberEq(i, VectorLength(v)) != False {
+		if numberEq(i, VectorLen(v)) != False {
 			return p
 		}
 
@@ -182,7 +182,7 @@ func mprintq(p, v, q *Val) *Val {
 		return printVector(p, v)
 	} else if IsStruct(v) != False {
 		return printStruct(p, v)
-	} else if isEnv(v) != False {
+	} else if IsEnv(v) != False {
 		v = envString(v)
 	} else if IsFunction(v) != False {
 		v = FunctionToString(v)

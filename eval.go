@@ -162,7 +162,7 @@ func defValue(v *Val) *Val {
 }
 
 func evalDef(e, v *Val) *Val {
-	return define(e, defName(v), evalExp(e, defValue(v)))
+	return Define(e, defName(v), evalExp(e, defValue(v)))
 }
 
 func isIf(v *Val) *Val {
@@ -402,7 +402,7 @@ func evalTest(e, v *Val) *Val {
 		return True
 	}
 
-	result := evalSeq(newEnv(e), Cdr(v))
+	result := evalSeq(ExtendEnv(e, Nil, Nil), Cdr(v))
 	if result == False {
 		return Fatal(testFailed)
 	}
@@ -452,7 +452,7 @@ func Apply(f, a *Val) *Val {
 	}
 
 	cf := Composite(f)
-	return evalSeq(extendEnv(Car(cf), Car(Cdr(cf)), a), Cdr(Cdr(cf)))
+	return evalSeq(ExtendEnv(Car(cf), Car(Cdr(cf)), a), Cdr(Cdr(cf)))
 }
 
 func evalExp(e, v *Val) *Val {
@@ -477,7 +477,7 @@ func eval(e, v *Val) *Val {
 	case isQuote(v) != False:
 		return evalQuote(e, v)
 	case IsSymbol(v) != False:
-		return lookupDef(e, v)
+		return LookupDef(e, v)
 	case isDef(v) != False:
 		return evalDef(e, v)
 	case isVectorForm(v) != False:
