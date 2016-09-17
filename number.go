@@ -2,7 +2,7 @@ package mikkamakka
 
 import "strconv"
 
-var InvalidNumberString = &Val{merror, "invalid number string"}
+var InvalidNumberString = ErrorFromRawString("invalid number string")
 
 func NumberFromRawInt(i int) *Val {
 	return &Val{number, i}

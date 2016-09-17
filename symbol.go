@@ -1,6 +1,6 @@
 package mikkamakka
 
-var EmptySymbol = &Val{merror, "empty symbol not allowed"}
+var EmptySymbol = ErrorFromRawString("empty symbol not allowed")
 
 func SymbolFromRawString(s string) *Val {
 	if s == "" {

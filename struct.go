@@ -2,7 +2,7 @@ package mikkamakka
 
 type Struct map[string]*Val
 
-var InvalidStruct = &Val{merror, "invalid struct"}
+var InvalidStruct = ErrorFromRawString("invalid struct")
 
 func FromMap(m Struct) *Val {
 	return &Val{mstruct, m}
@@ -28,7 +28,7 @@ func StructFromList(l *Val) *Val {
 		}
 
 		if IsPair(l) == False || IsPair(Cdr(l)) == False || IsSymbol(Car(l)) == False {
-			return fatal(InvalidStruct)
+			return Fatal(InvalidStruct)
 		}
 
 		m[RawSymbolString(Car(l))], l = Car(Cdr(l)), Cdr(Cdr(l))
@@ -47,7 +47,7 @@ func Field(s, f *Val) *Val {
 	name := RawSymbolString(f)
 	v, ok := s.value.(Struct)[name]
 	if !ok {
-		return fatal(&Val{merror, "undefined field name: " + name})
+		return Fatal(ErrorFromRawString("undefined field name: " + name))
 	}
 
 	return v

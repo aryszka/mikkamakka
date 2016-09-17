@@ -8,9 +8,9 @@ type fn struct {
 }
 
 var (
-	InvalidArgs  = &Val{merror, "invalid arguments"}
-	NotCompiled  = &Val{merror, "not a compiled function"}
-	NotComposite = &Val{merror, "not a composite function"}
+	InvalidArgs  = ErrorFromRawString("invalid arguments")
+	NotCompiled  = ErrorFromRawString("not a compiled function")
+	NotComposite = ErrorFromRawString("not a composite function")
 )
 
 func NewComposite(v *Val) *Val {
@@ -24,11 +24,11 @@ func NewCompiled(argCount int, variadic bool, f Function) *Val {
 		&fn{
 			compiled: func(a []*Val) *Val {
 				if len(a) < argCount {
-					return fatal(InvalidArgs)
+					return Fatal(InvalidArgs)
 				}
 
 				if !variadic && len(a) != argCount {
-					return fatal(InvalidArgs)
+					return Fatal(InvalidArgs)
 				}
 
 				return f(a)
@@ -74,7 +74,7 @@ func ApplyCompiled(f, a *Val) *Val {
 
 	ft := f.value.(*fn)
 	if ft.compiled == nil {
-		return fatal(NotCompiled)
+		return Fatal(NotCompiled)
 	}
 
 	return ft.compiled(listToSlice(a))
@@ -85,7 +85,7 @@ func Composite(f *Val) *Val {
 
 	ft := f.value.(*fn)
 	if ft.composite == nil {
-		return fatal(NotComposite)
+		return Fatal(NotComposite)
 	}
 
 	return ft.composite

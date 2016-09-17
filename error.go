@@ -5,16 +5,24 @@ import (
 	"os"
 )
 
-func isError(a *Val) *Val {
+func IsError(a *Val) *Val {
 	return is(a, merror)
 }
 
-func stringToError(a *Val) *Val {
-	checkType(a, mstring)
-	return &Val{merror, RawString(a)}
+func ErrorFromRawString(s string) *Val {
+	return &Val{merror, s}
 }
 
-func errorStringRaw(a *Val) string {
+func ErrorFromSysError(err error) *Val {
+	return &Val{merror, err}
+}
+
+func StringToError(a *Val) *Val {
+	return ErrorFromRawString(RawString(a))
+}
+
+func RawErrorString(a *Val) string {
+	checkType(a, merror)
 	switch v := a.value.(type) {
 	case error:
 		return v.Error()
@@ -25,34 +33,21 @@ func errorStringRaw(a *Val) string {
 	}
 }
 
-func errorString(a *Val) *Val {
-	return StringFromRaw(errorStringRaw(a))
+func ErrorToString(a *Val) *Val {
+	return StringFromRaw(fmt.Sprintf("<error:%s>", RawErrorString(a)))
 }
 
-func fatal(a *Val) *Val {
+func Fatal(a *Val) *Val {
 	// panic(errorString(a))
 
 	switch a.mtype {
 	case mstring:
-		fwrite(stderr(), a)
+		Fwrite(Stderr(), a)
 	case merror:
-		fwrite(stderr(), errorString(a))
+		Fwrite(Stderr(), ErrorToString(a))
 	}
 
 	println()
 	os.Exit(-1)
 	return a
-}
-
-func estring(e *Val) *Val {
-	checkType(e, merror)
-	return StringFromRaw(fmt.Sprintf("<error:%s>", errorStringRaw(e)))
-}
-
-func IsError(a *Val) *Val {
-	return isError(a)
-}
-
-func Fatal(a *Val) *Val {
-	return fatal(a)
 }

@@ -12,10 +12,10 @@ func printState(p *Val) *Val {
 }
 
 func printRaw(p *Val, r *Val) *Val {
-	f := fwrite(Field(p, SymbolFromRawString("output")), r)
+	f := Fwrite(Field(p, SymbolFromRawString("output")), r)
 	return Assign(p, FromMap(Struct{
 		"output": f,
-		"state":  fstate(f),
+		"state":  Fstate(f),
 	}))
 }
 
@@ -42,7 +42,7 @@ func printPair(p, v, q *Val) *Val {
 	}
 
 	p = printRaw(p, StringFromRaw("("))
-	if st := printState(p); isError(st) != False {
+	if st := printState(p); IsError(st) != False {
 		return p
 	}
 
@@ -54,24 +54,24 @@ func printPair(p, v, q *Val) *Val {
 
 		if first == False {
 			p = printRaw(p, StringFromRaw(" "))
-			if st := printState(p); isError(st) != False {
+			if st := printState(p); IsError(st) != False {
 				return p
 			}
 		}
 
 		if IsPair(Cdr(v)) == False && IsNil(Cdr(v)) == False {
 			p = mprintq(p, Car(v), True)
-			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
 
 			p = printRaw(p, StringFromRaw(" . "))
-			if st := printState(p); isError(st) != False {
+			if st := printState(p); IsError(st) != False {
 				return p
 			}
 
 			p = mprintq(p, Cdr(v), True)
-			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
 
@@ -79,7 +79,7 @@ func printPair(p, v, q *Val) *Val {
 		}
 
 		p = mprintq(p, Car(v), True)
-		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
 
@@ -91,7 +91,7 @@ func printPair(p, v, q *Val) *Val {
 
 func printVector(p, v *Val) *Val {
 	p = printRaw(p, StringFromRaw("["))
-	if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+	if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 		return p
 	}
 
@@ -103,13 +103,13 @@ func printVector(p, v *Val) *Val {
 
 		if f == False {
 			p = printRaw(p, StringFromRaw(" "))
-			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
 		}
 
 		p = mprintq(p, VectorRef(v, i), True)
-		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
 
@@ -122,7 +122,7 @@ func printVector(p, v *Val) *Val {
 
 func printStruct(p, v *Val) *Val {
 	p = printRaw(p, StringFromRaw("{"))
-	if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+	if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 		return p
 	}
 
@@ -134,23 +134,23 @@ func printStruct(p, v *Val) *Val {
 
 		if f == False {
 			p = printRaw(p, StringFromRaw(" "))
-			if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+			if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 				return p
 			}
 		}
 
 		p = mprintq(p, Car(n), True)
-		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
 
 		p = printRaw(p, StringFromRaw(" "))
-		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
 
 		p = mprintq(p, Field(v, Car(n)), True)
-		if st := Field(p, SymbolFromRawString("state")); isError(st) != False {
+		if st := Field(p, SymbolFromRawString("state")); IsError(st) != False {
 			return p
 		}
 
@@ -170,10 +170,10 @@ func mprintq(p, v, q *Val) *Val {
 		v = AppendString(StringFromRaw(`"`), v, StringFromRaw(`"`))
 	} else if IsBool(v) != False {
 		v = BoolToString(v)
-	} else if isSys(v) != False {
-		v = sstring(v)
-	} else if isError(v) != False {
-		v = estring(v)
+	} else if IsSys(v) != False {
+		v = SysToString(v)
+	} else if IsError(v) != False {
+		v = ErrorToString(v)
 	} else if IsPair(v) != False && IsSymbol(Car(v)) != False && Eq(Car(v), SymbolFromRawString("quote")) != False {
 		return printQuote(p, v)
 	} else if IsPair(v) != False || IsNil(v) != False {
@@ -192,8 +192,8 @@ func mprintq(p, v, q *Val) *Val {
 		}))
 	}
 
-	f := fwrite(Field(p, SymbolFromRawString("output")), v)
-	if st := fstate(f); isError(st) != False {
+	f := Fwrite(Field(p, SymbolFromRawString("output")), v)
+	if st := Fstate(f); IsError(st) != False {
 		return Assign(p, FromMap(Struct{
 			"output": f,
 			"state":  st,

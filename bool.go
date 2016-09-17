@@ -5,7 +5,7 @@ var (
 	True  = &Val{mbool, true}
 )
 
-var InvalidBoolString = &Val{merror, "invalid bool string"}
+var InvalidBoolString = ErrorFromRawString("invalid bool string")
 
 func BoolFromRawString(s string) *Val {
 	switch s {

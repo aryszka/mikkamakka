@@ -3,10 +3,10 @@ package mikkamakka
 import "unicode"
 
 var (
-	invalidToken       = &Val{merror, "invalid token"}
-	notImplemented     = &Val{merror, "not implemented"}
-	unexpectedClose    = &Val{merror, "unexpected close"}
-	irregularCons      = &Val{merror, "irregular cons"}
+	invalidToken       = ErrorFromRawString("invalid token")
+	notImplemented     = ErrorFromRawString("not implemented")
+	unexpectedClose    = ErrorFromRawString("unexpected close")
+	irregularCons      = ErrorFromRawString("irregular cons")
 	UndefinedReadValue = &Val{symbol, "undefined read value"}
 	ttnone             = &Val{number, 0}
 	ttcomment          = &Val{number, 1}
@@ -68,12 +68,12 @@ func isWhitespace(s *Val) *Val {
 
 func symbolToken(t *Val) *Val {
 	v := NumberFromString(t)
-	if isError(v) == False {
+	if IsError(v) == False {
 		return v
 	}
 
 	v = BoolFromRawString(RawString(t))
-	if isError(v) == False {
+	if IsError(v) == False {
 		return v
 	}
 
@@ -81,10 +81,10 @@ func symbolToken(t *Val) *Val {
 }
 
 func readChar(r *Val) *Val {
-	in := fread(Field(r, SymbolFromRawString("in")), NumberFromRawInt(1))
-	st := fstate(in)
+	in := Fread(Field(r, SymbolFromRawString("in")), NumberFromRawInt(1))
+	st := Fstate(in)
 
-	if isError(st) != False {
+	if IsError(st) != False {
 		return Assign(r, FromMap(Struct{
 			"in":    in,
 			"value": st,
@@ -99,7 +99,7 @@ func readChar(r *Val) *Val {
 
 func readError(r *Val) bool {
 	v := Field(r, SymbolFromRawString("value"))
-	return isError(v) != False && v != UndefinedReadValue
+	return IsError(v) != False && v != UndefinedReadValue
 
 }
 

@@ -7,181 +7,163 @@ import (
 )
 
 const (
-	incompatibleResource = "incompatible resource"
-	discardedResource    = "discarded resource"
+	IncompatibleResource = "incompatible resource"
+	DiscardedResource    = "discarded resource"
 )
 
 type file struct {
-	sys      interface{}
-	buf      []byte
-	err      error
-	original *Val
+	sys interface{}
+	buf []byte
+	err *Val
 }
 
-var Eof = &Val{merror, "EOF"}
+var Eof = ErrorFromRawString("EOF")
 
-func isSys(a *Val) *Val {
+func IsSys(a *Val) *Val {
 	return is(a, sys)
 }
 
-func fopen(a *Val) *Val {
-	checkType(a, mstring)
-
+func Fopen(a *Val) *Val {
 	f, err := os.Open(RawString(a))
 	if err != nil {
-		return &Val{merror, err}
+		return ErrorFromSysError(err)
 	}
 
 	return &Val{sys, &file{sys: f}}
 }
 
-func stdin() *Val {
+func Stdin() *Val {
 	return &Val{sys, &file{sys: os.Stdin}}
 }
 
-func stdout() *Val {
+func Stdout() *Val {
 	return &Val{sys, &file{sys: os.Stdout}}
 }
 
-func stderr() *Val {
+func Stderr() *Val {
 	return &Val{sys, &file{sys: os.Stderr}}
 }
 
-func fstate(f *Val) *Val {
+func Fstate(f *Val) *Val {
 	checkType(f, sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(discardedResource)
+		panic(DiscardedResource)
 	}
 
-	if ft.err != nil && ft.err != io.EOF {
-		return &Val{merror, ft.err}
-	}
-
-	if ft.err == io.EOF && len(ft.buf) == 0 {
-		return Eof
+	if ft.err != nil {
+		return ft.err
 	}
 
 	return StringFromRaw(string(ft.buf))
 }
 
-func fread(f *Val, n *Val) *Val {
+func sysErr(err error) *Val {
+	var v *Val
+	if err == io.EOF {
+		v = Eof
+	} else if err != nil {
+		v = ErrorFromSysError(err)
+	}
+
+	return v
+}
+
+func Fread(f *Val, n *Val) *Val {
 	checkType(f, sys)
-	checkType(n, number)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(discardedResource)
+		panic(DiscardedResource)
 	}
 
 	sv := ft.sys
 	r, ok := sv.(io.Reader)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	ft.sys = nil
 
-	ft.buf = make([]byte, RawInt(n))
-	rn, err := r.Read(ft.buf)
-	ft.buf = ft.buf[:rn]
+	buf := make([]byte, RawInt(n))
+	rn, err := r.Read(buf)
+	buf = buf[:rn]
+	serr := sysErr(err)
 
-	return &Val{sys, &file{sys: sv, buf: ft.buf, err: err, original: f}}
+	return &Val{sys, &file{sys: sv, buf: buf, err: serr}}
 }
 
-func fwrite(f *Val, s *Val) *Val {
+func Fwrite(f *Val, s *Val) *Val {
 	checkType(f, sys)
-	checkType(s, mstring)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(discardedResource)
+		panic(DiscardedResource)
 	}
 
 	sv := ft.sys
 	w, ok := sv.(io.Writer)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	ft.sys = nil
 
 	_, err := w.Write(RawBytes(s))
-	return &Val{sys, &file{sys: sv, err: err, original: f}}
+	serr := sysErr(err)
+	return &Val{sys, &file{sys: sv, err: serr}}
 }
 
-func fclose(f *Val) *Val {
+func Fclose(f *Val) *Val {
 	checkType(f, sys)
 
 	ft, ok := f.value.(*file)
 	if !ok {
-		panic(incompatibleResource)
+		panic(IncompatibleResource)
 	}
 
 	if ft.sys == nil {
-		panic(discardedResource)
+		panic(DiscardedResource)
 	}
 
 	sv := ft.sys
 	c, ok := sv.(io.Closer)
-	var err error
+	var serr *Val
 	if ok {
-		err = c.Close()
+		err := c.Close()
+		serr = sysErr(err)
 	}
 
-	return &Val{sys, &file{sys: sv, err: err, original: f}}
+	return &Val{sys, &file{sys: sv, err: serr}}
 }
 
-func sstring(f *Val) *Val {
+func SysToString(f *Val) *Val {
 	checkType(f, sys)
 	return StringFromRaw("<file>")
 }
 
-func buffer() *Val {
+func Buffer() *Val {
 	return &Val{sys, &file{sys: bytes.NewBuffer(nil)}}
 }
 
-func derivedObject(o, from *Val) *Val {
-	checkType(o, sys)
-	checkType(from, sys)
-
-	if o.value.(*file).original == from {
-		return True
-	}
-
-	if from.value.(*file).original == nil {
-		return False
-	}
-
-	return derivedObject(o, from.value.(*file).original)
-}
-
-func argv() *Val {
+func Argv() *Val {
 	argv := Nil
 	for i := len(os.Args) - 1; i >= 0; i-- {
 		argv = Cons(StringFromRaw(os.Args[i]), argv)
 	}
 
 	return argv
-}
-
-func Stdin() *Val {
-	return stdin()
-}
-
-func Stdout() *Val {
-	return stdout()
 }

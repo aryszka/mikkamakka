@@ -82,7 +82,7 @@ func unexpectedType(got mtype, v *Val, expected ...mtype) *Val {
 		"expected: %s, got: %s, with value: %v",
 		strings.Join(s, ", "),
 		typeString(got), v.value)
-	return fatal(StringFromRaw(msg))
+	return Fatal(StringFromRaw(msg))
 }
 
 func checkType(v *Val, expected ...mtype) *Val {

@@ -94,11 +94,6 @@
 
 
 (test "read-char"
-  (test "returns derived input"
-    (let (b (buffer)
-          r (read-char (reader b)))
-      (derived-object? r:input b)))
-
   (test "returns error"
     (let (r (reader (failing-reader))
           next (read-char r))

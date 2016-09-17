@@ -5,22 +5,22 @@ when panic, when error?
 */
 
 var (
-	invalidQuote         = &Val{merror, "invalid quote"}
-	invalidDef           = &Val{merror, "invalid definition"}
-	invalidIf            = &Val{merror, "invalid if expression"}
-	invalidAnd           = &Val{merror, "invalid and expression"}
-	invalidOr            = &Val{merror, "invalid or expression"}
-	invalidFn            = &Val{merror, "invalid function expression"}
-	invalidSequence      = &Val{merror, "invalid sequence"}
-	invalidVector        = &Val{merror, "invalid vector"}
-	invalidCond          = &Val{merror, "invalid cond expression"}
-	invalidLet           = &Val{merror, "invalid let expression"}
-	invalidTest          = &Val{merror, "invalid test"}
-	invalidApplication   = &Val{merror, "invalid application"}
-	invalidExpression    = &Val{merror, "invalid expression"}
-	definitionExpression = &Val{merror, "definition in expression position"}
-	notFunction          = &Val{merror, "not a function"}
-	testFailed           = &Val{merror, "test failed"}
+	invalidQuote         = ErrorFromRawString("invalid quote")
+	invalidDef           = ErrorFromRawString("invalid definition")
+	invalidIf            = ErrorFromRawString("invalid if expression")
+	invalidAnd           = ErrorFromRawString("invalid and expression")
+	invalidOr            = ErrorFromRawString("invalid or expression")
+	invalidFn            = ErrorFromRawString("invalid function expression")
+	invalidSequence      = ErrorFromRawString("invalid sequence")
+	invalidVector        = ErrorFromRawString("invalid vector")
+	invalidCond          = ErrorFromRawString("invalid cond expression")
+	invalidLet           = ErrorFromRawString("invalid let expression")
+	invalidTest          = ErrorFromRawString("invalid test")
+	invalidApplication   = ErrorFromRawString("invalid application")
+	invalidExpression    = ErrorFromRawString("invalid expression")
+	definitionExpression = ErrorFromRawString("definition in expression position")
+	notFunction          = ErrorFromRawString("not a function")
+	testFailed           = ErrorFromRawString("test failed")
 )
 
 func List(a ...*Val) *Val {
@@ -57,7 +57,7 @@ func isQuote(v *Val) *Val {
 
 func evalQuote(e, v *Val) *Val {
 	if IsPair(Cdr(v)) == False || Cdr(Cdr(v)) != Nil {
-		fatal(invalidQuote)
+		Fatal(invalidQuote)
 	}
 
 	return Car(Cdr(v))
@@ -77,7 +77,7 @@ func isVectorForm(v *Val) *Val {
 
 func evalVector(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidVector)
+		return Fatal(invalidVector)
 	}
 
 	return VectorFromList(valueList(e, Cdr(v)))
@@ -93,7 +93,7 @@ func evalStructValues(e, v *Val) *Val {
 	}
 
 	if IsPair(v) == False || IsPair(Cdr(v)) == False {
-		return fatal(InvalidStruct)
+		return Fatal(InvalidStruct)
 	}
 
 	return Cons(
@@ -107,7 +107,7 @@ func evalStructValues(e, v *Val) *Val {
 
 func evalStruct(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(InvalidStruct)
+		return Fatal(InvalidStruct)
 	}
 
 	return StructFromList(evalStructValues(e, Cdr(v)))
@@ -119,7 +119,7 @@ func nameOfDef(v *Val) *Val {
 
 func nameOfFunctionDef(v *Val) *Val {
 	if IsPair(Car(Cdr(v))) == False || IsSymbol(Car(Car(Cdr(v)))) == False {
-		return fatal(invalidDef)
+		return Fatal(invalidDef)
 	}
 
 	return Car(Car(Cdr(v)))
@@ -127,7 +127,7 @@ func nameOfFunctionDef(v *Val) *Val {
 
 func defName(v *Val) *Val {
 	if IsPair(Cdr(v)) == False {
-		return fatal(invalidDef)
+		return Fatal(invalidDef)
 	}
 
 	if IsSymbol(Car(Cdr(v))) != False {
@@ -139,7 +139,7 @@ func defName(v *Val) *Val {
 
 func valueOfDef(v *Val) *Val {
 	if IsPair(Cdr(Cdr(v))) == False || Cdr(Cdr(Cdr(v))) != Nil {
-		return fatal(invalidDef)
+		return Fatal(invalidDef)
 	}
 
 	return Car(Cdr(Cdr(v)))
@@ -147,7 +147,7 @@ func valueOfDef(v *Val) *Val {
 
 func defValue(v *Val) *Val {
 	if IsPair(Cdr(v)) == False {
-		return fatal(invalidDef)
+		return Fatal(invalidDef)
 	}
 
 	if IsSymbol(Car(Cdr(v))) != False {
@@ -155,7 +155,7 @@ func defValue(v *Val) *Val {
 	}
 
 	if IsPair(Car(Cdr(v))) == False {
-		return fatal(invalidDef)
+		return Fatal(invalidDef)
 	}
 
 	return makeFn(Cdr(Car(Cdr(v))), Cdr(Cdr(v)))
@@ -171,7 +171,7 @@ func isIf(v *Val) *Val {
 
 func ifPredicate(v *Val) *Val {
 	if IsPair(Cdr(v)) == False {
-		return fatal(invalidIf)
+		return Fatal(invalidIf)
 	}
 
 	return Car(Cdr(v))
@@ -179,7 +179,7 @@ func ifPredicate(v *Val) *Val {
 
 func ifConsequent(v *Val) *Val {
 	if IsPair(Cdr(v)) == False || IsPair(Cdr(Cdr(v))) == False {
-		return fatal(invalidIf)
+		return Fatal(invalidIf)
 	}
 
 	return Car(Cdr(Cdr(v)))
@@ -189,7 +189,7 @@ func ifAlternative(v *Val) *Val {
 	if IsPair(Cdr(v)) == False ||
 		IsPair(Cdr(Cdr(v))) == False ||
 		IsPair(Cdr(Cdr(Cdr(v)))) == False {
-		return fatal(invalidIf)
+		return Fatal(invalidIf)
 	}
 
 	return Car(Cdr(Cdr(Cdr(v))))
@@ -260,7 +260,7 @@ func isFunctionLiteral(v *Val) *Val {
 func fnParams(v *Val) *Val {
 	if IsPair(v) == False || IsPair(Cdr(v)) == False ||
 		IsSymbol(Car(Cdr(v))) == False && IsPair(Car(Cdr(v))) == False && IsNil(Car(Cdr(v))) == False {
-		return fatal(invalidFn)
+		return Fatal(invalidFn)
 	}
 
 	return Car(Cdr(v))
@@ -268,7 +268,7 @@ func fnParams(v *Val) *Val {
 
 func fnBody(v *Val) *Val {
 	if IsPair(v) == False || IsPair(Cdr(v)) == False || IsPair(Cdr(Cdr(v))) == False {
-		return fatal(invalidFn)
+		return Fatal(invalidFn)
 	}
 
 	return Cdr(Cdr(v))
@@ -284,7 +284,7 @@ func isBegin(v *Val) *Val {
 
 func beginSeq(v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidSequence)
+		return Fatal(invalidSequence)
 	}
 
 	return Cdr(v)
@@ -292,7 +292,7 @@ func beginSeq(v *Val) *Val {
 
 func evalSeq(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidSequence)
+		return Fatal(invalidSequence)
 	}
 
 	if Cdr(v) == Nil {
@@ -309,7 +309,7 @@ func isCond(v *Val) *Val {
 
 func seqToExp(v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidCond)
+		return Fatal(invalidCond)
 	}
 
 	if IsNil(Cdr(v)) != False {
@@ -321,21 +321,21 @@ func seqToExp(v *Val) *Val {
 
 func expandCond(v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidCond)
+		return Fatal(invalidCond)
 	}
 
 	cond := Car(v)
 	rest := Cdr(v)
 
 	if IsPair(cond) == False {
-		return fatal(invalidCond)
+		return Fatal(invalidCond)
 	}
 
 	pred := Car(cond)
 
 	if IsSymbol(pred) != False && Eq(pred, SymbolFromRawString("else")) != False {
 		if IsNil(rest) == False {
-			return fatal(invalidCond)
+			return Fatal(invalidCond)
 		}
 
 		return seqToExp(Cdr(cond))
@@ -351,7 +351,7 @@ func expandCond(v *Val) *Val {
 
 func condToIf(v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidCond)
+		return Fatal(invalidCond)
 	}
 
 	return expandCond(Cdr(v))
@@ -367,7 +367,7 @@ func letDefs(v *Val) *Val {
 	}
 
 	if IsPair(v) == False || IsPair(Cdr(v)) == False {
-		return fatal(invalidLet)
+		return Fatal(invalidLet)
 	}
 
 	return Cons(
@@ -378,7 +378,7 @@ func letDefs(v *Val) *Val {
 
 func letFnBody(v *Val) *Val {
 	if IsPair(v) == False || IsPair(Cdr(v)) == False || IsNil(Cdr(Cdr(v))) != False {
-		return fatal(invalidLet)
+		return Fatal(invalidLet)
 	}
 
 	return mappend(letDefs(Car(Cdr(v))), Cdr(Cdr(v)))
@@ -395,7 +395,7 @@ func isTest(v *Val) *Val {
 // TODO: should be and
 func evalTest(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidTest)
+		return Fatal(invalidTest)
 	}
 
 	if IsNil(Cdr(v)) != False {
@@ -404,11 +404,11 @@ func evalTest(e, v *Val) *Val {
 
 	result := evalSeq(newEnv(e), Cdr(v))
 	if result == False {
-		return fatal(testFailed)
+		return Fatal(testFailed)
 	}
 
-	if isError(result) != False {
-		return fatal(result)
+	if IsError(result) != False {
+		return Fatal(result)
 	}
 
 	return SymbolFromRawString("test-complete")
@@ -424,7 +424,7 @@ func valueList(e, v *Val) *Val {
 	}
 
 	if IsPair(v) == False {
-		return fatal(invalidApplication)
+		return Fatal(invalidApplication)
 	}
 
 	return Cons(evalExp(e, Car(v)), valueList(e, Cdr(v)))
@@ -432,7 +432,7 @@ func valueList(e, v *Val) *Val {
 
 func evalApply(e, v *Val) *Val {
 	if IsPair(v) == False {
-		return fatal(invalidApplication)
+		return Fatal(invalidApplication)
 	}
 
 	return Apply(evalExp(e, Car(v)), valueList(e, Cdr(v)))
@@ -458,7 +458,7 @@ func Apply(f, a *Val) *Val {
 func evalExp(e, v *Val) *Val {
 	switch {
 	case isDef(v) != False:
-		return fatal(definitionExpression)
+		return Fatal(definitionExpression)
 	default:
 		return eval(e, v)
 	}
@@ -504,7 +504,7 @@ func eval(e, v *Val) *Val {
 		return evalApply(e, v)
 	default:
 		println(v.mtype)
-		return fatal(invalidExpression)
+		return Fatal(invalidExpression)
 	}
 }
 
