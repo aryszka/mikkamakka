@@ -95,7 +95,7 @@
 
 (test "read-char"
   (test "returns error"
-    (let (r (reader (failing-reader))
+    (let (r (reader (failing-io))
           next (read-char r))
       (error? next:value)))
 
@@ -422,7 +422,7 @@
       (assert-read r:value expected)))
 
   (test "returns error"
-    (let (r (read (reader (failing-reader))))
+    (let (r (read (reader (failing-io))))
       (assert-read r:value error?)))
 
   (test "returns on eof" (assert-read-string "a" 'a))

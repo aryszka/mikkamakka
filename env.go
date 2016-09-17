@@ -194,7 +194,7 @@ func InitialEnv() *Val {
 	define(env, SymbolFromRawString("fread"), newBuiltin2(Fread))
 	define(env, SymbolFromRawString("fwrite"), newBuiltin2(Fwrite))
 	define(env, SymbolFromRawString("fstate"), newBuiltin1(Fstate))
-	define(env, SymbolFromRawString("failing-reader"), newBuiltin0(failingReader))
+	define(env, SymbolFromRawString("failing-io"), newBuiltin0(FailingIO))
 	define(env, SymbolFromRawString("eof"), Eof)
 	define(env, SymbolFromRawString("stdin"), newBuiltin0(Stdin))
 	define(env, SymbolFromRawString("stderr"), newBuiltin0(Stderr))
