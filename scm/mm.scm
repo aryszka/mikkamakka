@@ -1,27 +1,48 @@
+(def definition-expression (string->error "definition in expression position"))
+(def invalid-expression (string->error "invalid expression"))
+
 (def (trace message . values)
   (def (trace out values)
-    (cond ((nil? (cdr values))
-           (def out-complete (print out (car values)))
-           (fwrite out-complete:output "\n")
-           (car values))
-          (else
-            (def out-next (print out (car values)))
-            (trace (assign out-next {output (fwrite out-next:output " ")})
-                   (cdr values)))))
+    (let (out (print out (car values)))
+      (cond ((nil? (cdr values))
+             (fwrite out:output "\n")
+             (car values))
+            (else
+              (trace
+                (assign out {output (fwrite out:output " ")})
+                (cdr values))))))
   (trace (printer (stderr)) (cons message values)))
 
 
-(def (len l)
-  (cond ((nil? l) 0)
-        (else (inc (len (cdr l))))))
+(def (inc n) (+ n 1))
+
+
+(def (list-len v)
+  (cond ((nil? v) 0)
+        (else (inc (list-len (cdr v))))))
+
+
+; (test "list-len"
+;   (test "empty" (= (list-len nil) 0))
+;   (test "not empty" (= (list-len '(1 2 3)))))
+
+
+(def (len v)
+  (cond ((vector? v) (vector-len v))
+        ((struct? v) (len (struct-names s)))
+        (else (list-len v))))
 
 
 (def (append . l)
   (def (append-two left right)
     (cond ((nil? left) right)
-          (else (cons (car left) (append-two (cdr left) right)))))
+          (else (cons
+                  (car left)
+                  (append-two (cdr left) right)))))
   (cond ((nil? l) nil)
-        (else (append-two (car l) (apply append (cdr l))))))
+        (else (append-two
+                (car l)
+                (apply append (cdr l))))))
 
 
 (def (reverse l)
@@ -32,12 +53,13 @@
 (def (reverse-irregular l)
   (def (reverse from to)
     (cond ((nil? from) to)
-          (else (reverse (cdr from) (cons (car from) to)))))
-  (cond ((or (nil? l) (nil? (cdr l))) irregular-cons)
-        (else (reverse (cdr (cdr l)) (cons (car (cdr l)) (car l))))))
-
-
-(def (inc n) (+ n 1))
+          (else (reverse
+                  (cdr from)
+                  (cons (car from) to)))))
+  (cond ((or (nil? l) (nil? (cdr l)))
+         irregular-cons)
+        (else (reverse (cdr (cdr l))
+                       (cons (car (cdr l)) (car l))))))
 
 
 (def irregular-cons (string->error "irregular cons expression"))
@@ -72,7 +94,7 @@
 (def (reader input)
   {input         input 
    token-type    token-type:none
-   value         undefined
+   state         undefined
    escaped?       false
    char          ""
    token         ""
@@ -89,25 +111,25 @@
     (assign r
       {input next-input}
       (if (error? state)
-        {value state}
+        {state state}
         {char state}))))
 
 
-(test "read-char"
-  (test "returns error"
-    (let (r (reader (failing-io))
-          next (read-char r))
-      (error? next:value)))
-
-  (test "returns eof"
-    (let (r (reader (buffer))
-          next (read-char r))
-      (= next:value eof)))
-
-  (test "returns single char"
-    (let (r (reader (fwrite (buffer) "abc"))
-          next (read-char r))
-      (= next:char "a"))))
+; (test "read-char"
+;   (test "returns error"
+;     (let (r (reader (failing-io))
+;           next (read-char r))
+;       (error? next:state)))
+; 
+;   (test "returns eof"
+;     (let (r (reader (buffer))
+;           next (read-char r))
+;       (= next:state eof)))
+; 
+;   (test "returns single char"
+;     (let (r (reader (fwrite (buffer) "abc"))
+;           next (read-char r))
+;       (= next:char "a"))))
 
 
 (def (newline? c) (= c "\n"))
@@ -142,10 +164,10 @@
   (assign r {token (string-append r:token r:char)}))
 
 
-(test "append-token"
-  (let (r    (assign (reader (buffer)) {token "ab" char "c"})
-        next (append-token r))
-    (= next:token "abc")))
+; (test "append-token"
+;   (let (r    (assign (reader (buffer)) {token "ab" char "c"})
+;         next (append-token r))
+;     (= next:token "abc")))
 
 
 (def (append-token-escaped r)
@@ -174,13 +196,13 @@
 (def (set-close r list-type)
   (if (= list-type r:list-type)
     (assign r {close-list? true})
-    (assign r {value unexpected-close})))
+    (assign r {state unexpected-close})))
 
 
 (def (set-cons r)
   (assign r (if (= r:list-type list-type:lisp)
               {list-cons? true}
-              {value irregular-cons})))
+              {state irregular-cons})))
 
 
 (def (symbol-token r)
@@ -189,26 +211,26 @@
       (string->symbol r:token)
       (let (v ((car parsers) r:token))
         (if (error? v) (apply try-parse (cdr parsers)) v))))
-  (assign r {value (try-parse string->number
+  (assign r {state (try-parse string->number
                               string->bool)}))
 
 
-(test "symbol-token"
-  (test "no empty token allowed"
-    (let (r (symbol-token (reader (buffer))))
-      (error? r:value)))
-
-  (test "takes number"
-    (let (r (symbol-token (assign (reader (buffer)) {token "123"})))
-      (= r:value 123)))
-
-  (test "takes bool"
-    (let (r (symbol-token (assign (reader (buffer)) {token "false"})))
-      (not r:value)))
-  
-  (test "takes symbol"
-    (let (r (symbol-token (assign (reader (buffer)) {token "a-symbol"})))
-      (= r:value 'a-symbol))))
+; (test "symbol-token"
+;   (test "no empty token allowed"
+;     (let (r (symbol-token (reader (buffer))))
+;       (error? r:state)))
+; 
+;   (test "takes number"
+;     (let (r (symbol-token (assign (reader (buffer)) {token "123"})))
+;       (= r:state 123)))
+; 
+;   (test "takes bool"
+;     (let (r (symbol-token (assign (reader (buffer)) {token "false"})))
+;       (not r:state)))
+;   
+;   (test "takes symbol"
+;     (let (r (symbol-token (assign (reader (buffer)) {token "a-symbol"})))
+;       (= r:state 'a-symbol))))
 
 
 ; TODO: clean this up
@@ -216,66 +238,66 @@
   (cond ((= r:token-type token-type:symbol)
          (clear-token (symbol-token r)))
         ((= r:token-type token-type:string)
-         (clear-token (assign r {value r:token})))
+         (clear-token (assign r {state r:token})))
         ((= r:token-type token-type:none) (clear-token r))
         (else
-          (assign r {value (if (= r:token "") undefined invalid-token)}))))
+          (assign r {state (if (= r:token "") undefined invalid-token)}))))
 
 
-(test "finalize-token"
-  (test "invalid token type"
-    (let (r (finalize-token
-              (assign (reader (buffer))
-                {token-type token-type:vector
-                 token "a"})))
-      (error? r:value)))
-
-  (test "empty token"
-    (let (r (finalize-token
-              (assign (reader (buffer))
-                      {token-type token-type:none
-                       token ""})))
-      (= r:value undefined)))
-
-  (test "number"
-    (let (r (finalize-token
-              (assign (reader (buffer))
-                {token-type token-type:symbol
-                 token "123"})))
-      (= r:value 123)))
-
-  (test "bool"
-    (let (r (finalize-token
-              (assign (reader (buffer))
-                {token-type token-type:symbol
-                 token "false"})))
-      (not r:value)))
-
-  (test "symbol"
-    (let (r (finalize-token
-              (assign (reader (buffer))
-                {token-type token-type:symbol
-                 token "a-symbol"})))
-      (= r:value 'a-symbol))))
+; (test "finalize-token"
+;   (test "invalid token type"
+;     (let (r (finalize-token
+;               (assign (reader (buffer))
+;                 {token-type token-type:vector
+;                  token "a"})))
+;       (error? r:state)))
+; 
+;   (test "empty token"
+;     (let (r (finalize-token
+;               (assign (reader (buffer))
+;                       {token-type token-type:none
+;                        token ""})))
+;       (= r:state undefined)))
+; 
+;   (test "number"
+;     (let (r (finalize-token
+;               (assign (reader (buffer))
+;                 {token-type token-type:symbol
+;                  token "123"})))
+;       (= r:state 123)))
+; 
+;   (test "bool"
+;     (let (r (finalize-token
+;               (assign (reader (buffer))
+;                 {token-type token-type:symbol
+;                  token "false"})))
+;       (not r:state)))
+; 
+;   (test "symbol"
+;     (let (r (finalize-token
+;               (assign (reader (buffer))
+;                 {token-type token-type:symbol
+;                  token "a-symbol"})))
+;       (= r:state 'a-symbol))))
 
 
 ; todo: unimperativize
 (def (read-list r list-type)
   (def (read-item lr)
     (let (next (read lr))
-      (cond ((error? next:value) next)
-            ((= next:value undefined) next)
+      (cond ((error? next:state) next)
+            ((= next:state undefined) next)
             (else
               (assign next
-                {list-items (cons next:value next:list-items)
+                {list-items (cons next:state next:list-items)
                  cons-items (if (> next:cons-items 0) (inc lr:cons-items) 0)
-                 value      undefined})))))
+                 state      undefined})))))
 
   (def (check-cons lr)
     (if lr:list-cons?
       (assign lr
         (if (or (nil? lr:list-items) (> lr:cons-items 0))
-          {value irregular-cons}
+          {state irregular-cons}
           {cons-items 1 list-cons? false}))
       lr))
 
@@ -283,7 +305,7 @@
     (assign r
       {input lr:input
        token-type token-type:none
-       value (cond ((and (> lr:cons-items 0) (not (= lr:cons-items 2)))
+       state (cond ((and (> lr:cons-items 0) (not (= lr:cons-items 2)))
                     irregular-cons)
                    ((> lr:cons-items 0)
                     (reverse-irregular lr:list-items))
@@ -291,7 +313,7 @@
 
   (def (read-items lr)
     (let (next (check-cons (read-item lr)))
-      (cond ((error? next:value) (assign r {input next:input value next:value}))
+      (cond ((error? next:state) (assign r {input next:input state next:state}))
             (next:close-list? (complete-list next))
             (else (read-items next)))))
   
@@ -303,24 +325,24 @@
         next (read lr))
     (assign r {input next:input
                token-type token-type:none
-               value (if (error? next:value) next:value (list 'quote next:value))
+               state (if (error? next:state) next:state (list 'quote next:state))
                close-list? next:close-list?})))
 
 
 (def (read-vector r)
   (let (next (read-list r list-type:vector))
     (assign next
-      {value (if (error? next:value)
-               next:value
-               (cons 'vector: next:value))})))
+      {state (if (error? next:state)
+               next:state
+               (cons 'vector: next:state))})))
 
 
 (def (read-struct r)
   (let (next (read-list r list-type:struct))
     (assign next
-      {value (if (error? next:value)
-               next:value
-               (cons 'struct: next:value))})))
+      {state (if (error? next:state)
+               next:state
+               (cons 'struct: next:state))})))
 
 
 (def (read r)
@@ -343,9 +365,9 @@
 
     (else
       (let (next (read-char r))
-        (cond ((= next:value eof) (finalize-token next))
+        (cond ((= next:state eof) (finalize-token next))
 
-              ((error? next:value) next)
+              ((error? next:state) next)
 
               ((= next:token-type token-type:none)
                (cond ((whitespace? next:char) (read next))
@@ -398,94 +420,94 @@
                      ((string-delimiter? next:char) (finalize-token next))
                      (else (read (append-token next)))))
 
-              (else (assign next {value invalid-token})))))))
+              (else (assign next {state invalid-token})))))))
 
 
-(test "read"
-  (def (assert-read result test-value)
-    (cond ((= test-value undefined) (= result undefined))
-          ((number? test-value) (= result test-value))
-          ((bool? test-value) (= result test-value))
-          ((symbol? test-value) (= result test-value))
-          ((string? test-value) (= result test-value))
-          ((nil? test-value) (nil? result))
-          ((pair? test-value) (and (pair? result)
-                                   (assert-read (car result) (car test-value))
-                                   (assert-read (cdr result) (cdr test-value))))
-          ((= test-value eof) (= result eof))
-          (else (test-value result))))
-
-  (def (read-string s) (read (reader (fwrite (buffer) s))))
-
-  (def (assert-read-string string expected)
-    (let (r (read-string string))
-      (assert-read r:value expected)))
-
-  (test "returns error"
-    (let (r (read (reader (failing-io))))
-      (assert-read r:value error?)))
-
-  (test "returns on eof" (assert-read-string "a" 'a))
-
-  (test "ignores whitespace" (assert-read-string " " eof))
-
-  (test "reads number" (assert-read-string "123" 123))
-
-  (test "reads bool" (assert-read-string "false" not))
-
-  (test "reads symbol" (assert-read-string "a-symbol" 'a-symbol))
-
-  (test "reads symbol with escape" (assert-read-string "a\\(b" 'a\(b))
-
-  (test "reads symbol with escaped escape char" (assert-read-string "a\\\\b" 'a\\b))
-
-  (test "reads symbol with escaped whitespace only" (assert-read-string "\\ " '\ ))
-
-  (test "reads symbol closed by whitespace" (assert-read-string "a b" 'a))
-
-  (test "reads symbol closed by string" (assert-read-string "a\"b\"" 'a))
-
-  (test "reads symbol closed by comment" (assert-read-string "a; a comment" 'a))
-
-  (test "reads symbol closed by list" (assert-read-string "a(b)" 'a))
-
-  (test "reads symbol closed by vector" (assert-read-string "a[b]" 'a))
-
-  (test "reads symbol closed by struct" (assert-read-string "a{b 2}" 'a))
-
-  (test "reads string" (assert-read-string "\"a string\"" "a string"))
-
-  (test "reads string with escape" (assert-read-string "\"a \\\"string\\\"\"" "a \"string\""))
-
-  (test "reads string with escaped escape char" (assert-read-string "\"a \\\\\"" "a \\"))
-
-  (test "ignores comments" (assert-read-string "; a comment" undefined))
-
-  (test "new line closes comments" (assert-read-string "; a comment\na" 'a))
-
-  (test "reads list" (assert-read-string "(a b c)" '(a b c)))
-
-  (test "reads irregular list" (assert-read-string "(a b . c)" '(a b . c)))
-
-  (test "reads quote" (assert-read-string "'a" ''a))
-
-  (test "reads quoted list" (assert-read-string "'(a b c)" ''(a b c)))
-
-  (test "reads vector" (assert-read-string "[a b c]" '[a b c]))
-
-  (test "reads struct" (assert-read-string "{a 1 b 2 c 3}" '{a 1 b 2 c 3}))
-  
-  (test "yields ready objects"
-    (def (test-yield r expected)
-      (let (next (read r))
-        (cond ((and (nil? expected) (= next:value eof)) 'ok)
-              ((and (not (nil? expected)) (= next:value eof))
-               (string->error "more values expected"))
-              ((nil? expected) (string->error "unexpected value"))
-              (else (and (assert-read next:value (car expected))
-                         (test-yield next (cdr expected)))))))
-    (test-yield (reader (fwrite (buffer) "a b c")) '(a b c))
-    (test-yield (reader (fwrite (buffer) "a {b 2} [c]")) '(a {b 2} [c]))))
+; (test "read"
+;   (def (assert-read result test-value)
+;     (cond ((= test-value undefined) (= result undefined))
+;           ((number? test-value) (= result test-value))
+;           ((bool? test-value) (= result test-value))
+;           ((symbol? test-value) (= result test-value))
+;           ((string? test-value) (= result test-value))
+;           ((nil? test-value) (nil? result))
+;           ((pair? test-value) (and (pair? result)
+;                                    (assert-read (car result) (car test-value))
+;                                    (assert-read (cdr result) (cdr test-value))))
+;           ((= test-value eof) (= result eof))
+;           (else (test-value result))))
+; 
+;   (def (read-string s) (read (reader (fwrite (buffer) s))))
+; 
+;   (def (assert-read-string string expected)
+;     (let (r (read-string string))
+;       (assert-read r:state expected)))
+; 
+;   (test "returns error"
+;     (let (r (read (reader (failing-io))))
+;       (assert-read r:state error?)))
+; 
+;   (test "returns on eof" (assert-read-string "a" 'a))
+; 
+;   (test "ignores whitespace" (assert-read-string " " eof))
+; 
+;   (test "reads number" (assert-read-string "123" 123))
+; 
+;   (test "reads bool" (assert-read-string "false" not))
+; 
+;   (test "reads symbol" (assert-read-string "a-symbol" 'a-symbol))
+; 
+;   (test "reads symbol with escape" (assert-read-string "a\\(b" 'a\(b))
+; 
+;   (test "reads symbol with escaped escape char" (assert-read-string "a\\\\b" 'a\\b))
+; 
+;   (test "reads symbol with escaped whitespace only" (assert-read-string "\\ " '\ ))
+; 
+;   (test "reads symbol closed by whitespace" (assert-read-string "a b" 'a))
+; 
+;   (test "reads symbol closed by string" (assert-read-string "a\"b\"" 'a))
+; 
+;   (test "reads symbol closed by comment" (assert-read-string "a; a comment" 'a))
+; 
+;   (test "reads symbol closed by list" (assert-read-string "a(b)" 'a))
+; 
+;   (test "reads symbol closed by vector" (assert-read-string "a[b]" 'a))
+; 
+;   (test "reads symbol closed by struct" (assert-read-string "a{b 2}" 'a))
+; 
+;   (test "reads string" (assert-read-string "\"a string\"" "a string"))
+; 
+;   (test "reads string with escape" (assert-read-string "\"a \\\"string\\\"\"" "a \"string\""))
+; 
+;   (test "reads string with escaped escape char" (assert-read-string "\"a \\\\\"" "a \\"))
+; 
+;   (test "ignores comments" (assert-read-string "; a comment" undefined))
+; 
+;   (test "new line closes comments" (assert-read-string "; a comment\na" 'a))
+; 
+;   (test "reads list" (assert-read-string "(a b c)" '(a b c)))
+; 
+;   (test "reads irregular list" (assert-read-string "(a b . c)" '(a b . c)))
+; 
+;   (test "reads quote" (assert-read-string "'a" ''a))
+; 
+;   (test "reads quoted list" (assert-read-string "'(a b c)" ''(a b c)))
+; 
+;   (test "reads vector" (assert-read-string "[a b c]" '[a b c]))
+; 
+;   (test "reads struct" (assert-read-string "{a 1 b 2 c 3}" '{a 1 b 2 c 3}))
+;   
+;   (test "yields ready objects"
+;     (def (test-yield r expected)
+;       (let (next (read r))
+;         (cond ((and (nil? expected) (= next:state eof)) 'ok)
+;               ((and (not (nil? expected)) (= next:state eof))
+;                (string->error "more values expected"))
+;               ((nil? expected) (string->error "unexpected state"))
+;               (else (and (assert-read next:state (car expected))
+;                          (test-yield next (cdr expected)))))))
+;     (test-yield (reader (fwrite (buffer) "a b c")) '(a b c))
+;     (test-yield (reader (fwrite (buffer) "a {b 2} [c]")) '(a {b 2} [c]))))
 
 
 (def (tagged? v t) (and (pair? v) (= (car v) t)))
@@ -663,19 +685,21 @@
 (def (compile-cond v) (compile (cond->if v)))
 
 
-(def (compile-let v)
+(def (let-body v)
   (def (let-defs v)
     (cond ((nil? v) nil)
           ((or (not (pair? v)) (not (pair? (cdr v))))
            (fatal invalid-let))
           (else (cons (list 'def (car v) (car (cdr v)))
                       (let-defs (cdr (cdr v)))))))
-  (def (let-body v)
-    (cond ((or (not (pair? v))
-               (not (pair? (cdr v)))
-               (nil? (cdr (cdr v))))
-           (fatal invalid-let))
-          (else (append (let-defs (car (cdr v))) (cdr (cdr v))))))
+  (cond ((or (not (pair? v))
+             (not (pair? (cdr v)))
+             (nil? (cdr (cdr v))))
+         (fatal invalid-let))
+        (else (append (let-defs (car (cdr v))) (cdr (cdr v))))))
+
+
+(def (compile-let v)
   (compile (list (make-fn nil (let-body v)))))
 
 
@@ -733,11 +757,18 @@
 
 
 (def (compile-application v)
-  (string-append " mm.Apply("
+  (string-append " mm.ApplySys("
                  (compile-exp (car v))
                  ", "
                  (compile-value-list (cdr v))
                  ")"))
+
+
+(def (current-env? v) (tagged? v 'current-env))
+
+
+(def (compile-current-env)
+  "func() *mm.Val { return env }()")
 
 
 (def (compile-literal v)
@@ -768,8 +799,9 @@
         ((cond? v) (compile-cond v))
         ((let? v) (compile-let v))
         ((test? v) (compile-test v))
+        ((current-env? v) (compile-current-env))
         ((application? v) (compile-application v))
-        (else (fatal invalid-expression))))
+        (else (fatal definition-expression))))
 
 
 (def (compile v)
@@ -781,6 +813,7 @@
         ((cond? v) (compile-cond v))
         ((let? v) (compile-let v))
         ((test? v) (compile-test v))
+        ((current-env? v) (compile-current-env))
         ((application? v) (compile-application v))
         (else (fatal invalid-statement))))
 
@@ -803,6 +836,7 @@
         ((cond? v) (compile-cond v))
         ((let? v) (compile-let v))
         ((test? v) (compile-test v))
+        ((current-env? v) (compile-current-env))
         ((application? v) (compile-application v))
         (else (fatal invalid-expression))))
 
@@ -826,10 +860,10 @@
 
   (def (compile-reader r fout)
     (let (next-in (read r))
-      (cond ((= next-in:value eof) (list next-in fout))
-            ((error? next-in:value) next-in:value)
+      (cond ((= next-in:state eof) (list next-in fout))
+            ((error? next-in:state) next-in:state)
             (else
-              (let (code (compile next-in:value))
+              (let (code (compile next-in:state))
                 (cond ((error? code) code)
                       (else
                         (let (next-out (fwrite fout (string-append code ";\n")))
@@ -841,12 +875,151 @@
           (else (list ((car result) 'input) (write-tail (car (cdr result))))))))
 
 
-(let (fin  (fopen (car (cdr (argv))))
-      fout (stdout))
-  (cond ((error? (fstate fin)) (fstate fin))
-        ((error? (fstate fout)) (fstate fout))
-        (else (let (result (compile-file fin fout))
+(def (eval-quote exp) (car (cdr exp)))
+
+
+(def (eval-def env exp)
+  (define env (def-name exp) (eval-exp env (def-value exp))))
+
+
+(def (value-list env exp)
+  (cond ((nil? exp) nil)
+        (else (cons (eval-exp env (car exp)) (value-list env (cdr exp))))))
+
+
+(def (eval-vector env exp)
+  (list->vector (value-list env (cdr exp))))
+
+
+(def (struct-values env exp)
+  (cond ((nil? exp) nil)
+        (else (cons (car exp)
+                    (cons (eval-exp env (car (cdr exp)))
+                          (struct-values env (cdr (cdr exp))))))))
+
+
+(def (eval-struct env exp)
+  (list->struct (struct-values env (cdr exp))))
+
+
+(def (eval-exp env exp)
+  (cond ((def? exp) (fatal definition-expression))
+        (else (eval-env env exp))))
+
+
+(def (eval-if env exp)
+  (if (eval-exp env (car (cdr exp)))
+    (eval-exp env (car (cdr (cdr exp))))
+    (eval-exp env (car (cdr (cdr (cdr exp)))))))
+
+
+(def (eval-and env exp)
+  (cond ((nil? exp) true)
+        ((nil? (cdr exp)) (eval-exp env (car exp)))
+        (else (if (not (eval-exp env (car exp)))
+                false
+                (eval-and env (cdr exp))))))
+
+
+(def (eval-or env exp)
+  (cond ((nil? exp) false)
+        ((nil? (cdr exp)) (eval-exp env (car exp)))
+        (else (let (v (eval-exp env (car exp)))
+                (if v v (eval-or env (cdr exp)))))))
+
+
+(def (eval-fn env exp)
+  (let (signature (fn-signature (car (cdr exp)))
+        body      (cdr (cdr exp)))
+    (make-composite (cons env (cons signature:names body)))))
+
+
+(def (eval-seq env exp)
+  (cond ((not (pair? exp)) (fatal invalid-sequence))
+        ((nil? (cdr exp)) (eval-exp env (car exp)))
+        (else (eval-env env (car exp))
+              (eval-seq env (cdr exp)))))
+
+
+(def (eval-test env exp)
+  (cond ((nil? (cdr exp)) true)
+        (else (let (result (eval-seq (extend-env env nil nil) (cdr exp)))
                 (cond ((error? result) (fatal result))
-                      (else
-                        (fwrite (car (cdr result)) "\n")
-                        (fclose (car result))))))))
+                      ((not result) (fatal "test failed"))
+                      (else 'test-complete))))))
+
+
+(def (eval-apply env exp)
+  (apply (eval-exp env (car exp)) (value-list env (cdr exp))))
+
+
+(def (apply f a)
+  (cond ((vector? f) (vector-ref f (car a)))
+        ((struct? f) (field f (car a)))
+        ((compiled-function? f) (apply-compiled f a))
+        (else (let (c (composite f))
+                (eval-seq (extend-env (car c) (car (cdr c)) a) (cdr (cdr c)))))))
+
+
+(def (eval-env env exp)
+  (cond ((number? exp) exp)
+        ((string? exp) exp)
+        ((bool? exp) exp)
+        ((nil? exp) exp)
+        ((quote? exp) (eval-quote exp))
+        ((symbol? exp) (lookup-def env exp))
+        ((def? exp) (eval-def env exp))
+        ((vector-form? exp) (eval-vector env exp))
+        ((struct-form? exp) (eval-struct env exp))
+        ((if? exp) (eval-if env exp))
+        ((and? exp) (eval-and env (cdr exp)))
+        ((or? exp) (eval-or env (cdr exp)))
+        ((fn? exp) (eval-fn env exp))
+        ((begin? exp) (eval-seq env (cdr exp)))
+        ((cond? exp) (eval-env env (cond->if exp)))
+        ((let? exp) (eval-env env (list (make-fn nil (let-body exp)))))
+        ((test? exp) (eval-test env exp))
+        ((application? exp) (eval-apply env exp))
+        (else invalid-expression)))
+
+
+; (let (fin  (fopen (car (cdr (argv))))
+;       fout (stdout))
+;   (cond ((error? (fstate fin)) (fstate fin))
+;         ((error? (fstate fout)) (fstate fout))
+;         (else (let (result (compile-file fin fout))
+;                 (cond ((error? result) (fatal result))
+;                       (else
+;                         (fwrite (car (cdr result)) "\n")
+;                         (fclose (car result))))))))
+
+
+(def (eval-print s)
+  (let (r (read s:reader))
+    (cond ((error? r:state) (assign s {reader r}))
+          (else
+            (let (v (eval-env s:env r:state)
+                  p (print s:printer v))
+              (cond ((error? p:state) (assign s {reader r printer p}))
+                    (else
+                      (let (o (fwrite p:output "\n"))
+                        (cond ((error? (fstate o))
+                               (assign s {reader r printer (assign p {output o state (fstate o)})}))
+                              (else (eval-print
+                                      (assign s {reader r printer (assign p {output o})}))))))))))))
+
+
+(let (fin (fopen (car (cdr (argv))))
+      fout (stdout))
+  (cond ((error? (fstate fin)) (fatal (fstate fin)))
+        ((error? (fstate fout)) (fatal (fstate fout)))
+        (else
+          (let (state (eval-print {reader (reader fin)
+                                    printer (printer fout)
+                                    env (current-env)}))
+            (if (error? state:reader:state)
+              (fatal state:reader:state)
+              (fclose state:reader:input))
+            (if (error? state:printer:state)
+              (fatal state:printer:state)
+              (fclose state:printer:output))))))

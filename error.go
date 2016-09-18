@@ -2,7 +2,7 @@ package mikkamakka
 
 import (
 	"fmt"
-	"os"
+	// "os"
 )
 
 func IsError(a *Val) *Val {
@@ -38,16 +38,21 @@ func ErrorToString(a *Val) *Val {
 }
 
 func Fatal(a *Val) *Val {
-	// panic(errorString(a))
-
+	var msg *Val
 	switch a.typ {
 	case String:
 		Fwrite(Stderr(), a)
+		msg = a
 	case Error:
-		Fwrite(Stderr(), ErrorToString(a))
+		msg = ErrorToString(a)
+	default:
+		msg = SysStringToString("unknown error")
 	}
 
-	println()
-	os.Exit(-1)
-	return a
+	panic(StringToSysString(msg))
+
+	// Fwrite(Stderr(), msg)
+	// println()
+	// os.Exit(-1)
+	// return a
 }

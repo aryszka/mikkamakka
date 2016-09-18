@@ -167,3 +167,8 @@ func Argv() *Val {
 
 	return argv
 }
+
+func Exit(n *Val) *Val {
+	os.Exit(NumberToSysInt(n))
+	return n
+}

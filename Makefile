@@ -1,4 +1,4 @@
-all: test
+all: test-compile
 
 mmfc:
 	go install ./cmd/mmfc
@@ -12,5 +12,8 @@ eval-compile: obj
 compile:
 	time go run obj/mm.go scm/mm.scm > obj/mm-out.go
 
-test: mmfc obj eval-compile compile
+test:
+	go run obj/mm-out.go scm/mm.scm
+
+test-compile: mmfc obj eval-compile compile
 	diff obj/mm{,-out}.go

@@ -80,7 +80,7 @@ func evalVector(e, v *Val) *Val {
 		return Fatal(invalidVector)
 	}
 
-	return VectorFromList(valueList(e, Cdr(v)))
+	return ListToVector(valueList(e, Cdr(v)))
 }
 
 func isStructForm(v *Val) *Val {
@@ -430,15 +430,11 @@ func valueList(e, v *Val) *Val {
 	return Cons(evalExp(e, Car(v)), valueList(e, Cdr(v)))
 }
 
-func evalApply(e, v *Val) *Val {
-	if IsPair(v) == False {
-		return Fatal(invalidApplication)
+func Apply(f, a *Val) *Val {
+	if IsVector(f) != False {
+		return VectorRef(f, Car(a))
 	}
 
-	return Apply(evalExp(e, Car(v)), valueList(e, Cdr(v)))
-}
-
-func Apply(f, a *Val) *Val {
 	if IsStruct(f) != False {
 		return Field(f, Car(a))
 	}
@@ -453,6 +449,16 @@ func Apply(f, a *Val) *Val {
 
 	cf := Composite(f)
 	return evalSeq(ExtendEnv(Car(cf), Car(Cdr(cf)), a), Cdr(Cdr(cf)))
+}
+
+func evalApply(e, v *Val) *Val {
+	if IsPair(v) == False {
+		return Fatal(invalidApplication)
+	}
+
+	f := evalExp(e, Car(v))
+	a := valueList(e, Cdr(v))
+	return Apply(f, a)
 }
 
 func evalExp(e, v *Val) *Val {

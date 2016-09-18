@@ -1,10 +1,10 @@
 package mikkamakka
 
-func VectorFromSlice(s []*Val) *Val {
+func SliceToVector(s []*Val) *Val {
 	return newVal(Vector, s)
 }
 
-func VectorFromList(l *Val) *Val {
+func ListToVector(l *Val) *Val {
 	var items []*Val
 	for {
 		if l == NilVal {
@@ -14,7 +14,7 @@ func VectorFromList(l *Val) *Val {
 		items, l = append(items, Car(l)), Cdr(l)
 	}
 
-	return VectorFromSlice(items)
+	return SliceToVector(items)
 }
 
 func IsVector(a *Val) *Val {

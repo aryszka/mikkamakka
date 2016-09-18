@@ -55,6 +55,16 @@ func defineDerived(e, n, k, v *Val) *Val {
 	)
 }
 
+func defineVector(e, n, v, l *Val) *Val {
+	if Eq(l, SysIntToNumber(0)) != False {
+		return v
+	}
+
+	i := Sub(l, SysIntToNumber(1))
+	defineDerived(e, n, NumberToString(i), VectorRef(v, i))
+	return defineVector(e, n, v, i)
+}
+
 func defineStruct(e, n, s, names *Val) *Val {
 	if IsNil(names) != False {
 		return s
@@ -65,38 +75,30 @@ func defineStruct(e, n, s, names *Val) *Val {
 	return defineStruct(e, n, s, Cdr(names))
 }
 
-func defineVector(e, n, v, l *Val) *Val {
-	if Eq(l, SysIntToNumber(0)) != False {
-		return v
-	}
-
-	i := Sub(l, SysIntToNumber(1))
-	defineDerived(e, n, i, VectorRef(v, i))
-	return defineVector(e, n, v, i)
-}
-
 func Define(e, n, v *Val) *Val {
 	checkType(e, Environment)
 
 	et := e.value.(*env)
 	ns := SymbolToSysString(n)
 	if _, has := et.current[ns]; has {
+		println(SymbolToSysString(n))
 		return Fatal(DefinitionExists)
 	}
 
 	et.current[ns] = v
 
-	if IsStruct(v) != False {
-		return defineStruct(e, n, v, StructNames(v))
-	}
-
 	if IsVector(v) != False {
 		return defineVector(e, n, v, VectorLen(v))
+	}
+
+	if IsStruct(v) != False {
+		return defineStruct(e, n, v, StructNames(v))
 	}
 
 	return v
 }
 
+// TODO: clean this up
 func defineAll(e, n, a *Val) *Val {
 	for {
 		if IsNil(n) != False && IsNil(a) != False {
@@ -104,6 +106,7 @@ func defineAll(e, n, a *Val) *Val {
 		}
 
 		if IsPair(a) == False && IsNil(a) == False {
+			println("invalid args 3")
 			return Fatal(InvalidArgs)
 		}
 
@@ -113,6 +116,7 @@ func defineAll(e, n, a *Val) *Val {
 		}
 
 		if IsNil(a) != False {
+			println("invalid args 4", SymbolToSysString(Car(n)))
 			return Fatal(InvalidArgs)
 		}
 
@@ -165,6 +169,12 @@ func newBuiltin2(f func(*Val, *Val) *Val) *Val {
 	})
 }
 
+func newBuiltin3(f func(*Val, *Val, *Val) *Val) *Val {
+	return NewCompiled(3, false, func(a []*Val) *Val {
+		return f(a[0], a[1], a[2])
+	})
+}
+
 func InitialEnv() *Val {
 	env := NewEnv()
 
@@ -176,10 +186,10 @@ func InitialEnv() *Val {
 		"car":                    newBuiltin1(Car),
 		"cdr":                    newBuiltin1(Cdr),
 		"list":                   newBuiltin0V(List),
-		"apply":                  newBuiltin2(Apply),
 		"error?":                 newBuiltin1(IsError),
 		"string->error":          newBuiltin1(StringToError),
 		"fatal":                  newBuiltin1(Fatal),
+		"yes":                    newBuiltin1(Yes),
 		"not":                    newBuiltin1(Not),
 		"=":                      newBuiltin0V(Eq),
 		">":                      newBuiltin0V(Greater),
@@ -212,6 +222,22 @@ func InitialEnv() *Val {
 		"escape-compiled-string": newBuiltin1(EscapeCompiled),
 		"printer":                newBuiltin1(printer),
 		"print":                  newBuiltin2(mprint),
+		"vector?":                newBuiltin1(IsVector),
+		"vector-len":             newBuiltin1(VectorLen),
+		"struct?":                newBuiltin1(IsStruct),
+		"exit":                   newBuiltin1(Exit),
+		"lookup-def":             newBuiltin2(LookupDef),
+		"define":                 newBuiltin3(Define),
+		"list->vector":           newBuiltin1(ListToVector),
+		"list->struct":           newBuiltin1(ListToStruct),
+		"make-composite":         newBuiltin1(NewComposite),
+		"extend-env":             newBuiltin3(ExtendEnv),
+		"vector-ref":             newBuiltin2(VectorRef),
+		"field":                  newBuiltin2(Field),
+		"compiled-function?":     newBuiltin1(IsCompiledFunction),
+		"composite-function?":    newBuiltin1(IsCompositeFunction),
+		"apply-compiled":         newBuiltin2(ApplyCompiled),
+		"composite":              newBuiltin1(Composite),
 	}
 
 	for k, v := range defs {

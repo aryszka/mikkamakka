@@ -34,9 +34,15 @@ func IsBool(a *Val) *Val {
 	return is(a, Bool)
 }
 
-func Not(a *Val) *Val {
-	checkType(a, Bool)
+func Yes(a *Val) *Val {
+	if a == False {
+		return False
+	}
 
+	return True
+}
+
+func Not(a *Val) *Val {
 	if a == False {
 		return True
 	}

@@ -24,10 +24,12 @@ func NewCompiled(argCount int, variadic bool, f func([]*Val) *Val) *Val {
 		&fn{
 			compiled: func(a []*Val) *Val {
 				if len(a) < argCount {
+					println("invalid args 1")
 					return Fatal(InvalidArgs)
 				}
 
 				if !variadic && len(a) != argCount {
+					println("invalid args 2")
 					return Fatal(InvalidArgs)
 				}
 
@@ -43,12 +45,16 @@ func IsCompiledFunction(e *Val) *Val {
 	return False
 }
 
-func IsFunction(v *Val) *Val {
-	if v.typ == Function {
+func IsCompositeFunction(e *Val) *Val {
+	if e.typ == Function && e.value.(*fn).composite != nil {
 		return True
 	}
 
 	return False
+}
+
+func IsFunction(v *Val) *Val {
+	return is(v, Function)
 }
 
 func FunctionToString(f *Val) *Val {
@@ -78,6 +84,18 @@ func ApplyCompiled(f, a *Val) *Val {
 	}
 
 	return ft.compiled(listToSlice(a))
+}
+
+func ApplySys(f, a *Val) *Val {
+	if IsVector(f) != False {
+		return VectorRef(f, Car(a))
+	}
+
+	if IsStruct(f) != False {
+		return Field(f, Car(a))
+	}
+
+	return ApplyCompiled(f, a)
 }
 
 func Composite(f *Val) *Val {
