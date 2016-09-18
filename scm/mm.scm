@@ -2,6 +2,10 @@
 (def invalid-expression (string->error "invalid expression"))
 (def inalid-token (string->error "invalid-token"))
 (def circular-import (string->error "circular-import"))
+(def not-implemented (string->error "not implemented"))
+(def invalid-literal (string->error "invalid literal"))
+(def invalid-application (string->error "invalid application"))
+(def invalid-value-list (string->error "invalid value list"))
 
 (def (trace message . values)
   (def (trace out values)
@@ -23,6 +27,12 @@
 
 
 (def (>= . n) (or (apply > n) (apply = n)))
+
+
+(def (any? . v)
+  (cond ((nil? v) false)
+        ((car v) (car v))
+        (else (apply any? (cdr v)))))
 
 
 (def (list . x) x)
@@ -77,6 +87,16 @@
   (cond ((nil? l) false)
         ((= v (car l)) l)
         (else (memq v (cdr l)))))
+
+
+(def (map f . l)
+  (cond ((nil? (car l)) '())
+        ((nil? (cdr l))
+         (cons (f (car (car l)))
+               (map f (cdr (car l)))))
+        (else
+          (cons (apply f (map car l))
+                (apply map (cons f (map cdr l)))))))
 
 
 (def irregular-cons (string->error "irregular cons expression"))
@@ -612,7 +632,7 @@
 (def (compile-seq v)
   (cond ((not (pair? v)) (fatal invalid-seq))
         ((nil? (cdr v)) (string-append "return " (compile-exp (car v))))
-        (else (string-append (compile (car v)) ";\n" (compile-seq (cdr v))))))
+        (else (string-append (compile-statement (car v)) ";\n" (compile-seq (cdr v))))))
 
 
 (def (compile-fn v)
@@ -726,7 +746,7 @@
   (def (compile-test-seq v)
     (cond ((nil? v) (string-append " return " (compile-literal 'test-complete)))
           (else (string-append " if result := func() *mm.Val { return "
-                               (compile-exp-statement (car v))
+                               (compile (car v))
                                " }(); result == mm.False { return mm.Fatal("
                                (compile-exp "test failed")
                                ") } else if mm.IsError(result) != mm.False "
@@ -767,7 +787,7 @@
 
 (def (compile-value-list v)
   (cond ((nil? v) " mm.NilVal ")
-        ((not (pair? v)) (fatal invalid-application))
+        ((not (pair? v)) (fatal invalid-value-list))
         (else (string-append " mm.Cons( "
                              (compile-exp (car v))
                              ", "
@@ -790,11 +810,15 @@
   "func() *mm.Val { return env }()")
 
 
+(def (check-types v . types)
+  (apply any? (map (fn (t?) (t? v)) types)))
+
+
 (def (compile-literal v)
-  (cond ((number? v) (compile-number v))
-        ((string? v) (compile-string v))
-        ((bool? v) (compile-bool v))
-        ((nil? v) (compile-nil v))
+  (cond ((check-types
+           v
+           number? string? bool? nil?)
+         (compile v))
         ((quote? v) (compile-quote-literal v))
         ((symbol? v) (compile-symbol v))
         ((pair? v) (compile-pair v))
@@ -802,42 +826,25 @@
 
 
 (def (compile-exp v)
-  (cond ((number? v) (compile-number v))
-        ((string? v) (compile-string v))
-        ((bool? v) (compile-bool v))
-        ((nil? v) (compile-nil v))
-        ((quote? v) (compile-quote v))
-        ((symbol? v) (compile-lookup v))
-        ((vector-form? v) (compile-vector v))
-        ((struct-form? v) (compile-struct v))
-        ((if? v) (compile-if v))
-        ((and? v) (compile-and v))
-        ((or? v) (compile-or v))
-        ((fn? v) (compile-fn v))
-        ((begin? v) (compile-begin v))
-        ((cond? v) (compile-cond v))
-        ((let? v) (compile-let v))
-        ((test? v) (compile-test v))
-        ((current-env? v) (compile-current-env))
-        ((application? v) (compile-application v))
-        (else (fatal definition-expression))))
+  (if (check-types
+        v
+        number? string? bool? nil? quote? symbol?
+        vector-form? struct-form? if? and? or? fn?
+        begin? cond? let? current-env? application?)
+    (compile v)
+    (fatal invalid-expression)))
+
+
+(def (compile-statement v)
+  (if (check-types
+        v
+        def? if? and? or? fn? begin? cond? let? test?
+        application?)
+    (compile v)
+    (fatal invalid-statement)))
 
 
 (def (compile v)
-  (cond ((def? v) (compile-def v))
-        ((if? v) (compile-if v))
-        ((and? v) (compile-and v))
-        ((or? v) (compile-or v))
-        ((begin? v) (compile-begin v))
-        ((cond? v) (compile-cond v))
-        ((let? v) (compile-let v))
-        ((test? v) (compile-test v))
-        ((current-env? v) (compile-current-env))
-        ((application? v) (compile-application v))
-        (else (fatal invalid-statement))))
-
-
-(def (compile-exp-statement v)
   (cond ((number? v) (compile-number v))
         ((string? v) (compile-string v))
         ((bool? v) (compile-bool v))
@@ -857,7 +864,7 @@
         ((test? v) (compile-test v))
         ((current-env? v) (compile-current-env))
         ((application? v) (compile-application v))
-        (else (fatal invalid-expression))))
+        (else (fatal not-implemented))))
 
 
 (def compiled-head
@@ -882,7 +889,7 @@
       (cond ((= next-in:state eof) (list next-in fout))
             ((error? next-in:state) next-in:state)
             (else
-              (let (code (compile next-in:state))
+              (let (code (compile-statement next-in:state))
                 (cond ((error? code) code)
                       (else
                         (let (next-out (fwrite fout (string-append code ";\n")))
@@ -1070,7 +1077,7 @@
       (print-raw p " ")))
   (def (print-items p v)
     (cond ((nil? v) (print-raw p ")"))
-          ((not (pair? v)) (printq (print-raw p " . ") v true))
+          ((not (pair? v)) (print-raw (printq (print-raw p ". ") v true) ")"))
           (else (print-items
                   (print-space
                     (printq p (car v) true)
