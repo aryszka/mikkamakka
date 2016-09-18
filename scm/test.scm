@@ -24,3 +24,4 @@ s:b
 (def ll (fn x x))
 (ll 1 2 3)
 (apply ll '(1 2 3))
+(list 1 2 3)

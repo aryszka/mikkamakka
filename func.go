@@ -62,7 +62,7 @@ func FunctionToString(f *Val) *Val {
 	return SysStringToString("<function>")
 }
 
-func listToSlice(l *Val) []*Val {
+func ListToSlice(l *Val) []*Val {
 	var s []*Val
 	for {
 		if IsNil(l) != False {
@@ -75,6 +75,15 @@ func listToSlice(l *Val) []*Val {
 	return s
 }
 
+func SliceToList(s []*Val) *Val {
+	l := NilVal
+	for i := len(s) - 1; i >= 0; i-- {
+		l = Cons(s[i], l)
+	}
+
+	return l
+}
+
 func ApplyCompiled(f, a *Val) *Val {
 	checkType(f, Function)
 
@@ -83,7 +92,7 @@ func ApplyCompiled(f, a *Val) *Val {
 		return Fatal(NotCompiled)
 	}
 
-	return ft.compiled(listToSlice(a))
+	return ft.compiled(ListToSlice(a))
 }
 
 func ApplySys(f, a *Val) *Val {

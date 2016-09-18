@@ -1,5 +1,6 @@
 (def definition-expression (string->error "definition in expression position"))
 (def invalid-expression (string->error "invalid expression"))
+(def inalid-token (string->error "invalid-token"))
 
 (def (trace message . values)
   (def (trace out values)
@@ -15,6 +16,9 @@
 
 
 (def (inc n) (+ n 1))
+
+
+(def (list . x) x)
 
 
 (def (list-len v)
@@ -538,11 +542,11 @@
 (def (compile-string v) (string-append " mm.SysStringToString(" (escape-compiled-string v) ") "))
 (def (compile-bool v) (if v " mm.True " " mm.False "))
 (def (compile-nil v) " mm.NilVal ")
-(def (compile-quote-literal v) (string-append " mm.List(mm.SymbolFromRawString("
+(def (compile-quote-literal v) (string-append " mm.Cons(mm.SymbolFromRawString("
                                       (escape-compiled-string (symbol->string 'quote))
-                                      "), "
+                                      "), mm.Cons("
                                       (compile-literal (car (cdr v)))
-                                      ") "))
+                                      ", mm.NilVal)) "))
 (def (compile-quote v) (compile-literal (car (cdr v))))
 (def (compile-symbol v) (string-append " mm.SymbolFromRawString("
                                        (escape-compiled-string (symbol->string v))
@@ -616,7 +620,7 @@
               (bool->string signature:var?)
               ", func(a []*mm.Val) *mm.Val { env := mm.ExtendEnv(env, "
               (compile-literal signature:names)
-              ", mm.List(a...)); env = env; "
+              ", mm.SliceToList(a)); env = env; "
               (compile-seq body)
               "})")))))
 
@@ -1052,7 +1056,10 @@
     (cond ((nil? n) (print-raw p "}"))
           (else (print-items
                   (print-space
-                    (printq (print-raw (printq p (car n) true) " ") (field s (car n)) true)
+                    (printq
+                      (print-raw (printq p (car n) true) " ")
+                      (field s (car n))
+                      true)
                     n)
                   (cdr n)))))
   (let (p (print-raw p "{"))
