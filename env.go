@@ -163,6 +163,12 @@ func newBuiltin1(f func(*Val) *Val) *Val {
 	})
 }
 
+func newBuiltin1V(f func(*Val, ...*Val) *Val) *Val {
+	return NewCompiled(1, true, func(a []*Val) *Val {
+		return f(a[0], a[1:]...)
+	})
+}
+
 func newBuiltin2(f func(*Val, *Val) *Val) *Val {
 	return NewCompiled(2, false, func(a []*Val) *Val {
 		return f(a[0], a[1])
@@ -194,6 +200,7 @@ func InitialEnv() *Val {
 		"=":                      newBuiltin0V(Eq),
 		">":                      newBuiltin0V(Greater),
 		"+":                      newBuiltin0V(Add),
+		"-":                      newBuiltin1V(Sub),
 		"string->number":         newBuiltin1(StringToNumber),
 		"string->bool":           newBuiltin1(StringToBool),
 		"symbol?":                newBuiltin1(IsSymbol),
@@ -220,8 +227,6 @@ func InitialEnv() *Val {
 		"invalid-token":          invalidToken,
 		"string-append":          newBuiltin0V(AppendString),
 		"escape-compiled-string": newBuiltin1(EscapeCompiled),
-		"printer":                newBuiltin1(printer),
-		"print":                  newBuiltin2(mprint),
 		"vector?":                newBuiltin1(IsVector),
 		"vector-len":             newBuiltin1(VectorLen),
 		"struct?":                newBuiltin1(IsStruct),
@@ -234,10 +239,15 @@ func InitialEnv() *Val {
 		"extend-env":             newBuiltin3(ExtendEnv),
 		"vector-ref":             newBuiltin2(VectorRef),
 		"field":                  newBuiltin2(Field),
+		"struct-names":           newBuiltin1(StructNames),
 		"compiled-function?":     newBuiltin1(IsCompiledFunction),
 		"composite-function?":    newBuiltin1(IsCompositeFunction),
 		"apply-compiled":         newBuiltin2(ApplyCompiled),
 		"composite":              newBuiltin1(Composite),
+		"sys?":                   newBuiltin1(IsSys),
+		"env?":                   newBuiltin1(IsEnv),
+		"function?":              newBuiltin1(IsFunction),
+		"function->string":       newBuiltin1(FunctionToString),
 	}
 
 	for k, v := range defs {

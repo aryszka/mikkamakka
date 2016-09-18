@@ -132,7 +132,7 @@ func Eq(v ...*Val) *Val {
 		return eqT(v, IsSymbol, symbolEq)
 	}
 
-	if v[0] == v[1] {
+	if len(v) == 1 || v[0] == v[1] {
 		return True
 	}
 
