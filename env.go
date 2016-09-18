@@ -1,22 +1,36 @@
 package mikkamakka
 
+type module struct {
+	all  map[string]*Val
+	path *Val
+}
+
 type env struct {
 	current map[string]*Val
 	parent  *Val
+	export  map[string]*Val
+	module  *module
 }
 
 var (
 	Undefined        = SysStringToError("undefined")
 	NotAnEnvironment = SysStringToError("not an environment")
 	DefinitionExists = SysStringToError("definition exists")
+	UndefinedModule  = SysStringToError("undefined module")
 )
 
-func NewEnv() *Val {
+func newEnv(p *Val, m *module) *Val {
+	if m == nil {
+		m = &module{make(map[string]*Val), NilVal}
+	}
+
 	return newVal(
 		Environment,
 		&env{
 			current: make(map[string]*Val),
-			parent:  nil,
+			parent:  p,
+			module:  m,
+			export:  make(map[string]*Val),
 		},
 	)
 }
@@ -130,14 +144,59 @@ func defineAll(e, n, a *Val) *Val {
 }
 
 func ExtendEnv(e, n, a *Val) *Val {
-	e = newVal(
-		Environment,
-		&env{
-			current: make(map[string]*Val),
-			parent:  e,
-		},
-	)
+	checkType(e, Environment)
+	env := e.value.(*env)
+	e = newEnv(e, env.module)
 	return defineAll(e, n, a)
+}
+
+func Export(e, s *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+
+	n := StructNames(s)
+	for {
+		if IsNil(n) != False {
+			return s
+		}
+
+		env.export[SymbolToSysString(Car(n))], n = Field(s, Car(n)), Cdr(n)
+	}
+}
+
+func Exports(e *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	return SysMapToStruct(env.export)
+}
+
+func ModulePath(e *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	return env.module.path
+}
+
+func ModuleEnv(e, n *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	return newEnv(e, &module{env.module.all, Cons(n, env.module.path)})
+}
+
+func LoadedModule(e, n *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	if exp, ok := env.module.all[StringToSysString(n)]; ok {
+		return exp
+	}
+
+	return UndefinedModule
+}
+
+func StoreModule(e, n, m *Val) *Val {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	env.module.all[StringToSysString(n)] = m
+	return m
 }
 
 func envString(e *Val) *Val {
@@ -182,7 +241,7 @@ func newBuiltin3(f func(*Val, *Val, *Val) *Val) *Val {
 }
 
 func InitialEnv() *Val {
-	env := NewEnv()
+	env := newEnv(nil, nil)
 
 	defs := map[string]*Val{
 		"nil":                    NilVal,
@@ -246,6 +305,13 @@ func InitialEnv() *Val {
 		"env?":                   newBuiltin1(IsEnv),
 		"function?":              newBuiltin1(IsFunction),
 		"function->string":       newBuiltin1(FunctionToString),
+		"module-export":          newBuiltin2(Export),
+		"module-path":            newBuiltin1(ModulePath),
+		"loaded-module":          newBuiltin2(LoadedModule),
+		"undefined-module":       UndefinedModule,
+		"module-env":             newBuiltin2(ModuleEnv),
+		"exports":                newBuiltin1(Exports),
+		"store-module":           newBuiltin3(StoreModule),
 	}
 
 	for k, v := range defs {

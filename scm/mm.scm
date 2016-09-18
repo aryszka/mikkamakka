@@ -1,6 +1,7 @@
 (def definition-expression (string->error "definition in expression position"))
 (def invalid-expression (string->error "invalid expression"))
 (def inalid-token (string->error "invalid-token"))
+(def circular-import (string->error "circular-import"))
 
 (def (trace message . values)
   (def (trace out values)
@@ -16,6 +17,12 @@
 
 
 (def (inc n) (+ n 1))
+
+
+(def (!= . x) (not (apply = x)))
+
+
+(def (>= . n) (or (apply > n) (apply = n)))
 
 
 (def (list . x) x)
@@ -66,10 +73,10 @@
                        (cons (car (cdr l)) (car l))))))
 
 
-(def (!= . x) (not (apply = x)))
-
-
-(def (>= . n) (or (apply > n) (apply = n)))
+(def (memq v l)
+  (cond ((nil? l) false)
+        ((= v (car l)) l)
+        (else (memq v (cdr l)))))
 
 
 (def irregular-cons (string->error "irregular cons expression"))
@@ -535,6 +542,8 @@
 (def (cond? v) (tagged? v 'cond))
 (def (let? v) (tagged? v 'let))
 (def (test? v) (tagged? v 'test))
+(def (export? v) (tagged? v 'export))
+(def (import? v) (tagged? v 'import))
 (def (application? v) (pair? v))
 
 
@@ -959,6 +968,43 @@
                       (else 'test-complete))))))
 
 
+(def (eval-export env exp)
+  (module-export env (list->struct (struct-values env (cdr exp)))))
+
+
+(def (read-eval env r)
+  (let (r (read r))
+    (cond ((= r:state eof) env)
+          ((error? r:state) (fatal r:state))
+          (else
+            (eval-env env r:state)
+            (read-eval env r)))))
+
+
+(def (load-module env import-name module-name)
+  (let (f (fopen module-name))
+    (if (error? f)
+      (fatal f)
+      (let (r (reader f)
+            menv (read-eval (module-env env module-name) r)
+            exp  (exports menv))
+        (store-module env module-name exp)
+        (define env import-name exp)))))
+
+
+(def (eval-import env exp)
+  (let (import-name (car (cdr exp))
+        module-name (car (cdr (cdr exp)))
+        current-import-path (module-path env))
+    (if (memq module-name current-import-path)
+      (fatal circular-import)
+      (let (module (loaded-module env module-name))
+        (cond ((= module undefined-module)
+               (load-module env import-name module-name))
+              ((error? module) (fatal module))
+              (else (define import-name module)))))))
+
+
 (def (eval-apply env exp)
   (apply (eval-exp env (car exp)) (value-list env (cdr exp))))
 
@@ -976,11 +1022,11 @@
         ((string? exp) exp)
         ((bool? exp) exp)
         ((nil? exp) exp)
+        ((vector-form? exp) (eval-vector env exp))
+        ((struct-form? exp) (eval-struct env exp))
         ((quote? exp) (eval-quote exp))
         ((symbol? exp) (lookup-def env exp))
         ((def? exp) (eval-def env exp))
-        ((vector-form? exp) (eval-vector env exp))
-        ((struct-form? exp) (eval-struct env exp))
         ((if? exp) (eval-if env exp))
         ((and? exp) (eval-and env (cdr exp)))
         ((or? exp) (eval-or env (cdr exp)))
@@ -988,6 +1034,8 @@
         ((begin? exp) (eval-seq env (cdr exp)))
         ((cond? exp) (eval-env env (cond->if exp)))
         ((let? exp) (eval-env env (list (make-fn nil (let-body exp)))))
+        ((export? exp) (eval-export env exp))
+        ((import? exp) (eval-import env exp))
         ((test? exp) (eval-test env exp))
         ((application? exp) (eval-apply env exp))
         (else invalid-expression)))
@@ -1085,43 +1133,43 @@
 (def (print p v) (printq p v false))
 
 
-; (let (fin  (fopen (car (cdr (argv))))
-;       fout (stdout))
-;   (cond ((error? (fstate fin)) (fstate fin))
-;         ((error? (fstate fout)) (fstate fout))
-;         (else (let (result (compile-file fin fout))
-;                 (cond ((error? result) (fatal result))
-;                       (else
-;                         (fwrite (car (cdr result)) "\n")
-;                         (fclose (car result))))))))
-
-
-(def (eval-print s)
-  (let (r (read s:reader))
-    (cond ((error? r:state) (assign s {reader r}))
-          (else
-            (let (v (eval-env s:env r:state)
-                  p (print s:printer v))
-              (cond ((error? p:state) (assign s {reader r printer p}))
-                    (else
-                      (let (o (fwrite p:output "\n"))
-                        (cond ((error? (fstate o))
-                               (assign s {reader r printer (assign p {output o state (fstate o)})}))
-                              (else (eval-print
-                                      (assign s {reader r printer (assign p {output o})}))))))))))))
-
-
-(let (fin (fopen (car (cdr (argv))))
+(let (fin  (fopen (car (cdr (argv))))
       fout (stdout))
-  (cond ((error? (fstate fin)) (fatal (fstate fin)))
-        ((error? (fstate fout)) (fatal (fstate fout)))
-        (else
-          (let (state (eval-print {reader (reader fin)
-                                    printer (printer fout)
-                                    env (current-env)}))
-            (if (error? state:reader:state)
-              (fatal state:reader:state)
-              (fclose state:reader:input))
-            (if (error? state:printer:state)
-              (fatal state:printer:state)
-              (fclose state:printer:output))))))
+  (cond ((error? (fstate fin)) (fstate fin))
+        ((error? (fstate fout)) (fstate fout))
+        (else (let (result (compile-file fin fout))
+                (cond ((error? result) (fatal result))
+                      (else
+                        (fwrite (car (cdr result)) "\n")
+                        (fclose (car result))))))))
+
+
+; (def (eval-print s)
+;   (let (r (read s:reader))
+;     (cond ((error? r:state) (assign s {reader r}))
+;           (else
+;             (let (v (eval-env s:env r:state)
+;                   p (print s:printer v))
+;               (cond ((error? p:state) (assign s {reader r printer p}))
+;                     (else
+;                       (let (o (fwrite p:output "\n"))
+;                         (cond ((error? (fstate o))
+;                                (assign s {reader r printer (assign p {output o state (fstate o)})}))
+;                               (else (eval-print
+;                                       (assign s {reader r printer (assign p {output o})}))))))))))))
+; 
+; 
+; (let (fin (fopen (car (cdr (argv))))
+;       fout (stdout))
+;   (cond ((error? (fstate fin)) (fatal (fstate fin)))
+;         ((error? (fstate fout)) (fatal (fstate fout)))
+;         (else
+;           (let (state (eval-print {reader (reader fin)
+;                                     printer (printer fout)
+;                                     env (current-env)}))
+;             (if (error? state:reader:state)
+;               (fatal state:reader:state)
+;               (fclose state:reader:input))
+;             (if (error? state:printer:state)
+;               (fatal state:printer:state)
+;               (fclose state:printer:output))))))

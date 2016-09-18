@@ -1,19 +1,8 @@
-all: test-compile
+all: release
 
-mmfc:
-	go install ./cmd/mmfc
-
-obj:
-	mkdir -p obj
-
-eval-compile: obj
-	time mmfc scm/mm.scm < scm/mm.scm > obj/mm.go
-
-compile:
-	time go run obj/mm.go scm/mm.scm > obj/mm-out.go
-
-test:
-	go run obj/mm-out.go scm/mm.scm
-
-test-compile: mmfc obj eval-compile compile
-	diff obj/mm{,-out}.go
+release:
+	time go run cmd/mm-next/mm.go scm/mm.scm > obj/mm-precompile.go
+	time go run obj/mm-precompile.go scm/mm.scm > obj/mm-compile.go
+	time go run obj/mm-compile.go scm/mm.scm > obj/mm-check.go
+	diff obj/mm-{compile,check}.go
+	mv obj/mm-compile.go cmd/mm-next/mm.go

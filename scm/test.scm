@@ -25,3 +25,11 @@ s:b
 (ll 1 2 3)
 (apply ll '(1 2 3))
 (list 1 2 3)
+
+(export
+  a 1
+  b ll)
+
+(import module "scm/module.scm")
+
+module:val
