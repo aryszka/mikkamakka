@@ -19,7 +19,7 @@ const (
 	Struct
 	Function
 	Sys
-	Error // true or false? turn into false
+	Error // true or false? definitely false
 	Environment
 )
 

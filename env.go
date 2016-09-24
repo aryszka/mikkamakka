@@ -312,6 +312,8 @@ func InitialEnv() *Val {
 		"module-env":             newBuiltin2(ModuleEnv),
 		"exports":                newBuiltin1(Exports),
 		"store-module":           newBuiltin3(StoreModule),
+		"error->string":          newBuiltin1(ErrorToString),
+		"sys->string":            newBuiltin1(SysToString),
 	}
 
 	for k, v := range defs {

@@ -2464,5 +2464,5 @@ func main() {
 			}()
 		}), mm.NilVal)
 	}))
-	mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read-compile")), mm.NilVal)
+	mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read-eval-print")), mm.NilVal)
 }

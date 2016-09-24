@@ -29,7 +29,7 @@ func NewCompiled(argCount int, variadic bool, f func([]*Val) *Val) *Val {
 				}
 
 				if !variadic && len(a) != argCount {
-					println("invalid args 2")
+					println("invalid args 2", variadic, len(a), argCount)
 					return Fatal(InvalidArgs)
 				}
 
