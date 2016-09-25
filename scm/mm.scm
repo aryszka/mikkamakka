@@ -148,7 +148,11 @@
 (def (compose . f) (partr (part fold call) f))
 
 
-(def (compiler) {output "" error false})
+(def (compiler)
+  {output ""
+   error false
+   compiled-modules nil
+   current-import-path nil})
 
 
 (def (compiler-append c . a)
@@ -424,6 +428,67 @@
     compiler-append "mm.Export(env, "
     compile (cons 'struct: (cdr v))
     compiler-append ")"))
+
+
+(def (read-compile c r)
+  (let (r (read r))
+    (cond ((= r:state eof) c)
+          ((error? r:state) (compiler-error c r:state))
+          (else
+            (read-compile (compile c r:state) r)))))
+
+
+(def (compile-module c module-name)
+  (let (f (fopen module-name))
+    (if (error? f)
+      (compiler-error c f)
+      (let (c (compiler-compose
+                c
+                compiler-append "mm.ModuleLoader(env, "
+                compile module-name
+                compiler-append ", func(eenv *mm.Val) { env := mm.ModuleEnv(eenv, "
+                compile module-name
+                compiler-append ");"
+                read-compile (reader f)
+                compiler-append "; mm.StoreModule(eenv, "
+                compile module-name
+                compiler-append ", mm.Exports(env)) });"))
+        (assign
+          c
+          {compiled-modules
+           (cons module-name c:compiled-modules)})))))
+
+
+(def (compile-import c exp)
+  (def (compile-load c module-name import-name)
+       (compiler-compose
+         c
+         compiler-append "m := mm.LoadedModule(env, "
+         compile module-name
+         compiler-append ");"
+         compiler-append "if m == mm.UndefinedModule {"
+         compiler-append "mm.LoadCompiledModule(env, "
+         compile module-name
+         compiler-append "); m = mm.LoadedModule(env, "
+         compile module-name
+         compiler-append ")}; mm.Define(env, "
+         compile-literal import-name
+         compiler-append ", m)"))
+  (let (import-name (car (cdr exp))
+        module-name (car (cdr (cdr exp))))
+    (cond ((memq module-name c:current-import-path)
+           (compiler-error c circular-import))
+          ((memq module-name c:compiled-modules)
+           (compile-load c module-name import-name))
+          (else
+            (let (cc (assign (compiler) {current-import-path (cons module-name c:current-import-path)
+                                         compiled-modules c:compiled-modules})
+                  cr (compile-module cc module-name)
+                  c (assign c {error cr:error compiled-modules (cons module-name c:compiled-modules)}))
+              (compiler-compose
+                c
+                compiler-append cr:output
+                (partr compile-load import-name) module-name))))))
 
 
 (def (compile-lookup c v)
@@ -1115,15 +1180,14 @@
             (read-eval env r)))))
 
 
-(def (load-module env import-name module-name)
+(def (load-module env module-name)
   (let (f (fopen module-name))
     (if (error? f)
       (fatal f)
       (let (r (reader f)
             menv (read-eval (module-env env module-name) r)
             exp  (exports menv))
-        (store-module env module-name exp)
-        (define env import-name exp)))))
+        (store-module env module-name exp)))))
 
 
 (def (eval-import env exp)
@@ -1134,7 +1198,8 @@
       (fatal circular-import)
       (let (module (loaded-module env module-name))
         (cond ((= module undefined-module)
-               (load-module env import-name module-name))
+               (let (exp (load-module env module-name))
+                 (define env import-name exp)))
               ((error? module) (fatal module))
               (else (define import-name module)))))))
 
@@ -1277,7 +1342,7 @@
   (loop (current-env) (reader (stdin)) (printer (stdout))))
 
 
-(def (read-compile)
+(def (read-compile-write)
   (def (compile-top c exp)
     (compiler-compose
       c
@@ -1302,5 +1367,5 @@
           (else (fatal r:read-error)))))
 
 
-; (read-compile)
+; (read-compile-write)
 (read-eval-print)

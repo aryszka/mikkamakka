@@ -6,10 +6,11 @@ type module struct {
 }
 
 type env struct {
-	current map[string]*Val
-	parent  *Val
-	export  map[string]*Val
-	module  *module
+	current         map[string]*Val
+	parent          *Val
+	export          map[string]*Val
+	module          *module
+	compiledModules map[string]func(*Val)
 }
 
 var (
@@ -27,10 +28,11 @@ func newEnv(p *Val, m *module) *Val {
 	return newVal(
 		Environment,
 		&env{
-			current: make(map[string]*Val),
-			parent:  p,
-			module:  m,
-			export:  make(map[string]*Val),
+			current:         make(map[string]*Val),
+			parent:          p,
+			module:          m,
+			export:          make(map[string]*Val),
+			compiledModules: make(map[string]func(*Val)),
 		},
 	)
 }
@@ -179,7 +181,7 @@ func ModulePath(e *Val) *Val {
 func ModuleEnv(e, n *Val) *Val {
 	checkType(e, Environment)
 	env := e.value.(*env)
-	return newEnv(e, &module{env.module.all, Cons(n, env.module.path)})
+	return newEnv(nil, &module{env.module.all, Cons(n, env.module.path)})
 }
 
 func LoadedModule(e, n *Val) *Val {
@@ -197,6 +199,18 @@ func StoreModule(e, n, m *Val) *Val {
 	env := e.value.(*env)
 	env.module.all[StringToSysString(n)] = m
 	return m
+}
+
+func ModuleLoader(e, n *Val, m func(*Val)) {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	env.compiledModules[StringToSysString(n)] = m
+}
+
+func LoadCompiledModule(e, n *Val) {
+	checkType(e, Environment)
+	env := e.value.(*env)
+	env.compiledModules[StringToSysString(n)](e)
 }
 
 func envString(e *Val) *Val {
