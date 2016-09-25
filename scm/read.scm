@@ -1,3 +1,6 @@
+(import "scm/lang.scm")
+
+
 (def irregular-cons (string->error "irregular cons expression"))
 (def unexpected-close (string->error "unexpected close token"))
 (def invalid-statement (string->error "invalid expression in statement position"))
