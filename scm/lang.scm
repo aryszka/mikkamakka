@@ -21,8 +21,9 @@
   (cond ((vector? f) (vector-ref f (car a)))
         ((struct? f) (field f (car a)))
         ((compiled-function? f) (apply-compiled f a))
-        (else (let (c (composite f))
-                (eval-seq (extend-env (car c) (car (cdr c)) a) (cdr (cdr c)))))))
+        (else (fatal not-function))))
+        ; (else (let (c (composite f))
+        ;         (eval-seq (extend-env (car c) (car (cdr c)) a) (cdr (cdr c)))))))
 
 
 (def (call f . a) (apply f a))
@@ -140,31 +141,31 @@
 
 
 (export trace trace
-		id id
-		list list
-		apply apply
-		call call
-		fold fold
-		foldr foldr
-		map map
-		append append
-		part part
-		partr partr
-		reverse reverse
-		reverse-irregular reverse-irregular
-		inc inc
-		dec dec
-		>= >=
-		len len
-		mem mem
-		memq memq
-		notf notf
-		every? every?
-		any? any?
-		take take
-		drop drop
-		pad pad
-		padr padr
-		flip flip
-		check-types check-types
-		compose compose)
+        id id
+        list list
+        apply apply
+        call call
+        fold fold
+        foldr foldr
+        map map
+        append append
+        part part
+        partr partr
+        reverse reverse
+        reverse-irregular reverse-irregular
+        inc inc
+        dec dec
+        >= >=
+        len len
+        mem mem
+        memq memq
+        notf notf
+        every? every?
+        any? any?
+        take take
+        drop drop
+        pad pad
+        padr padr
+        flip flip
+        check-types check-types
+        compose compose)

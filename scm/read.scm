@@ -3,8 +3,7 @@
 
 (def irregular-cons (string->error "irregular cons expression"))
 (def unexpected-close (string->error "unexpected close token"))
-(def invalid-statement (string->error "invalid expression in statement position"))
-(def invalid-cond (string->error "invalid cond expression"))
+(def invalid-token (string->error "invalid token"))
 
 
 (def token-type
