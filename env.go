@@ -195,7 +195,7 @@ func ModulePath(e *Val) *Val {
 func ModuleEnv(e, n *Val) *Val {
 	checkType(e, Environment)
 	env := e.value.(*env)
-	return newEnv(nil, &module{env.module.all, Cons(n, env.module.path)})
+	return newEnv(e, &module{env.module.all, Cons(n, env.module.path)})
 }
 
 func LoadedModule(e, n *Val) *Val {

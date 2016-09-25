@@ -74,3 +74,6 @@ c.d = 1
 #lit
 
 (((a 'b) 'c) 'd)
+
+ha4 and hopac
+carbide integration if it gets more stable
