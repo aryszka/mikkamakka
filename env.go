@@ -25,6 +25,13 @@ func newEnv(p *Val, m *module) *Val {
 		m = &module{make(map[string]*Val), NilVal}
 	}
 
+	var cm map[string]func(*Val)
+	if p == nil {
+		cm = make(map[string]func(*Val))
+	} else {
+		cm = p.value.(*env).compiledModules
+	}
+
 	return newVal(
 		Environment,
 		&env{
@@ -32,7 +39,7 @@ func newEnv(p *Val, m *module) *Val {
 			parent:          p,
 			module:          m,
 			export:          make(map[string]*Val),
-			compiledModules: make(map[string]func(*Val)),
+			compiledModules: cm,
 		},
 	)
 }

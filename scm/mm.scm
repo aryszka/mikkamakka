@@ -495,7 +495,7 @@
 
      func main() {
           initialEnv := mm.InitialEnv()
-         env := initialEnv
+         env := mm.ExtendEnv(initialEnv, mm.NilVal, mm.NilVal)
      ")
 
 

@@ -4,7 +4,7 @@ import mm "github.com/aryszka/mikkamakka"
 
 func main() {
 	initialEnv := mm.InitialEnv()
-	env := initialEnv
+	env := mm.ExtendEnv(initialEnv, mm.NilVal, mm.NilVal)
 	mm.ModuleLoader(env, mm.SysStringToString("scm/lang.scm"), func(eenv *mm.Val) {
 		env := mm.ModuleEnv(eenv, mm.SysStringToString("scm/lang.scm"))
 		mm.Define(env, mm.SymbolFromRawString("trace"), mm.NewCompiled(1, true, func(a []*mm.Val) *mm.Val {
@@ -1147,7 +1147,7 @@ func main() {
 			}
 		}()
 	}))
-	mm.Define(env, mm.SymbolFromRawString("compiled-head"), mm.SysStringToString("package main\n\n     import mm \"github.com/aryszka/mikkamakka\"\n\n     func main() {\n          initialEnv := mm.InitialEnv()\n         env := initialEnv\n     "))
+	mm.Define(env, mm.SymbolFromRawString("compiled-head"), mm.SysStringToString("package main\n\n     import mm \"github.com/aryszka/mikkamakka\"\n\n     func main() {\n          initialEnv := mm.InitialEnv()\n         env := mm.ExtendEnv(initialEnv, mm.NilVal, mm.NilVal)\n     "))
 	mm.Define(env, mm.SymbolFromRawString("compiled-tail"), mm.SysStringToString("}"))
 	mm.ModuleLoader(env, mm.SysStringToString("scm/read.scm"), func(eenv *mm.Val) {
 		env := mm.ModuleEnv(eenv, mm.SysStringToString("scm/read.scm"))
