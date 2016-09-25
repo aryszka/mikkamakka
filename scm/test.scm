@@ -26,6 +26,8 @@
 ; (apply ll '(1 2 3))
 ; (list 1 2 3)
 
+(+ 1 1)
+
 (export
   a 1
   b ll)
