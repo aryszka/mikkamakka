@@ -12,7 +12,7 @@ is going to be added as the programming platform reaches a more stable state.
 ##### Prerequisits
 
 - the Go platform [https://golang.org](https://golang.org)
-- make (preferrably GNU Make)
+- make (preferrably GNU Make [https://www.gnu.org/software/make](https://www.gnu.org/software/make))
 
 ##### Generate and install initial version from source:
 
