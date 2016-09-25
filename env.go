@@ -114,6 +114,20 @@ func Define(e, n, v *Val) *Val {
 	return v
 }
 
+func DefineAll(e, s *Val) *Val {
+	n := StructNames(s)
+	for {
+		if IsNil(n) != False {
+			break
+		}
+
+		Define(e, Car(n), Field(s, Car(n)))
+		n = Cdr(n)
+	}
+
+	return s
+}
+
 // TODO: clean this up
 func defineAll(e, n, a *Val) *Val {
 	for {

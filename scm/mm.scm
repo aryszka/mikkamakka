@@ -6,6 +6,7 @@
 (def invalid-literal (string->error "invalid literal"))
 (def invalid-application (string->error "invalid application"))
 (def invalid-value-list (string->error "invalid value list"))
+(def invalid-import (string->error "invalid import expression"))
 
 (def (trace message . values)
   (def (trace out values)
@@ -460,6 +461,14 @@
 
 
 (def (compile-import c exp)
+  (def (compile-module-define c module-name import-name)
+    (if import-name
+      (compiler-compose
+        c
+        compiler-append "mm.Define(env, "
+        compile-literal import-name
+        compiler-append ", m)")
+      (compiler-append c "mm.DefineAll(env, m)")))
   (def (compile-load c module-name import-name)
        (compiler-compose
          c
@@ -471,24 +480,23 @@
          compile module-name
          compiler-append "); m = mm.LoadedModule(env, "
          compile module-name
-         compiler-append ")}; mm.Define(env, "
-         compile-literal import-name
-         compiler-append ", m)"))
-  (let (import-name (car (cdr exp))
-        module-name (car (cdr (cdr exp))))
-    (cond ((memq module-name c:current-import-path)
+         compiler-append ")}; "
+         (partr compile-module-define import-name) module-name))
+  (let (i (import-def exp))
+    (cond ((error? i) (compiler-error c i))
+          ((memq i:module-name c:current-import-path)
            (compiler-error c circular-import))
-          ((memq module-name c:compiled-modules)
-           (compile-load c module-name import-name))
+          ((memq i:module-name c:compiled-modules)
+           (compile-load c i:module-name i:import-name))
           (else
-            (let (cc (assign (compiler) {current-import-path (cons module-name c:current-import-path)
+            (let (cc (assign (compiler) {current-import-path (cons i:module-name c:current-import-path)
                                          compiled-modules c:compiled-modules})
-                  cr (compile-module cc module-name)
-                  c (assign c {error cr:error compiled-modules (cons module-name c:compiled-modules)}))
+                  cr (compile-module cc i:module-name)
+                  c (assign c {error cr:error compiled-modules (cons i:module-name c:compiled-modules)}))
               (compiler-compose
                 c
                 compiler-append cr:output
-                (partr compile-load import-name) module-name))))))
+                (partr compile-load i:import-name) i:module-name))))))
 
 
 (def (compile-lookup c v)
@@ -583,7 +591,7 @@
         def? if? and? or? begin? cond? let?
         import? export? test? application?)
     (compile c v)
-    (compiler-error c (trace v invalid-statement))))
+    (compiler-error c invalid-statement)))
 
 
 (def (compile c v)
@@ -1190,18 +1198,30 @@
         (store-module env module-name exp)))))
 
 
+(def (import-def exp)
+  (cond ((= (len exp) 2) {import-name false module-name (car (cdr exp))})
+        ((= (len exp) 3) {import-name (car (cdr exp)) module-name (car (cdr (cdr exp)))})
+        (else invalid-import)))
+
+
 (def (eval-import env exp)
-  (let (import-name (car (cdr exp))
-        module-name (car (cdr (cdr exp)))
+  (def (define-import n m)
+    (if n
+      (define env n m)
+      (fold (fn (n m) (define env n (m n)) m)
+            m
+            (struct-names m))))
+  (let (i (import-def exp)
         current-import-path (module-path env))
-    (if (memq module-name current-import-path)
-      (fatal circular-import)
-      (let (module (loaded-module env module-name))
-        (cond ((= module undefined-module)
-               (let (exp (load-module env module-name))
-                 (define env import-name exp)))
-              ((error? module) (fatal module))
-              (else (define import-name module)))))))
+    (cond ((error? i) (fatal i))
+          ((memq i:module-name current-import-path)
+           (fatal circular-import))
+          (else (let (module (loaded-module env i:module-name))
+                  (cond ((= module undefined-module)
+                         (let (module (load-module env i:module-name))
+                           (define-import i:import-name module)))
+                        ((error? module) (fatal module))
+                        (else (define-import i:import-name module))))))))
 
 
 (def (eval-apply env exp)
