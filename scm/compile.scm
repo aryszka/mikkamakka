@@ -262,7 +262,8 @@
            (compile-load c i:module-name i:import-name))
           (else
             (let (cc (assign (compiler) {current-import-path (cons i:module-name c:current-import-path)
-                                         compiled-modules c:compiled-modules})
+                                         compiled-modules c:compiled-modules
+										 error c:error})
                   cr (compile-module cc i:module-name)
                   c (assign c {error cr:error compiled-modules (cons i:module-name c:compiled-modules)}))
               (compiler-compose
