@@ -405,9 +405,21 @@
 (def compiled-tail "}")
 
 
-(export compiler compiler
-        compile compile
-        compiled-head compiled-head
-        compiled-tail compiled-tail
-        compiler-compose compiler-compose
-        compiler-append compiler-append)
+(def (program-compiler)
+  (compiler-append (compiler) compiled-head))
+
+
+(def (program-compile c exp)
+  (compiler-compose
+	c
+	compile-statement exp
+	compiler-append ";\n"))
+
+
+(def (close-program-compiler c)
+  (compiler-append c compiled-tail))
+
+
+(export compiler program-compiler
+        compile program-compile
+		close-compiler close-program-compiler)

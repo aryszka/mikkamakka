@@ -154,4 +154,5 @@
         cond->if cond->if
         let-body let-body
         fn-signature fn-signature
-        import-def import-def)
+        import-def import-def
+		invalid-expression invalid-expression)

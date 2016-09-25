@@ -7,30 +7,6 @@ func main() {
 	env := mm.ExtendEnv(initialEnv, mm.NilVal, mm.NilVal)
 	mm.ModuleLoader(env, mm.SysStringToString("scm/lang.scm"), func(eenv *mm.Val) {
 		env := mm.ModuleEnv(eenv, mm.SysStringToString("scm/lang.scm"))
-		mm.Define(env, mm.SymbolFromRawString("trace"), mm.NewCompiled(1, true, func(a []*mm.Val) *mm.Val {
-			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("message"), mm.SymbolFromRawString("values")), mm.SliceToList(a))
-			env = env
-			mm.Define(env, mm.SymbolFromRawString("trace"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
-				env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("out"), mm.Cons(mm.SymbolFromRawString("values"), mm.NilVal)), mm.SliceToList(a))
-				env = env
-				return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-					env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
-					env = env
-					mm.Define(env, mm.SymbolFromRawString("out"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal))))
-					return func() *mm.Val {
-						if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("nil?")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal)) != mm.False {
-							return func() *mm.Val {
-								mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out:output")), mm.Cons(mm.SysStringToString("\n"), mm.NilVal)))
-								return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal))
-							}()
-						} else {
-							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("trace")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("output"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out:output")), mm.Cons(mm.SysStringToString(" "), mm.NilVal))), mm.NilVal))), mm.NilVal))), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal)))
-						}
-					}()
-				}), mm.NilVal)
-			}))
-			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("trace")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("printer")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stderr")), mm.NilVal), mm.NilVal)), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cons")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("message")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal))), mm.NilVal)))
-		}))
 		mm.Define(env, mm.SymbolFromRawString("id"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
 			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("x"), mm.NilVal), mm.SliceToList(a))
 			env = env
@@ -332,7 +308,7 @@ func main() {
 			env = env
 			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("part")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fold")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("call")), mm.NilVal))), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("f")), mm.NilVal)))
 		}))
-		mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("trace"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("trace")), mm.Cons(mm.SymbolFromRawString("id"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("id")), mm.Cons(mm.SymbolFromRawString("list"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("list")), mm.Cons(mm.SymbolFromRawString("apply"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("apply")), mm.Cons(mm.SymbolFromRawString("call"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("call")), mm.Cons(mm.SymbolFromRawString("fold"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fold")), mm.Cons(mm.SymbolFromRawString("foldr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("foldr")), mm.Cons(mm.SymbolFromRawString("map"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("map")), mm.Cons(mm.SymbolFromRawString("append"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("append")), mm.Cons(mm.SymbolFromRawString("part"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("part")), mm.Cons(mm.SymbolFromRawString("partr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.SymbolFromRawString("reverse"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("reverse")), mm.Cons(mm.SymbolFromRawString("reverse-irregular"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("reverse-irregular")), mm.Cons(mm.SymbolFromRawString("inc"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("inc")), mm.Cons(mm.SymbolFromRawString("dec"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("dec")), mm.Cons(mm.SymbolFromRawString(">="), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString(">=")), mm.Cons(mm.SymbolFromRawString("len"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("len")), mm.Cons(mm.SymbolFromRawString("mem"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("mem")), mm.Cons(mm.SymbolFromRawString("memq"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("memq")), mm.Cons(mm.SymbolFromRawString("notf"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("notf")), mm.Cons(mm.SymbolFromRawString("every?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("every?")), mm.Cons(mm.SymbolFromRawString("any?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("any?")), mm.Cons(mm.SymbolFromRawString("take"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("take")), mm.Cons(mm.SymbolFromRawString("drop"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("drop")), mm.Cons(mm.SymbolFromRawString("pad"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("pad")), mm.Cons(mm.SymbolFromRawString("padr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("padr")), mm.Cons(mm.SymbolFromRawString("flip"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("flip")), mm.Cons(mm.SymbolFromRawString("check-types"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("check-types")), mm.Cons(mm.SymbolFromRawString("compose"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compose")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+		mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("id"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("id")), mm.Cons(mm.SymbolFromRawString("list"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("list")), mm.Cons(mm.SymbolFromRawString("apply"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("apply")), mm.Cons(mm.SymbolFromRawString("call"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("call")), mm.Cons(mm.SymbolFromRawString("fold"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fold")), mm.Cons(mm.SymbolFromRawString("foldr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("foldr")), mm.Cons(mm.SymbolFromRawString("map"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("map")), mm.Cons(mm.SymbolFromRawString("append"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("append")), mm.Cons(mm.SymbolFromRawString("part"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("part")), mm.Cons(mm.SymbolFromRawString("partr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.SymbolFromRawString("reverse"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("reverse")), mm.Cons(mm.SymbolFromRawString("reverse-irregular"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("reverse-irregular")), mm.Cons(mm.SymbolFromRawString("inc"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("inc")), mm.Cons(mm.SymbolFromRawString("dec"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("dec")), mm.Cons(mm.SymbolFromRawString(">="), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString(">=")), mm.Cons(mm.SymbolFromRawString("len"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("len")), mm.Cons(mm.SymbolFromRawString("mem"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("mem")), mm.Cons(mm.SymbolFromRawString("memq"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("memq")), mm.Cons(mm.SymbolFromRawString("notf"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("notf")), mm.Cons(mm.SymbolFromRawString("every?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("every?")), mm.Cons(mm.SymbolFromRawString("any?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("any?")), mm.Cons(mm.SymbolFromRawString("take"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("take")), mm.Cons(mm.SymbolFromRawString("drop"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("drop")), mm.Cons(mm.SymbolFromRawString("pad"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("pad")), mm.Cons(mm.SymbolFromRawString("padr"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("padr")), mm.Cons(mm.SymbolFromRawString("flip"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("flip")), mm.Cons(mm.SymbolFromRawString("check-types"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("check-types")), mm.Cons(mm.SymbolFromRawString("compose"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compose")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 		mm.StoreModule(eenv, mm.SysStringToString("scm/lang.scm"), mm.Exports(env))
 	})
 	func() {
@@ -1334,7 +1310,7 @@ func main() {
 					}
 				}()
 			}))
-			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.Cons(mm.SymbolFromRawString("invalid-expression"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("invalid-expression")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 			mm.StoreModule(eenv, mm.SysStringToString("scm/code.scm"), mm.Exports(env))
 		})
 		func() {
@@ -1915,7 +1891,22 @@ func main() {
 		}))
 		mm.Define(env, mm.SymbolFromRawString("compiled-head"), mm.SysStringToString("package main\n\n     import mm \"github.com/aryszka/mikkamakka\"\n\n     func main() {\n          initialEnv := mm.InitialEnv()\n         env := mm.ExtendEnv(initialEnv, mm.NilVal, mm.NilVal)\n     "))
 		mm.Define(env, mm.SymbolFromRawString("compiled-tail"), mm.SysStringToString("}"))
-		mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("compiler"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiler")), mm.Cons(mm.SymbolFromRawString("compile"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compile")), mm.Cons(mm.SymbolFromRawString("compiled-head"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-head")), mm.Cons(mm.SymbolFromRawString("compiled-tail"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-tail")), mm.Cons(mm.SymbolFromRawString("compiler-compose"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiler-compose")), mm.Cons(mm.SymbolFromRawString("compiler-append"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiler-append")), mm.NilVal))))))))))))))
+		mm.Define(env, mm.SymbolFromRawString("program-compiler"), mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler-append")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler")), mm.NilVal), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-head")), mm.NilVal)))
+		}))
+		mm.Define(env, mm.SymbolFromRawString("program-compile"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("c"), mm.Cons(mm.SymbolFromRawString("exp"), mm.NilVal)), mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler-compose")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compile-statement")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("exp")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiler-append")), mm.Cons(mm.SysStringToString(";\n"), mm.NilVal))))))
+		}))
+		mm.Define(env, mm.SymbolFromRawString("close-program-compiler"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("c"), mm.NilVal), mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler-append")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-tail")), mm.NilVal)))
+		}))
+		mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("compiler"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("program-compiler")), mm.Cons(mm.SymbolFromRawString("compile"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("program-compile")), mm.Cons(mm.SymbolFromRawString("close-compiler"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("close-program-compiler")), mm.NilVal))))))))
 		mm.StoreModule(eenv, mm.SysStringToString("scm/compile.scm"), mm.Exports(env))
 	})
 	func() {
@@ -2293,7 +2284,7 @@ func main() {
 					}
 				}()
 			}))
-			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.Cons(mm.SymbolFromRawString("invalid-expression"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("invalid-expression")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 			mm.StoreModule(eenv, mm.SysStringToString("scm/code.scm"), mm.Exports(env))
 		})
 		func() {
@@ -3113,7 +3104,7 @@ func main() {
 					}
 				}()
 			}))
-			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+			mm.Export(env, mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("quote?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("quote?")), mm.Cons(mm.SymbolFromRawString("def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def?")), mm.Cons(mm.SymbolFromRawString("vector-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("vector-form?")), mm.Cons(mm.SymbolFromRawString("struct-form?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("struct-form?")), mm.Cons(mm.SymbolFromRawString("if?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if?")), mm.Cons(mm.SymbolFromRawString("and?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and?")), mm.Cons(mm.SymbolFromRawString("or?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or?")), mm.Cons(mm.SymbolFromRawString("fn?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn?")), mm.Cons(mm.SymbolFromRawString("begin?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("begin?")), mm.Cons(mm.SymbolFromRawString("cond?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond?")), mm.Cons(mm.SymbolFromRawString("let?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let?")), mm.Cons(mm.SymbolFromRawString("test?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("test?")), mm.Cons(mm.SymbolFromRawString("export?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("export?")), mm.Cons(mm.SymbolFromRawString("import?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import?")), mm.Cons(mm.SymbolFromRawString("application?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("application?")), mm.Cons(mm.SymbolFromRawString("current-env?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("current-env?")), mm.Cons(mm.SymbolFromRawString("make-fn"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("make-fn")), mm.Cons(mm.SymbolFromRawString("value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("value-def?")), mm.Cons(mm.SymbolFromRawString("valid-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-def?")), mm.Cons(mm.SymbolFromRawString("valid-value-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-value-def?")), mm.Cons(mm.SymbolFromRawString("valid-function-def?"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("valid-function-def?")), mm.Cons(mm.SymbolFromRawString("def-name"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-name")), mm.Cons(mm.SymbolFromRawString("def-value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("def-value")), mm.Cons(mm.SymbolFromRawString("and->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("and->if")), mm.Cons(mm.SymbolFromRawString("or->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("or->if")), mm.Cons(mm.SymbolFromRawString("cond->if"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cond->if")), mm.Cons(mm.SymbolFromRawString("let-body"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("let-body")), mm.Cons(mm.SymbolFromRawString("fn-signature"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("fn-signature")), mm.Cons(mm.SymbolFromRawString("import-def"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("import-def")), mm.Cons(mm.SymbolFromRawString("invalid-expression"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("invalid-expression")), mm.NilVal))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 			mm.StoreModule(eenv, mm.SysStringToString("scm/code.scm"), mm.Exports(env))
 		})
 		func() {
@@ -3373,103 +3364,206 @@ func main() {
 		}
 		mm.DefineAll(env, m)
 	}()
-	mm.Define(env, mm.SymbolFromRawString("read-eval-print"), mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-		env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+	mm.Define(env, mm.SymbolFromRawString("trace"), mm.NewCompiled(1, true, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("message"), mm.SymbolFromRawString("values")), mm.SliceToList(a))
 		env = env
-		mm.Define(env, mm.SymbolFromRawString("loop"), mm.NewCompiled(3, false, func(a []*mm.Val) *mm.Val {
-			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("env"), mm.Cons(mm.SymbolFromRawString("r"), mm.Cons(mm.SymbolFromRawString("p"), mm.NilVal))), mm.SliceToList(a))
+		mm.Define(env, mm.SymbolFromRawString("trace"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("out"), mm.Cons(mm.SymbolFromRawString("values"), mm.NilVal)), mm.SliceToList(a))
 			env = env
 			return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
 				env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
 				env = env
-				mm.Define(env, mm.SymbolFromRawString("r"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r")), mm.NilVal)))
+				mm.Define(env, mm.SymbolFromRawString("out"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal))))
 				return func() *mm.Val {
-					if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("eof")), mm.NilVal))) != mm.False {
-						return mm.SymbolFromRawString("ok")
-					} else {
+					if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("nil?")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal)) != mm.False {
 						return func() *mm.Val {
-							if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal)) != mm.False {
-								return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal))
-							} else {
-								return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-									env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
-									env = env
-									mm.Define(env, mm.SymbolFromRawString("v"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("eval-env")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("env")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal))))
-									return func() *mm.Val {
-										if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal)) != mm.False {
-											return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal))
-										} else {
-											return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-												env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
-												env = env
-												mm.Define(env, mm.SymbolFromRawString("p"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal))))
-												return func() *mm.Val {
-													if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p:state")), mm.NilVal)) != mm.False {
-														return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p:state")), mm.NilVal))
-													} else {
-														return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("env")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print-raw")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p")), mm.Cons(mm.SysStringToString("\n"), mm.NilVal))), mm.NilVal))))
-													}
-												}()
-											}), mm.NilVal)
-										}
-									}()
-								}), mm.NilVal)
-							}
+							mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out:output")), mm.Cons(mm.SysStringToString("\n"), mm.NilVal)))
+							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal))
 						}()
-					}
-				}()
-			}), mm.NilVal)
-		}))
-		return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(func() *mm.Val { return env }(), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("reader")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdin")), mm.NilVal), mm.NilVal)), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("printer")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdout")), mm.NilVal), mm.NilVal)), mm.NilVal))))
-	}))
-	mm.Define(env, mm.SymbolFromRawString("read-compile-write"), mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-		env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
-		env = env
-		mm.Define(env, mm.SymbolFromRawString("compile-top"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
-			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("c"), mm.Cons(mm.SymbolFromRawString("exp"), mm.NilVal)), mm.SliceToList(a))
-			env = env
-			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler-compose")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compile")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("exp")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiler-append")), mm.Cons(mm.SysStringToString(";"), mm.NilVal))))))
-		}))
-		mm.Define(env, mm.SymbolFromRawString("loop"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
-			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("r"), mm.Cons(mm.SymbolFromRawString("c"), mm.NilVal)), mm.SliceToList(a))
-			env = env
-			return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
-				env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
-				env = env
-				mm.Define(env, mm.SymbolFromRawString("r"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r")), mm.NilVal)))
-				return func() *mm.Val {
-					if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal)) != mm.False {
-						return mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:input")), mm.Cons(mm.SymbolFromRawString("output"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c:output")), mm.Cons(mm.SymbolFromRawString("read-error"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.Cons(mm.SymbolFromRawString("compile-error"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c:error")), mm.NilVal)))))))))
 					} else {
-						return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compile-top")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal))), mm.NilVal)))
+						return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("trace")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("output"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("out:output")), mm.Cons(mm.SysStringToString(" "), mm.NilVal))), mm.NilVal))), mm.NilVal))), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal)), mm.NilVal)))
 					}
 				}()
 			}), mm.NilVal)
 		}))
+		return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("trace")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("printer")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stderr")), mm.NilVal), mm.NilVal)), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cons")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("message")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("values")), mm.NilVal))), mm.NilVal)))
+	}))
+	mm.Define(env, mm.SymbolFromRawString("read-one"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.NilVal), mm.SliceToList(a))
+		env = env
 		return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
 			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
 			env = env
-			mm.Define(env, mm.SymbolFromRawString("r"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("reader")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdin")), mm.NilVal), mm.NilVal)), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler")), mm.NilVal), mm.NilVal))))
+			mm.Define(env, mm.SymbolFromRawString("r"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:reader")), mm.NilVal)))
 			return func() *mm.Val {
-				if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:compile-error")), mm.NilVal)) != mm.False {
-					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:compile-error")), mm.NilVal))
+				if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("eof")), mm.NilVal))) != mm.False {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("done"), mm.Cons(mm.True, mm.NilVal))), mm.NilVal)))
 				} else {
 					return func() *mm.Val {
-						if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:read-error")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("eof")), mm.NilVal))) != mm.False {
-							return func() *mm.Val {
-								mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fclose")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:input")), mm.NilVal))
-								mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdout")), mm.NilVal), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-head")), mm.NilVal)))
-								mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdout")), mm.NilVal), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:output")), mm.NilVal)))
-								mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdout")), mm.NilVal), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compiled-tail")), mm.NilVal)))
-								return mm.SymbolFromRawString("ok")
-							}()
+						if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal)) != mm.False {
+							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal))
 						} else {
-							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:read-error")), mm.NilVal))
+							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("reader"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r")), mm.Cons(mm.SymbolFromRawString("expression"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("r:state")), mm.NilVal))))), mm.NilVal)))
 						}
 					}()
 				}
 			}()
 		}), mm.NilVal)
 	}))
-	mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("read-compile-write")), mm.NilVal)
+	mm.Define(env, mm.SymbolFromRawString("eval-one"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.NilVal), mm.SliceToList(a))
+		env = env
+		return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+			env = env
+			mm.Define(env, mm.SymbolFromRawString("v"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("eval-env")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:environment")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:expression")), mm.NilVal))))
+			return func() *mm.Val {
+				if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal)) != mm.False {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal))
+				} else {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("value"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("v")), mm.NilVal))), mm.NilVal)))
+				}
+			}()
+		}), mm.NilVal)
+	}))
+	mm.Define(env, mm.SymbolFromRawString("print-out"), mm.NewCompiled(3, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.Cons(mm.SymbolFromRawString("print-func"), mm.Cons(mm.SymbolFromRawString("exp"), mm.NilVal))), mm.SliceToList(a))
+		env = env
+		return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+			env = env
+			mm.Define(env, mm.SymbolFromRawString("p"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print-func")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:printer")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("exp")), mm.NilVal))))
+			return func() *mm.Val {
+				if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p:state")), mm.NilVal)) != mm.False {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p:state")), mm.NilVal))
+				} else {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("printer"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("p")), mm.NilVal))), mm.NilVal)))
+				}
+			}()
+		}), mm.NilVal)
+	}))
+	mm.Define(env, mm.SymbolFromRawString("compile-one"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.NilVal), mm.SliceToList(a))
+		env = env
+		return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+			env = env
+			mm.Define(env, mm.SymbolFromRawString("c"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compile")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:compiler")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state:expression")), mm.NilVal))))
+			return func() *mm.Val {
+				if mm.LookupDef(env, mm.SymbolFromRawString("c:error")) != mm.False {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c:error")), mm.NilVal))
+				} else {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("assign")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("compiler"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c")), mm.Cons(mm.SymbolFromRawString("content"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("c:output")), mm.NilVal))))), mm.NilVal)))
+				}
+			}()
+		}), mm.NilVal)
+	}))
+	mm.Define(env, mm.SymbolFromRawString("write-out"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("output"), mm.Cons(mm.SymbolFromRawString("content"), mm.NilVal)), mm.SliceToList(a))
+		env = env
+		return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+			env = env
+			mm.Define(env, mm.SymbolFromRawString("output"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fwrite")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("content")), mm.NilVal))))
+			return func() *mm.Val {
+				if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fstate")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.NilVal)), mm.NilVal)) != mm.False {
+					return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fstate")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.NilVal)), mm.NilVal))
+				} else {
+					return mm.LookupDef(env, mm.SymbolFromRawString("output"))
+				}
+			}()
+		}), mm.NilVal)
+	}))
+	mm.Define(env, mm.SymbolFromRawString("loop"), mm.NewCompiled(1, true, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.SymbolFromRawString("f")), mm.SliceToList(a))
+		env = env
+		mm.Define(env, mm.SymbolFromRawString("if-not-done"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("f"), mm.NilVal), mm.SliceToList(a))
+			env = env
+			return mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+				env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.NilVal), mm.SliceToList(a))
+				env = env
+				return func() *mm.Val {
+					if mm.LookupDef(env, mm.SymbolFromRawString("loop-state:done")) != mm.False {
+						return mm.LookupDef(env, mm.SymbolFromRawString("loop-state"))
+					} else {
+						return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("f")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.NilVal))
+					}
+				}()
+			})
+		}))
+		mm.Define(env, mm.SymbolFromRawString("loop"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("loop-state"), mm.NilVal), mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("apply")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compose")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("map")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("if-not-done")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("append")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("f")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("list")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.NilVal)), mm.NilVal))), mm.NilVal))), mm.NilVal))), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.NilVal))
+		}))
+		return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop-state")), mm.NilVal))
+	}))
+	mm.Define(env, mm.SymbolFromRawString("read-eval-print"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.SymbolFromRawString("output"), mm.NilVal)), mm.SliceToList(a))
+		env = env
+		mm.Define(env, mm.SymbolFromRawString("print-one"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("repl"), mm.NilVal), mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print-out")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("repl")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("print")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("repl:value")), mm.NilVal))))
+		}))
+		mm.Define(env, mm.SymbolFromRawString("print-line"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+			env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("repl"), mm.NilVal), mm.SliceToList(a))
+			env = env
+			return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("print-out")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("repl")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("print-raw")), mm.Cons(mm.SysStringToString("\n"), mm.NilVal))))
+		}))
+		return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("reader"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("reader")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("input")), mm.NilVal)), mm.Cons(mm.SymbolFromRawString("environment"), mm.Cons(func() *mm.Val { return env }(), mm.Cons(mm.SymbolFromRawString("printer"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("printer")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.NilVal)), mm.Cons(mm.SymbolFromRawString("done"), mm.Cons(mm.False, mm.NilVal))))))))), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("read-one")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("eval-one")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("print-one")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("print-line")), mm.NilVal))))))
+	}))
+	mm.Define(env, mm.SymbolFromRawString("read-compile-write"), mm.NewCompiled(2, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.SymbolFromRawString("output"), mm.NilVal)), mm.SliceToList(a))
+		env = env
+		return mm.ApplySys(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compose")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("loop")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("read-one")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("compile-one")), mm.NilVal)))), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("call")), mm.Cons(mm.SymbolFromRawString("compiler"), mm.NilVal))), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("close-compiler")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("partr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("call")), mm.Cons(mm.SymbolFromRawString("output"), mm.NilVal))), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("part")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("write-out")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.NilVal))), mm.NilVal)))))), mm.Cons(mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("reader"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("reader")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("input")), mm.NilVal)), mm.Cons(mm.SymbolFromRawString("output"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("output")), mm.Cons(mm.SymbolFromRawString("compiler"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("compiler")), mm.NilVal), mm.Cons(mm.SymbolFromRawString("done"), mm.Cons(mm.False, mm.NilVal))))))))), mm.NilVal))
+	}))
+	mm.Define(env, mm.SymbolFromRawString("input"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("argv"), mm.NilVal), mm.SliceToList(a))
+		env = env
+		return func() *mm.Val {
+			if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("len")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.Cons(mm.SysIntToNumber(0), mm.NilVal))) != mm.False {
+				return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdin")), mm.NilVal)
+			} else {
+				return mm.ApplySys(mm.NewCompiled(0, false, func(a []*mm.Val) *mm.Val {
+					env := mm.ExtendEnv(env, mm.NilVal, mm.SliceToList(a))
+					env = env
+					mm.Define(env, mm.SymbolFromRawString("f"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fopen")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.NilVal)))
+					return func() *mm.Val {
+						if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("error?")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fstate")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("f")), mm.NilVal)), mm.NilVal)) != mm.False {
+							return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fstate")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("f")), mm.NilVal)), mm.NilVal))
+						} else {
+							return mm.LookupDef(env, mm.SymbolFromRawString("f"))
+						}
+					}()
+				}), mm.NilVal)
+			}
+		}()
+	}))
+	mm.Define(env, mm.SymbolFromRawString("command"), mm.NewCompiled(1, false, func(a []*mm.Val) *mm.Val {
+		env := mm.ExtendEnv(env, mm.Cons(mm.SymbolFromRawString("argv"), mm.NilVal), mm.SliceToList(a))
+		env = env
+		return func() *mm.Val {
+			if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("len")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.Cons(mm.SysIntToNumber(0), mm.NilVal))) != mm.False {
+				return mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("command"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("read-eval-print")), mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("input")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.NilVal)))))
+			} else {
+				return func() *mm.Val {
+					if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.Cons(mm.SysStringToString("compile"), mm.NilVal))) != mm.False {
+						return mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("command"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("read-compile-write")), mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("input")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.NilVal)), mm.NilVal)))))
+					} else {
+						return func() *mm.Val {
+							if mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("=")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("car")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.Cons(mm.SysStringToString("run"), mm.NilVal))) != mm.False {
+								return mm.ListToStruct(mm.Cons(mm.SymbolFromRawString("command"), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("read-eval-print")), mm.Cons(mm.SymbolFromRawString("input"), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("input")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal)), mm.NilVal)), mm.NilVal)))))
+							} else {
+								return mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("fatal")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("string->error")), mm.Cons(mm.SysStringToString("invalid command"), mm.NilVal)), mm.NilVal))
+							}
+						}()
+					}
+				}()
+			}
+		}()
+	}))
+	mm.Define(env, mm.SymbolFromRawString("cmd"), mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("command")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cdr")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("argv")), mm.NilVal), mm.NilVal)), mm.NilVal)))
+	mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("cmd:command")), mm.Cons(mm.LookupDef(env, mm.SymbolFromRawString("cmd:input")), mm.Cons(mm.ApplySys(mm.LookupDef(env, mm.SymbolFromRawString("stdout")), mm.NilVal), mm.NilVal)))
 }
