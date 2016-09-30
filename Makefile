@@ -18,7 +18,7 @@ install: build
 bootstrap/obj:
 	mkdir -p bootstrap/obj
 
-bootstrap:
+bootstrap: obj/mmfc
 	mkdir -p bootstrap/obj
 	go run bootstrap/bootstrap.go > bootstrap/obj/mm.go
 	go run bootstrap/obj/mm.go compile < scm/mm.scm > bootstrap/obj/mm-check.go
