@@ -1,45 +1,38 @@
 package mikkamakka
 
-type module struct {
-	all  map[string]*Val
+type moduleRef struct {
+	allModules  map[string]*Val
+	compiledModules map[string]func(*Val)
 	path *Val
+	export          map[string]*Val
 }
 
 type env struct {
 	current         map[string]*Val
 	parent          *Val
-	export          map[string]*Val
-	module          *module
-	compiledModules map[string]func(*Val)
+	module          *moduleRef
 }
 
 var (
 	Undefined        = SysStringToError("undefined")
-	NotAnEnvironment = SysStringToError("not an environment")
 	DefinitionExists = SysStringToError("definition exists")
 	UndefinedModule  = SysStringToError("undefined module")
 )
 
-func newEnv(p *Val, m *module) *Val {
-	if m == nil {
-		m = &module{make(map[string]*Val), NilVal}
-	}
+func newModuleRef() *moduleRef {
+	return &moduleRef{
+		allModules: make(map[string]*Val),
+		compiledModules: make(map[string]func(*Val)),
+		path: NilVal,
+		export: make(map[string]*Val)}
+}
 
-	var cm map[string]func(*Val)
-	if p == nil {
-		cm = make(map[string]func(*Val))
-	} else {
-		cm = p.value.(*env).compiledModules
-	}
-
+func newEnv() *Val {
 	return newVal(
 		Environment,
 		&env{
 			current:         make(map[string]*Val),
-			parent:          p,
-			module:          m,
-			export:          make(map[string]*Val),
-			compiledModules: cm,
+			module:          newModuleRef(),
 		},
 	)
 }
@@ -168,14 +161,17 @@ func defineAll(e, n, a *Val) *Val {
 
 func ExtendEnv(e, n, a *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	e = newEnv(e, env.module)
-	return defineAll(e, n, a)
+	ev := e.value.(*env)
+	ee := newEnv()
+	eev := ee.value.(*env)
+	eev.parent = e
+	eev.module = ev.module
+	return defineAll(ee, n, a)
 }
 
 func Export(e, s *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
+	ev := e.value.(*env)
 
 	n := StructNames(s)
 	for {
@@ -183,14 +179,14 @@ func Export(e, s *Val) *Val {
 			return s
 		}
 
-		env.export[SymbolToSysString(Car(n))], n = Field(s, Car(n)), Cdr(n)
+		ev.module.export[SymbolToSysString(Car(n))], n = Field(s, Car(n)), Cdr(n)
 	}
 }
 
 func Exports(e *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	return SysMapToStruct(env.export)
+	ev := e.value.(*env)
+	return SysMapToStruct(ev.module.export)
 }
 
 func ModulePath(e *Val) *Val {
@@ -201,14 +197,20 @@ func ModulePath(e *Val) *Val {
 
 func ModuleEnv(e, n *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	return newEnv(e, &module{env.module.all, Cons(n, env.module.path)})
+	ev := e.value.(*env)
+	ee := newEnv()
+	eev := ee.value.(*env)
+	eev.parent = e
+	eev.module.allModules = ev.module.allModules
+	eev.module.compiledModules = ev.module.compiledModules
+	eev.module.path = Cons(n, ev.module.path)
+	return ee
 }
 
 func LoadedModule(e, n *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	if exp, ok := env.module.all[StringToSysString(n)]; ok {
+	ev := e.value.(*env)
+	if exp, ok := ev.module.allModules[StringToSysString(n)]; ok {
 		return exp
 	}
 
@@ -217,21 +219,21 @@ func LoadedModule(e, n *Val) *Val {
 
 func StoreModule(e, n, m *Val) *Val {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	env.module.all[StringToSysString(n)] = m
+	ev := e.value.(*env)
+	ev.module.allModules[StringToSysString(n)] = m
 	return m
 }
 
 func ModuleLoader(e, n *Val, m func(*Val)) {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	env.compiledModules[StringToSysString(n)] = m
+	ev := e.value.(*env)
+	ev.module.compiledModules[StringToSysString(n)] = m
 }
 
 func LoadCompiledModule(e, n *Val) {
 	checkType(e, Environment)
-	env := e.value.(*env)
-	env.compiledModules[StringToSysString(n)](e)
+	ev := e.value.(*env)
+	ev.module.compiledModules[StringToSysString(n)](e)
 }
 
 func envString(e *Val) *Val {
@@ -276,7 +278,7 @@ func newBuiltin3(f func(*Val, *Val, *Val) *Val) *Val {
 }
 
 func InitialEnv() *Val {
-	env := newEnv(nil, nil)
+	env := newEnv()
 
 	defs := map[string]*Val{
 		"nil":                    NilVal,

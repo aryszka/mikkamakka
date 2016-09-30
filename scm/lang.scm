@@ -127,6 +127,9 @@
 (def (compose . f) (partr (part fold call) f))
 
 
+(def (chain in . f) ((apply compose f) in))
+
+
 (export id id
         list list
         apply apply
@@ -154,4 +157,5 @@
         padr padr
         flip flip
         check-types check-types
-        compose compose)
+        compose compose
+		chain chain)

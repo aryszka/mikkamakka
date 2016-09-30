@@ -1,11 +1,11 @@
 # Mikkamakka Functional Calculator
 
-MMFC is an extendable and programmable software calculator.
+MMFC is an extendable and programmable calculator.
 
 ### Work In Progress
 
-The current pre-release version is only capable to compile or interpret itself. Actual calculator functionality
-is going to be added as the programming platform reaches a more stable state.
+The current pre-release version is only capable to compile or interpret itself. Any actual calculator
+functionality is going to be added as the programming platform reaches a more stable state.
 
 ### Bootstrapping
 
@@ -14,7 +14,7 @@ is going to be added as the programming platform reaches a more stable state.
 - the Go platform [https://golang.org](https://golang.org)
 - make (preferrably GNU Make [https://www.gnu.org/software/make](https://www.gnu.org/software/make))
 
-##### Generate and install initial version from source:
+##### Generate and install the initial version from source:
 
 ```
 make bootstrap
@@ -22,7 +22,7 @@ make bootstrap
 
 ### Running MMFC
 
-MMFC can compile or run a custom dialect of Scheme LISP. Compilation means only transpilation to Go and running
+MMFC can compile or run a custom, Scheme-like dialect of LISP. Compilation means only transpilation to Go and running
 or installing the output requires the Go build environment. Interpreting MMFC code is possible without the Go
 environment:
 
@@ -33,7 +33,7 @@ mmfc my-code.scm
 or:
 
 ```
-mmfc run my-coce.scm
+mmfc run my-code.scm
 ```
 
 The interactive REPL mode can be started by simply:
