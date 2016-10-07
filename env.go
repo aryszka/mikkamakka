@@ -1,16 +1,16 @@
 package mikkamakka
 
 type moduleRef struct {
-	allModules  map[string]*Val
+	allModules      map[string]*Val
 	compiledModules map[string]func(*Val)
-	path *Val
+	path            *Val
 	export          map[string]*Val
 }
 
 type env struct {
-	current         map[string]*Val
-	parent          *Val
-	module          *moduleRef
+	current map[string]*Val
+	parent  *Val
+	module  *moduleRef
 }
 
 var (
@@ -21,18 +21,18 @@ var (
 
 func newModuleRef() *moduleRef {
 	return &moduleRef{
-		allModules: make(map[string]*Val),
+		allModules:      make(map[string]*Val),
 		compiledModules: make(map[string]func(*Val)),
-		path: NilVal,
-		export: make(map[string]*Val)}
+		path:            NilVal,
+		export:          make(map[string]*Val)}
 }
 
 func newEnv() *Val {
 	return newVal(
 		Environment,
 		&env{
-			current:         make(map[string]*Val),
-			module:          newModuleRef(),
+			current: make(map[string]*Val),
+			module:  newModuleRef(),
 		},
 	)
 }
@@ -114,7 +114,7 @@ func Define(e, n, v *Val) *Val {
 	return v
 }
 
-func DefineAll(e, s *Val) *Val {
+func DefineModule(e, s *Val) *Val {
 	n := StructNames(s)
 	for {
 		if IsNil(n) != False {

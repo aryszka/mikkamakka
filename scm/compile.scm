@@ -239,7 +239,7 @@
         compiler-append "mm.Define(env, "
         compile-literal import-name
         compiler-append ", m)")
-      (compiler-append c "mm.DefineAll(env, m)")))
+      (compiler-append c "mm.DefineModule(env, m)")))
   (def (compile-load c module-name import-name)
        (compiler-compose
          c
